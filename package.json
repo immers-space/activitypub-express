@@ -4,7 +4,7 @@
   "description": "Modular ActivityPub implementation as Express middleware to easily add decentralization and federation to Node apps",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jasmine"
   },
   "repository": {
     "type": "git",
@@ -22,5 +22,15 @@
   "bugs": {
     "url": "https://github.com/wmurphyrd/activitypub-express/issues"
   },
-  "homepage": "https://github.com/wmurphyrd/activitypub-express#readme"
+  "homepage": "https://github.com/wmurphyrd/activitypub-express#readme",
+  "dependencies": {
+    "http-signature": "github:wmurphyrd/node-http-signature#9c02eeb",
+    "mongodb": "^3.3.2",
+    "request": "^2.88.0",
+    "request-promise-native": "^1.0.7"
+  },
+  "devDependencies": {
+    "jasmine": "^3.5.0",
+    "standard": "^14.3.1"
+  }
 }
