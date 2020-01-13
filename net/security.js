@@ -1,6 +1,5 @@
 'use strict'
 const httpSignature = require('http-signature')
-const pub = require('../pub')
 // http communication middleware
 module.exports = {
   auth,
@@ -17,9 +16,10 @@ function auth (req, res, next) {
 
 async function verifySignature (req, res, next) {
   try {
+    const apex = req.__apex
     if (!req.get('authorization') && !req.get('signature')) {
       // support for apps not using signature extension to ActivityPub
-      const actor = await pub.object.resolveObject(pub.utils.actorFromActivity(req.body))
+      const actor = await apex.pub.object.resolveObject(apex.pub.utils.actorFromActivity(req.body))
       if (actor.publicKey && req.app.get('env') !== 'development') {
         console.log('Missing http signature')
         return res.status(400).send('Missing http signature')
@@ -27,7 +27,7 @@ async function verifySignature (req, res, next) {
       return next()
     }
     const sigHead = httpSignature.parse(req)
-    const signer = await pub.object.resolveObject(sigHead.keyId, req.app.get('db'))
+    const signer = await apex.pub.object.resolveObject(sigHead.keyId, req.app.get('db'))
     const valid = httpSignature.verifySignature(sigHead, signer.publicKey.publicKeyPem)
     if (!valid) {
       console.log('signature validation failure', sigHead.keyId)

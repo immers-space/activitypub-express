@@ -1,10 +1,9 @@
 'use strict'
-const config = require('../config.json')
 const pubConsts = require('./consts')
 
 module.exports = {
   actvityIdToIRI,
-  usernameToIRI,
+  usernameToIRIFactory,
   toJSONLD,
   arrayToCollection,
   actorFromActivity,
@@ -37,8 +36,8 @@ function toJSONLD (obj) {
   return obj
 }
 
-function usernameToIRI (user) {
-  return `https://${config.DOMAIN}/u/${user}`.toLowerCase()
+function usernameToIRIFactory (domain) {
+  return user => `https://${domain}/u/${user}`.toLowerCase()
 }
 
 function objectIdToIRI (oid) {

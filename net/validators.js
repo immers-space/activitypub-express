@@ -10,13 +10,16 @@ function activity (req, res, next) {
   if (!pub.utils.validateActivity(req.body)) {
     return res.status(400).send('Invalid activity')
   }
+  if (!req.body._meta) {
+    req.body._meta = {}
+  }
+  req.__apexLocal.activity = true
   next()
 }
 
 function jsonld (req, res, next) {
-  // we don't have to rule out HTML/browsers
-  // because history fallback catches them first
-  if (req.method === 'GET' && req.accepts(pub.consts.jsonldTypes)) {
+  // rule out */* requests
+  if (req.method === 'GET' && !req.accepts('text/html') && req.accepts(pub.consts.jsonldTypes)) {
     return next()
   }
   if (req.method === 'POST' && req.is(pub.consts.jsonldTypes)) {

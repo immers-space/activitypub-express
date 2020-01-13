@@ -5,12 +5,16 @@ module.exports = {
   save
 }
 
-function get (id) {
+const proj = { _id: 0, _meta: 0 }
+const metaProj = { _id: 0 }
+
+function get (id, includeMeta) {
   return connection.getDb()
     .collection('objects')
     .find({ id: id })
     .limit(1)
-    .project({ _id: 0, _meta: 0 })
+    // strict comparison as we don't want to return private keys on accident
+    .project(includeMeta === true ? metaProj : proj)
     .next()
 }
 

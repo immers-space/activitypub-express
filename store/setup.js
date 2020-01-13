@@ -1,6 +1,6 @@
 'use strict'
 const connection = require('./connection')
-module.exports = async function dbSetup (domain, dummyUser) {
+module.exports = async function dbSetup (dummyUser) {
   const db = connection.getDb()
   // inbox
   await db.collection('streams').createIndex({
