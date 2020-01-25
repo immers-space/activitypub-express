@@ -1,19 +1,9 @@
 const assert = require('assert')
 module.exports = {
-  async getTargetActor (req, res, next) {
+  setTargetActor (req, res, next) {
     assert(req.__apexLocal.activity)
-    const apex = req.__apex
-    const actor = req.params[apex.actorParam]
-    const actorIRI = apex.utils.usernameToIRI(actor)
-    let actorObj
-    try {
-      actorObj = await apex.store.object.get(actorIRI)
-    } catch (err) { return next(err) }
-    if (!actorObj) {
-      return res.status(404).send(`Recipient '${actor}' not found on this instance`)
-    }
-    req.body._meta._target = actorIRI
-    req.__apexLocal.target = actorObj
+    assert(req.__apexLocal.target)
+    req.body._meta._target = req.__apexLocal.target.id
     next()
   },
   save (req, res, next) {

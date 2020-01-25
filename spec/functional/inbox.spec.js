@@ -87,7 +87,7 @@ describe('inbox', function () {
         .post('/inbox/noone')
         .set('Content-Type', 'application/activity+json')
         .send(activity)
-        .expect(404, 'Recipient \'noone\' not found on this instance', done)
+        .expect(404, '\'noone\' not found on this instance', done)
     })
     // activity save
     it('saves activity', function (done) {
@@ -231,6 +231,9 @@ describe('inbox', function () {
           done()
         })
         .catch(done)
+    })
+    describe('get', function () {
+      it('')
     })
   })
 })
