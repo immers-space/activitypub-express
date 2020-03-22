@@ -4,6 +4,17 @@ Modular implementation of the ActivityPub decentralized social networking protoc
 written for NodeJS as ExpressJS middleware.
 Includes a interchangable storage interface with a default MongoDB implemenation.
 
+## Installation
+
+In order for http request signing to function correctly, a patched version of the `http-signature`
+library is required. To ensure that `request` library is using the correct version for its subdependency,
+you may need to dedupe after installation.
+
+```
+npm install --save activitypub-express
+npm dedupe
+```
+
 ## Usage
 
 ```js
@@ -38,6 +49,15 @@ client.connect({ useNewUrlParser: true })
 
 ## Implementation status
 
+* [ ] Shared server- & client-to-server
+  * [ ] Inbox GET
+  * [ ] Outbox GET
+  * [ ] Resource GET
+    * [ ] Object & Actor
+    * [ ] Activity
+    * [ ] Collection
+  * [ ] Security
+    * [ ] Permission-based filtering
 * [ ] Server-to-server
   * [x] Inbox POST
     * [x] Activity side-effects
@@ -54,17 +74,11 @@ client.connect({ useNewUrlParser: true })
       * [x] Undo
     * [x] Security
       * [x] Signature validation
-  * [ ] Outbox GET
-    * [ ] Security
-      * [ ] Permission-based filtering
-  * [ ] Resource GET
-    * [ ] Object & Actor
-    * [ ] Activity
-    * [ ] Collection
+  * [ ] Delivery
+    * [ ] Request signing
+    * [ ] Addressing
+    * [ ] Redelivery attempts
 * [ ] Client-to-server
-  * [x] Inbox GET
-    * [ ] Security
-      * [ ] Permission-based filtering
   * [ ] Outbox POST
     * [ ] Activity side-effects
       * [ ] Create
@@ -76,16 +90,12 @@ client.connect({ useNewUrlParser: true })
       * [ ] Like
       * [ ] Block
       * [ ] Undo
-    * [ ] Delivery
-      * [ ] Request signing
-      * [ ] Addressing
-      * [ ] Redelivery attempts
+    * [ ] Security
+      * [ ] Authorization
 * [ ] Other
   * [ ] Security
-    * [ ] Authentication and authorization
+    * [ ] Authentication
   * [ ] Related standards
     * [x] https-signature
     * [ ] webfinger
     * [ ] oauth
-
-
