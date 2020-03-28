@@ -43,6 +43,7 @@ const activity = {
 
 app.use(express.json({ type: apex.pub.consts.jsonldTypes }), apex)
 app.post('/inbox/:actor', apex.net.inbox.post)
+app.get('/inbox/:actor', apex.net.inbox.get)
 app.use(function (err, req, res, next) {
   console.log(err)
   next(err)
@@ -232,8 +233,36 @@ describe('inbox', function () {
         })
         .catch(done)
     })
-    describe('get', function () {
-      it('')
+  })
+  describe('get', function () {
+    it('returns inbox as ordered collection', (done) => {
+      const inbox = []
+      const meta = { _target: 'https://localhost/u/dummy' }
+      ;[1, 2, 3].forEach(i => {
+        inbox.push(Object.assign({}, activity, { id: `${activity.id}${i}`, _meta: meta }))
+      })
+      apex.store.connection.getDb()
+        .collection('streams')
+        .insertMany(inbox)
+        .then(inserted => {
+          const inboxCollection = {
+            '@context': ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1'],
+            type: 'OrderedCollection',
+            totalItems: 3,
+            // sort chronological, and remove internal artifacts
+            orderedItems: inbox.reverse().map(act => {
+              delete act['@context']
+              delete act._id
+              delete act._meta
+              return act
+            })
+          }
+          expect(inserted.insertedCount).toBe(3)
+          request(app)
+            .get('/inbox/dummy')
+            .set('Accept', 'application/activity+json')
+            .expect(200, inboxCollection, done)
+        })
     })
   })
 })
