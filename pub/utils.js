@@ -26,7 +26,7 @@ function arrayToCollection (arr, ordered) {
   return {
     '@context': pubConsts.ASContext,
     totalItems: arr.length,
-    type: ordered ? 'orderedCollection' : 'collection',
+    type: ordered ? 'OrderedCollection' : 'Collection',
     [ordered ? 'orderedItems' : 'items']: arr
   }
 }

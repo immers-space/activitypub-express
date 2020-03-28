@@ -50,12 +50,13 @@ client.connect({ useNewUrlParser: true })
 ## Implementation status
 
 * [ ] Shared server- & client-to-server
-  * [ ] Inbox GET
+  * [x] Inbox GET
   * [ ] Outbox GET
   * [ ] Resource GET
     * [ ] Object & Actor
     * [ ] Activity
     * [ ] Collection
+      * [ ] Pagination
   * [ ] Security
     * [ ] Permission-based filtering
 * [ ] Server-to-server

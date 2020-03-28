@@ -2,6 +2,7 @@
 const connection = require('./connection')
 module.exports = {
   get,
+  getStream,
   remove,
   save
 }
@@ -13,6 +14,16 @@ function get (id) {
     .limit(1)
     .project({ _id: 0, _meta: 0 })
     .next()
+}
+
+function getStream (actorId, idIsTargetActor) {
+  const query = connection.getDb()
+    .collection('streams')
+    .find({ [idIsTargetActor ? '_meta._target' : 'actor']: actorId })
+    .sort({ _id: -1 })
+    .project({ _id: 0, _meta: 0, '@context': 0, 'object._id': 0, 'object.@context': 0, 'object._meta': 0 })
+  // TODO: pagination
+  return query.toArray()
 }
 
 async function save (activity) {
