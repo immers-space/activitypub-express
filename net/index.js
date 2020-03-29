@@ -28,6 +28,10 @@ module.exports = {
   },
   outbox: {
     post: () => { throw new Error('not implemented') },
-    get: () => { throw new Error('not implemented') }
+    get: [
+      validators.jsonld,
+      validators.targetActor,
+      collection.outbox,
+    ]
   }
 }
