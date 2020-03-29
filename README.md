@@ -91,11 +91,12 @@ client.connect({ useNewUrlParser: true })
       * [ ] Like
       * [ ] Block
       * [ ] Undo
-    * [ ] Security
-      * [ ] Authorization
 * [ ] Other
   * [ ] Security
-    * [ ] Authentication
+    * [ ] Verification
+    * [ ] Rate limits
+    * [ ] localhost block
+    * [ ] Content sanitization
   * [ ] Related standards
     * [x] https-signature
     * [ ] webfinger
