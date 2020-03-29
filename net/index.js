@@ -25,5 +25,9 @@ module.exports = {
       validators.targetActor,
       collection.inbox
     ]
+  },
+  outbox: {
+    post: () => { throw new Error('not implemented') },
+    get: () => { throw new Error('not implemented') }
   }
 }
