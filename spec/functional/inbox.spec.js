@@ -64,11 +64,11 @@ describe('inbox', function () {
   })
   describe('post', function () {
     // validators jsonld
-    it('errors invalid body types', function (done) {
+    it('ignores invalid body types', function (done) {
       request(app)
         .post('/inbox/dummy')
         .send({})
-        .expect(400, done)
+        .expect(404, done)
     })
     // validators activity
     it('errors invalid activities', function (done) {
