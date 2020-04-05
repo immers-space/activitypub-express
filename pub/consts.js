@@ -5,7 +5,6 @@ module.exports = {
   ],
   jsonldTypes: [
     'application/activity+json',
-    'application/ld+json; profile="https://www.w3.org/ns/activitystreams"',
-    'application/json'
+    'application/ld+json; profile="https://www.w3.org/ns/activitystreams"'
   ]
 }
