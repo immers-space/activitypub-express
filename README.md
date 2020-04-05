@@ -51,7 +51,7 @@ client.connect({ useNewUrlParser: true })
 
 * [ ] Shared server- & client-to-server
   * [x] Inbox GET
-  * [ ] Outbox GET
+  * [x] Outbox GET
   * [ ] Resource GET
     * [ ] Object & Actor
     * [ ] Activity
@@ -80,7 +80,8 @@ client.connect({ useNewUrlParser: true })
     * [ ] Addressing
     * [ ] Redelivery attempts
 * [ ] Client-to-server
-  * [ ] Outbox POST
+  * [x] Outbox POST
+    * [x] Auto-Create for bare objects
     * [ ] Activity side-effects
       * [ ] Create
       * [ ] Update
@@ -92,6 +93,8 @@ client.connect({ useNewUrlParser: true })
       * [ ] Block
       * [ ] Undo
 * [ ] Other
+  * [ ] Actor creation
+    * [ ] Key generation
   * [ ] Security
     * [ ] Verification
     * [ ] Rate limits
@@ -101,3 +104,4 @@ client.connect({ useNewUrlParser: true })
     * [x] https-signature
     * [ ] webfinger
     * [ ] oauth
+  * [ ] Interchangable storage backend

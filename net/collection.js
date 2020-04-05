@@ -2,7 +2,7 @@ const assert = require('assert')
 
 module.exports = {
   inbox,
-  outbox,
+  outbox
 }
 
 function inbox (req, res, next) {

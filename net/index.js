@@ -18,7 +18,7 @@ module.exports = {
       validators.targetActor,
       activity.setTargetActor,
       activity.save,
-      activity.sideEffects
+      activity.inboxSideEffects
     ],
     get: [
       validators.jsonld,
@@ -27,11 +27,17 @@ module.exports = {
     ]
   },
   outbox: {
-    post: () => { throw new Error('not implemented') },
+    post: [
+      validators.jsonld,
+      validators.targetActor,
+      validators.outboxActivity,
+      activity.save,
+      activity.outboxSideEffects
+    ],
     get: [
       validators.jsonld,
       validators.targetActor,
-      collection.outbox,
+      collection.outbox
     ]
   }
 }

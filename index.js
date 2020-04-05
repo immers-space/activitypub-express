@@ -34,7 +34,9 @@ module.exports = function (settings) {
   apex.store = settings.store || defaultStore
   apex.actorParam = settings.actorParam || 'actor'
   apex.utils = {
-    usernameToIRI: settings.userNameToIRI || pub.utils.usernameToIRIFactory(settings.domain)
+    usernameToIRI: settings.userNameToIRI || pub.utils.idToIRIFactory(settings.domain, settings.userPath || 'u'),
+    objectIdToIRI: settings.objectIdToIRI || pub.utils.idToIRIFactory(settings.domain, settings.objectPath || 'o'),
+    activityIdToIRI: settings.activityIdToIRI || pub.utils.idToIRIFactory(settings.domain, settings.activityPath || 's')
   }
   return apex
 }

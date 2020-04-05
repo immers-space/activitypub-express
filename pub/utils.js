@@ -1,13 +1,12 @@
 'use strict'
+const store = require('../store')
 const pubConsts = require('./consts')
 
 module.exports = {
-  actvityIdToIRI,
-  usernameToIRIFactory,
+  idToIRIFactory,
   toJSONLD,
   arrayToCollection,
   actorFromActivity,
-  objectIdToIRI,
   validateActivity,
   validateObject
 }
@@ -36,27 +35,17 @@ function toJSONLD (obj) {
   return obj
 }
 
-function usernameToIRIFactory (domain) {
-  return user => `https://${domain}/u/${user}`.toLowerCase()
-}
-
-function objectIdToIRI (oid) {
-  if (oid.toHexString) {
-    oid = oid.toHexString()
+function idToIRIFactory (domain, path) {
+  return id => {
+    if (!id) {
+      id = store.utils.generateId()
+    }
+    return `https://${domain}/${path}/${id}`.toLowerCase()
   }
-  return `https://${config.DOMAIN}/o/${oid}`.toLowerCase()
-}
-
-function actvityIdToIRI (oid) {
-  if (oid.toHexString) {
-    oid = oid.toHexString()
-  }
-  return `https://${config.DOMAIN}/s/${oid}`.toLowerCase()
 }
 
 function validateObject (object) {
-  if (object && object.id) {
-    // object['@context'] = object['@context'] || pubConsts.ASContext
+  if (object && object.id && object.type) {
     return true
   }
 }

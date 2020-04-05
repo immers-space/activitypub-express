@@ -1,5 +1,4 @@
 'use strict'
-const { ObjectId } = require('mongodb')
 const store = require('../store')
 const pubUtils = require('./utils')
 const pubObject = require('./object')
@@ -11,11 +10,9 @@ module.exports = {
   undo
 }
 
-function build (type, actorId, object, to, cc, etc) {
-  const oid = new ObjectId()
+function build (iri, type, actorId, object, to, cc, etc) {
   const act = Object.assign({
-    // _id: oid,
-    id: pubUtils.actvityIdToIRI(oid),
+    id: iri,
     type,
     actor: actorId,
     object,
