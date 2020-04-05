@@ -31,7 +31,10 @@ const client = new MongoClient('mongodb://localhost:27017', { useUnifiedTopology
 
 app.use(express.json({ type: apex.pub.consts.jsonldTypes }), apex)
 // define routes using prepacakged middleware collections
+app.get('/inbox/:actor', apex.net.inbox.get)
 app.post('/inbox/:actor', apex.net.inbox.post)
+app.get('/outbox/:actor', apex.net.outbox.get)
+app.post('/outbox/:actor', apex.net.outbox.post)
 // custom side-effects for your app
 app.on('apex-create', msg => {
   console.log(`New ${msg.object.type} from ${msg.actor} to ${msg.recipient}`)
