@@ -35,6 +35,7 @@ app.get('/inbox/:actor', apex.net.inbox.get)
 app.post('/inbox/:actor', apex.net.inbox.post)
 app.get('/outbox/:actor', apex.net.outbox.get)
 app.post('/outbox/:actor', apex.net.outbox.post)
+app.get('/.well-known/webfinger', apex.net.webfinger)
 // custom side-effects for your app
 app.on('apex-create', msg => {
   console.log(`New ${msg.object.type} from ${msg.actor} to ${msg.recipient}`)
@@ -105,6 +106,6 @@ client.connect({ useNewUrlParser: true })
     * [ ] Content sanitization
   * [ ] Related standards
     * [x] https-signature
-    * [ ] webfinger
+    * [x] webfinger
     * [ ] oauth
   * [ ] Interchangable storage backend

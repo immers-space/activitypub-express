@@ -29,6 +29,7 @@ module.exports = function (settings) {
     onFinished(res, onFinishedHandler)
     next()
   }
+  apex.domain = settings.domain
   apex.pub = pub
   apex.net = net
   apex.store = settings.store || defaultStore
