@@ -78,7 +78,7 @@ client.connect({ useNewUrlParser: true })
       * [ ] Like
       * [ ] Announce
       * [x] Undo
-      * [ ] Other acivity types
+      * [x] Other acivity types
     * [x] Security
       * [x] Signature validation
   * [x] Delivery
@@ -98,7 +98,7 @@ client.connect({ useNewUrlParser: true })
       * [ ] Like
       * [ ] Block
       * [ ] Undo
-      * [ ] Other acivity types
+      * [x] Other acivity types
 * [ ] Other
   * [ ] Actor creation
     * [ ] Key generation

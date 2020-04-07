@@ -48,6 +48,10 @@ module.exports = {
         resLocal.eventName = 'apex-undo'
         toDo.push(apex.pub.activity.undo(req.body.object, req.body.actor))
         break
+      default:
+        resLocal.eventName = `apex-${activity.type.toLowerCase()}`
+        break
+
     }
     Promise.all(toDo).then(() => {
       res.status(200).send()
@@ -74,6 +78,9 @@ module.exports = {
         toDo.push(apex.pub.object.resolve(activity.object).then(object => {
           resLocal.eventMessage.object = object
         }))
+        break
+      default:
+        resLocal.eventName = `apex-${activity.type.toLowerCase()}`
         break
     }
     resLocal.postWork.push(() => apex.pub.activity.addToOutbox(actor, activity))
