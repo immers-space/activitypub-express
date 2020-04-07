@@ -24,6 +24,7 @@
   },
   "homepage": "https://github.com/wmurphyrd/activitypub-express#readme",
   "dependencies": {
+    "deepmerge": "^4.2.2",
     "express": "^4.17.1",
     "http-signature": "github:wmurphyrd/node-http-signature#9c02eeb",
     "mongodb": "^3.3.2",

@@ -6,6 +6,7 @@ const httpSignature = require('http-signature')
 const { MongoClient } = require('mongodb')
 const crypto = require('crypto')
 const { promisify } = require('util')
+const merge = require('deepmerge')
 const generateKeyPairPromise = promisify(crypto.generateKeyPair)
 
 const ActivitypubExpress = require('../../index')
@@ -185,8 +186,8 @@ describe('outbox', function () {
         .catch(done)
     })
     it('delivers messages to federation targets', function (done) {
-      const act = Object.assign({}, activity)
-      act.to = ['https://mocked.com/user/mocked']
+      const act = merge({}, activity)
+      act.to = act.object.to = ['https://mocked.com/user/mocked']
       nock('https://mocked.com')
         .get('/user/mocked')
         .reply(200, { id: 'https://mocked.com/user/mocked', inbox: 'https://mocked.com/inbox/mocked' })

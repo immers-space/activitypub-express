@@ -89,7 +89,7 @@ client.connect({ useNewUrlParser: true })
   * [x] Outbox POST
     * [x] Auto-Create for bare objects
     * [ ] Activity side-effects
-      * [ ] Create
+      * [x] Create
       * [ ] Update
       * [ ] Delete
       * [ ] Follow

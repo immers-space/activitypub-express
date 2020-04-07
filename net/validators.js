@@ -63,19 +63,35 @@ async function targetActorWithMeta (req, res, next) {
 }
 
 function outboxActivity (req, res, next) {
-  const actIRI = req.__apex.utils.activityIdToIRI()
-  req.body.id = actIRI
-  if (!pub.utils.validateActivity(req.body)) {
-    req.body.id = req.__apex.utils.objectIdToIRI()
-    if (!pub.utils.validateObject(req.body)) {
+  const actorIRI = req.__apexLocal.target.id
+  const activityIRI = req.__apex.utils.activityIdToIRI()
+  let activity = req.body
+  let object
+  activity.id = activityIRI
+  if (!pub.utils.validateActivity(activity)) {
+    // if not valid activity, check for valid object and wrap in Create
+    object = activity
+    object.id = req.__apex.utils.objectIdToIRI()
+    if (!pub.utils.validateObject(object)) {
       return res.status(400).send('Invalid activity')
     }
-    req.body.attributedTo = req.__apexLocal.target.id
+    object.attributedTo = actorIRI
     const extras = {}
-    req.body = req.__apex.pub.activity
-      .build(actIRI, 'Create', req.__apexLocal.target.id, req.body, req.body.to, req.body.cc, extras)
-  } else if (req.body.object) {
-    req.body.object.id = req.__apex.utils.objectIdToIRI()
+    activity = req.__apex.pub.activity
+      .build(activityIRI, 'Create', actorIRI, object, object.to, object.cc, extras)
+    req.body = activity
+  } else if (activity.object) {
+    object = activity.object
+    object.id = req.__apex.utils.objectIdToIRI()
+    // per spec, ensure attributedTo and audience fields in object are correct
+    object.attributedTo = actorIRI
+    ;['to', 'bto', 'cc', 'bcc', 'audience'].forEach(t => {
+      if (t in activity) {
+        object[t] = activity[t]
+      } else {
+        delete object[t]
+      }
+    })
   }
   req.__apexLocal.activity = true
   next()
