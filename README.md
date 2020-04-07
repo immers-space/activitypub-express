@@ -61,6 +61,7 @@ client.connect({ useNewUrlParser: true })
     * [ ] Activity
     * [ ] Collection
       * [ ] Pagination
+    * [ ] Relay requests for remote objets
   * [ ] Security
     * [ ] Permission-based filtering
 * [ ] Server-to-server
@@ -77,6 +78,7 @@ client.connect({ useNewUrlParser: true })
       * [ ] Like
       * [ ] Announce
       * [x] Undo
+      * [ ] Other acivity types
     * [x] Security
       * [x] Signature validation
   * [x] Delivery
@@ -96,6 +98,7 @@ client.connect({ useNewUrlParser: true })
       * [ ] Like
       * [ ] Block
       * [ ] Undo
+      * [ ] Other acivity types
 * [ ] Other
   * [ ] Actor creation
     * [ ] Key generation
@@ -108,4 +111,5 @@ client.connect({ useNewUrlParser: true })
     * [x] https-signature
     * [x] webfinger
     * [ ] oauth
+    * [ ] json-ld
   * [ ] Interchangable storage backend
