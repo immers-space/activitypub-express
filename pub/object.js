@@ -3,12 +3,11 @@ const store = require('../store')
 const federation = require('./federation')
 const pubUtils = require('./utils')
 module.exports = {
-  resolveObject,
-  resolve: resolveObject
+  resolve
 }
 
 // find object in local DB or fetch from origin server
-async function resolveObject (id) {
+async function resolve (id) {
   let object
   if (pubUtils.validateObject(id)) {
     // already an object

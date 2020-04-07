@@ -34,7 +34,7 @@ async function address (activity) {
     if (t === 'https://www.w3.org/ns/activitystreams#Public') {
       return null
     }
-    return pubObject.resolveObject(t)
+    return pubObject.resolve(t)
   })
   audience = await Promise.all(audience).then(addresses => {
     // TODO: spec says only deliver to actor-owned collections
@@ -43,10 +43,10 @@ async function address (activity) {
         return t
       }
       if (t && t.items) {
-        return t.items.map(pubObject.resolveObject)
+        return t.items.map(pubObject.resolve)
       }
       if (t && t.orderedItems) {
-        return t.orderedItems.map(pubObject.resolveObject)
+        return t.orderedItems.map(pubObject.resolve)
       }
     })
     // flattens and resolves collections
