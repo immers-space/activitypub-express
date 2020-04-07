@@ -1,4 +1,4 @@
-/* global describe, beforeAll, beforeEach, it, expect */
+/* global describe, beforeAll, beforeEach, it */
 const request = require('supertest')
 const express = require('express')
 const { MongoClient } = require('mongodb')

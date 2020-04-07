@@ -233,6 +233,32 @@ describe('inbox', function () {
         })
         .catch(done)
     })
+    it('fires other activity event', function (done) {
+      const arriveAct = {
+        '@context': 'https://www.w3.org/ns/activitystreams',
+        type: 'Arrive',
+        id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
+        to: ['https://localhost/u/dummy'],
+        actor: 'https://localhost/u/dummy',
+        location: {
+          type: 'Place',
+          name: 'Here'
+        }
+      }
+      app.once('apex-arrive', msg => {
+        expect(msg.actor).toBe('https://localhost/u/dummy')
+        expect(msg.recipient).toEqual(dummy)
+        arriveAct._meta = { _target: 'https://localhost/u/dummy' }
+        expect(msg.activity).toEqual(arriveAct)
+        done()
+      })
+      request(app)
+        .post('/inbox/dummy')
+        .set('Content-Type', 'application/activity+json')
+        .send(arriveAct)
+        .expect(200)
+        .end(err => { if (err) done(err) })
+    })
   })
   describe('get', function () {
     it('returns inbox as ordered collection', (done) => {

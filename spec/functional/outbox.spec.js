@@ -213,6 +213,47 @@ describe('outbox', function () {
           if (err) throw err
         })
     })
+    // activity side effects
+    it('fires create event', function (done) {
+      app.once('apex-create', msg => {
+        expect(msg.actor).toEqual(dummy)
+        delete msg.activity.id
+        delete msg.object.id
+        expect(msg.activity).toEqual(activity)
+        expect(msg.object).toEqual(activity.object)
+        done()
+      })
+      request(app)
+        .post('/outbox/dummy')
+        .set('Content-Type', 'application/activity+json')
+        .send(activity)
+        .expect(200)
+        .end(err => { if (err) done(err) })
+    })
+    it('fires other activity event', function (done) {
+      const arriveAct = {
+        '@context': 'https://www.w3.org/ns/activitystreams',
+        type: 'Arrive',
+        to: ['https://ignore.com/u/ignored'],
+        actor: 'https://localhost/u/dummy',
+        location: {
+          type: 'Place',
+          name: 'Here'
+        }
+      }
+      app.once('apex-arrive', msg => {
+        expect(msg.actor).toEqual(dummy)
+        delete msg.activity.id
+        expect(msg.activity).toEqual(arriveAct)
+        done()
+      })
+      request(app)
+        .post('/outbox/dummy')
+        .set('Content-Type', 'application/activity+json')
+        .send(arriveAct)
+        .expect(200)
+        .end(err => { if (err) done(err) })
+    })
   })
   describe('get', function () {
     it('returns outbox as ordered collection', (done) => {
