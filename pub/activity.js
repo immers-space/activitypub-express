@@ -59,16 +59,8 @@ async function address (activity) {
 }
 
 function addToOutbox (actor, activity) {
-  const tasks = [
-    store.stream.save(activity),
-    address(activity).then(addresses => pubFederation.deliver(actor, activity, addresses))
-  ]
-  // ensure activity object is cached if local, but do not try to resolve links
-  // because Mastodon won't resolve activity IRIs
-  if (pubUtils.validateObject(activity.object)) {
-    tasks.push(pubObject.resolve(activity.object))
-  }
-  return Promise.all(tasks)
+  return address(activity)
+    .then(addresses => pubFederation.deliver(actor, activity, addresses))
 }
 
 function undo (activity, undoActor) {

@@ -70,11 +70,13 @@ module.exports = {
     switch (activity.type.toLowerCase()) {
       case 'create':
         resLocal.eventName = 'apex-create'
+        // save created object
         toDo.push(apex.pub.object.resolve(activity.object).then(object => {
           resLocal.eventMessage.object = object
         }))
         break
     }
+    resLocal.postWork.push(() => apex.pub.activity.addToOutbox(actor, activity))
     Promise.all(toDo).then(() => {
       res.status(200).send()
     }).catch(next)

@@ -79,9 +79,9 @@ client.connect({ useNewUrlParser: true })
       * [x] Undo
     * [x] Security
       * [x] Signature validation
-  * [ ] Delivery
-    * [ ] Request signing
-    * [ ] Addressing
+  * [x] Delivery
+    * [x] Request signing
+    * [x] Addressing
     * [ ] Redelivery attempts
 * [ ] Client-to-server
   * [x] Outbox POST

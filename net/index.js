@@ -31,7 +31,7 @@ module.exports = {
   outbox: {
     post: [
       validators.jsonld,
-      validators.targetActor,
+      validators.targetActorWithMeta,
       validators.outboxActivity,
       activity.save,
       activity.outboxSideEffects

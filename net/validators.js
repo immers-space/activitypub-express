@@ -4,7 +4,8 @@ module.exports = {
   activity,
   jsonld,
   outboxActivity,
-  targetActor
+  targetActor,
+  targetActorWithMeta
 }
 
 function activity (req, res, next) {
@@ -44,6 +45,23 @@ async function targetActor (req, res, next) {
   next()
 }
 
+// help prevent accidental disclosure of actor private keys by only
+// including them when explicitly requested
+async function targetActorWithMeta (req, res, next) {
+  const apex = req.__apex
+  const actor = req.params[apex.actorParam]
+  const actorIRI = apex.utils.usernameToIRI(actor)
+  let actorObj
+  try {
+    actorObj = await apex.store.object.get(actorIRI, true)
+  } catch (err) { return next(err) }
+  if (!actorObj) {
+    return res.status(404).send(`'${actor}' not found on this instance`)
+  }
+  req.__apexLocal.target = actorObj
+  next()
+}
+
 function outboxActivity (req, res, next) {
   const actIRI = req.__apex.utils.activityIdToIRI()
   req.body.id = actIRI
@@ -58,9 +76,6 @@ function outboxActivity (req, res, next) {
       .build(actIRI, 'Create', req.__apexLocal.target.id, req.body, req.body.to, req.body.cc, extras)
   } else if (req.body.object) {
     req.body.object.id = req.__apex.utils.objectIdToIRI()
-  }
-  if (!req.body._meta) {
-    req.body._meta = {}
   }
   req.__apexLocal.activity = true
   next()
