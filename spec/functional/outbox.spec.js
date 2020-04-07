@@ -1,7 +1,12 @@
-/* global describe, beforeAll, beforeEach, it, expect */
+/* global describe, beforeAll, beforeEach, afterEach, it, expect */
 const request = require('supertest')
 const express = require('express')
+const nock = require('nock')
+const httpSignature = require('http-signature')
 const { MongoClient } = require('mongodb')
+const crypto = require('crypto')
+const { promisify } = require('util')
+const generateKeyPairPromise = promisify(crypto.generateKeyPair)
 
 const ActivitypubExpress = require('../../index')
 
@@ -11,6 +16,9 @@ const apex = ActivitypubExpress({
 })
 const client = new MongoClient('mongodb://localhost:27017', { useUnifiedTopology: true, useNewUrlParser: true })
 const dummy = {
+  _meta: {
+    privateKey: undefined
+  },
   id: 'https://localhost/u/dummy',
   type: 'Person',
   following: 'https://localhost/u/dummy/following',
@@ -21,6 +29,11 @@ const dummy = {
   preferredUsername: 'dummy',
   name: 'dummy group',
   summary: 'dummy',
+  publicKey: {
+    id: 'https://localhost/u/dummy#main-key',
+    owner: 'https://localhost/u/dummy',
+    publicKeyPem: undefined
+  },
   '@context': [
     'https://www.w3.org/ns/activitystreams',
     'https://w3id.org/security/v1'
@@ -29,14 +42,12 @@ const dummy = {
 const activity = {
   '@context': 'https://www.w3.org/ns/activitystreams',
   type: 'Create',
-  // id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
-  to: ['https://localhost/u/dummy'],
+  to: ['https://ignore.com/u/ignored'],
   actor: 'https://localhost/u/dummy',
   object: {
     type: 'Note',
-    // id: 'https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19',
     attributedTo: 'https://localhost/u/dummy',
-    to: ['https://localhost/u/dummy'],
+    to: ['https://ignore.com/u/ignored'],
     content: 'Say, did you finish reading that book I lent you?'
   }
 }
@@ -51,9 +62,31 @@ app.use(function (err, req, res, next) {
 
 describe('outbox', function () {
   beforeAll(function (done) {
-    client.connect({ useNewUrlParser: true }).then(done)
+    generateKeyPairPromise('rsa', {
+      modulusLength: 4096,
+      publicKeyEncoding: {
+        type: 'spki',
+        format: 'pem'
+      },
+      privateKeyEncoding: {
+        type: 'pkcs8',
+        format: 'pem'
+      }
+    }).then(pair => {
+      dummy._meta.privateKey = pair.privateKey
+      dummy.publicKey.publicKeyPem = pair.publicKey
+      return client.connect({ useNewUrlParser: true })
+    }).then(done)
   })
   beforeEach(function (done) {
+    // block federation attempts
+    nock('https://ignore.com')
+      .get(() => true)
+      .reply(200, {})
+      .persist()
+      .post(() => true)
+      .reply(200)
+      .persist()
     // reset db for each test
     client.db('apexTestingTempDb').dropDatabase()
       .then(() => {
@@ -61,6 +94,9 @@ describe('outbox', function () {
         return apex.store.setup(dummy)
       })
       .then(done)
+  })
+  afterEach(function () {
+    nock.cleanAll()
   })
   describe('post', function () {
     // validators jsonld
@@ -147,6 +183,35 @@ describe('outbox', function () {
           done()
         })
         .catch(done)
+    })
+    it('delivers messages to federation targets', function (done) {
+      const act = Object.assign({}, activity)
+      act.to = ['https://mocked.com/user/mocked']
+      nock('https://mocked.com')
+        .get('/user/mocked')
+        .reply(200, { id: 'https://mocked.com/user/mocked', inbox: 'https://mocked.com/inbox/mocked' })
+      nock('https://mocked.com').post('/inbox/mocked')
+        .reply(200)
+        .on('request', (req, interceptor, body) => {
+          // correctly formed activity sent
+          const sentActivity = JSON.parse(body)
+          delete sentActivity.id
+          delete sentActivity.object.id
+          expect(sentActivity).toEqual(act)
+          // valid signature
+          req.originalUrl = req.path
+          const sigHead = httpSignature.parse(req)
+          expect(httpSignature.verifySignature(sigHead, dummy.publicKey.publicKeyPem)).toBeTruthy()
+          done()
+        })
+      request(app)
+        .post('/outbox/dummy')
+        .set('Content-Type', 'application/activity+json')
+        .send(act)
+        .expect(200)
+        .end(function (err) {
+          if (err) throw err
+        })
     })
   })
   describe('get', function () {
