@@ -7,7 +7,17 @@ const ActivitypubExpress = require('../../index')
 
 const app = express()
 const apex = ActivitypubExpress({
-  domain: 'localhost'
+  domain: 'localhost',
+  actorParam: 'actor',
+  objectParam: 'id',
+  activityParam: 'id',
+  routes: {
+    actor: '/u/:actor',
+    object: '/o/:id',
+    activity: '/s/:id',
+    inbox: '/inbox/:actor',
+    outbox: '/outbox/:actor'
+  }
 })
 const client = new MongoClient('mongodb://localhost:27017', { useUnifiedTopology: true, useNewUrlParser: true })
 const dummy = {

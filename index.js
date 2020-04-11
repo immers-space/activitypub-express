@@ -29,15 +29,16 @@ module.exports = function (settings) {
     onFinished(res, onFinishedHandler)
     next()
   }
+  apex.settings = settings
   apex.domain = settings.domain
   apex.pub = pub
   apex.net = net
   apex.store = settings.store || defaultStore
-  apex.actorParam = settings.actorParam || 'actor'
+  apex.actorParam = settings.actorParam
   apex.utils = {
-    usernameToIRI: settings.userNameToIRI || pub.utils.idToIRIFactory(settings.domain, settings.userPath || 'u'),
-    objectIdToIRI: settings.objectIdToIRI || pub.utils.idToIRIFactory(settings.domain, settings.objectPath || 'o'),
-    activityIdToIRI: settings.activityIdToIRI || pub.utils.idToIRIFactory(settings.domain, settings.activityPath || 's')
+    usernameToIRI: pub.utils.idToIRIFactory(settings.domain, settings.routes.actor, settings.actorParam),
+    objectIdToIRI: pub.utils.idToIRIFactory(settings.domain, settings.routes.object, settings.objectParam),
+    activityIdToIRI: pub.utils.idToIRIFactory(settings.domain, settings.routes.activity, settings.activityParam)
   }
   return apex
 }

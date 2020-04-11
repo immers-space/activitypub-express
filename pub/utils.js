@@ -35,12 +35,13 @@ function toJSONLD (obj) {
   return obj
 }
 
-function idToIRIFactory (domain, path) {
+function idToIRIFactory (domain, route, param) {
+  const colonParam = `:${param}`
   return id => {
     if (!id) {
       id = store.utils.generateId()
     }
-    return `https://${domain}/${path}/${id}`.toLowerCase()
+    return `https://${domain}${route.replace(colonParam, id)}`.toLowerCase()
   }
 }
 
