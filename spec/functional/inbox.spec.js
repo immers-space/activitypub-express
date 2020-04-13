@@ -23,19 +23,32 @@ const client = new MongoClient('mongodb://localhost:27017', { useUnifiedTopology
 const dummy = {
   id: 'https://localhost/u/dummy',
   type: 'Person',
-  following: 'https://localhost/u/dummy/following',
-  followers: 'https://localhost/u/dummy/followers',
-  liked: 'https://localhost/u/dummy/liked',
-  inbox: 'https://localhost/u/dummy/inbox',
-  outbox: 'https://localhost/u/dummy/outbox',
-  preferredUsername: 'dummy',
-  name: 'dummy group',
-  summary: 'dummy',
-  '@context': [
-    'https://www.w3.org/ns/activitystreams',
-    'https://w3id.org/security/v1'
+  inbox: [
+    'https://localhost/u/dummy/inbox'
+  ],
+  followers: [
+    'https://localhost/u/dummy/followers'
+  ],
+  following: [
+    'https://localhost/u/dummy/following'
+  ],
+  liked: [
+    'https://localhost/u/dummy/liked'
+  ],
+  name: [
+    'dummy group'
+  ],
+  outbox: [
+    'https://localhost/u/dummy/outbox'
+  ],
+  preferredUsername: [
+    'dummy'
+  ],
+  summary: [
+    'dummy'
   ]
 }
+
 const activity = {
   '@context': 'https://www.w3.org/ns/activitystreams',
   type: 'Create',
@@ -49,6 +62,32 @@ const activity = {
     to: ['https://localhost/u/dummy'],
     content: 'Say, did you finish reading that book I lent you?'
   }
+}
+
+const activityNormalized = {
+  id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
+  type: 'Create',
+  actor: [
+    'https://localhost/u/dummy'
+  ],
+  object: [
+    {
+      id: 'https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19',
+      type: 'Note',
+      attributedTo: [
+        'https://localhost/u/dummy'
+      ],
+      content: [
+        'Say, did you finish reading that book I lent you?'
+      ],
+      to: [
+        'https://localhost/u/dummy'
+      ]
+    }
+  ],
+  to: [
+    'https://localhost/u/dummy'
+  ]
 }
 
 app.use(express.json({ type: apex.pub.consts.jsonldTypes }), apex)
@@ -116,7 +155,7 @@ describe('inbox', function () {
           expect(act._meta._target).toBe('https://localhost/u/dummy')
           delete act._meta
           delete act._id
-          expect(act).toEqual(activity)
+          expect(act).toEqual(activityNormalized)
           done()
         })
         .catch(done)
@@ -126,9 +165,9 @@ describe('inbox', function () {
       app.once('apex-create', msg => {
         expect(msg.actor).toBe('https://localhost/u/dummy')
         expect(msg.recipient).toEqual(dummy)
-        const act = Object.assign({ _meta: { _target: 'https://localhost/u/dummy' } }, activity)
+        const act = Object.assign({ _meta: { _target: 'https://localhost/u/dummy' } }, activityNormalized)
         expect(msg.activity).toEqual(act)
-        expect(msg.object).toEqual(activity.object)
+        expect(msg.object).toEqual(activityNormalized.object[0])
         done()
       })
       request(app)
@@ -151,7 +190,7 @@ describe('inbox', function () {
         })
         .then(obj => {
           delete obj._id
-          expect(obj).toEqual(activity.object)
+          expect(obj).toEqual(activityNormalized.object[0])
           done()
         })
         .catch(done)
@@ -258,8 +297,17 @@ describe('inbox', function () {
       app.once('apex-arrive', msg => {
         expect(msg.actor).toBe('https://localhost/u/dummy')
         expect(msg.recipient).toEqual(dummy)
-        arriveAct._meta = { _target: 'https://localhost/u/dummy' }
-        expect(msg.activity).toEqual(arriveAct)
+        expect(msg.activity).toEqual({
+          _meta: { _target: 'https://localhost/u/dummy' },
+          type: 'Arrive',
+          id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
+          to: ['https://localhost/u/dummy'],
+          actor: ['https://localhost/u/dummy'],
+          location: [{
+            type: 'Place',
+            name: ['Here']
+          }]
+        })
         done()
       })
       request(app)

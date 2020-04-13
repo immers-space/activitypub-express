@@ -40,18 +40,17 @@ module.exports = {
         break
       case 'create':
         resLocal.eventName = 'apex-create'
-        toDo.push(apex.pub.object.resolve(activity.object).then(object => {
+        toDo.push(apex.pub.object.resolve(activity.object[0]).then(object => {
           resLocal.eventMessage.object = object
         }))
         break
       case 'undo':
         resLocal.eventName = 'apex-undo'
-        toDo.push(apex.pub.activity.undo(req.body.object, req.body.actor))
+        toDo.push(apex.pub.activity.undo(activity.object[0], actor))
         break
       default:
         resLocal.eventName = `apex-${activity.type.toLowerCase()}`
         break
-
     }
     Promise.all(toDo).then(() => {
       res.status(200).send()

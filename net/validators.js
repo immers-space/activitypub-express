@@ -17,13 +17,19 @@ function activity (req, res, next) {
   next()
 }
 
-function jsonld (req, res, next) {
+async function jsonld (req, res, next) {
   const apex = req.__apex
   // rule out */* requests
   if (req.method === 'GET' && !req.accepts('text/html') && req.accepts(apex.pub.consts.jsonldTypes)) {
     return next()
   }
   if (req.method === 'POST' && req.is(apex.pub.consts.jsonldTypes)) {
+    try {
+      req.body = await apex.pub.utils.fromJSONLD(req.body, apex.context)
+    } catch (err) {
+      console.error('jsonld validation', err)
+      res.status(400).send('Request body is not valid JSON-LD')
+    }
     return next()
   }
   next('route')
