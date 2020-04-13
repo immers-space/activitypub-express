@@ -83,7 +83,7 @@ module.exports = {
         resLocal.eventName = `apex-${activity.type.toLowerCase()}`
         break
     }
-    resLocal.postWork.push(() => apex.pub.activity.addToOutbox(actor, activity))
+    resLocal.postWork.push(() => apex.pub.activity.addToOutbox(actor, activity, apex.context))
     Promise.all(toDo).then(() => {
       res.status(200).send()
     }).catch(next)

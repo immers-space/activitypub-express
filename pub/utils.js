@@ -1,10 +1,12 @@
 'use strict'
 const store = require('../store')
 const pubConsts = require('./consts')
+const jsonld = require('jsonld')
 
 module.exports = {
   idToIRIFactory,
   toJSONLD,
+  fromJSONLD,
   arrayToCollection,
   actorFromActivity,
   validateActivity,
@@ -12,13 +14,14 @@ module.exports = {
 }
 
 function actorFromActivity (activity) {
-  if (Object.prototype.toString.call(activity.actor) === '[object String]') {
-    return activity.actor
+  const actor = activity.actor[0]
+  if (Object.prototype.toString.call(actor) === '[object String]') {
+    return actor
   }
   if (activity.actor.type === 'Link') {
-    return activity.actor.href
+    return actor.href
   }
-  return activity.actor.id
+  return actor.id
 }
 
 function arrayToCollection (arr, ordered) {
@@ -29,10 +32,22 @@ function arrayToCollection (arr, ordered) {
     [ordered ? 'orderedItems' : 'items']: arr
   }
 }
-
-function toJSONLD (obj) {
-  obj['@context'] = obj['@context'] || pubConsts.ASContext
-  return obj
+// convert incoming json-ld to local context and
+// partially expanded format for consistent property access
+async function fromJSONLD (obj, targetContext) {
+  const compact = await jsonld.compact(obj, targetContext, {
+    // don't unbox arrays so that object structure will be predictable
+    compactArrays: false
+  })
+  // strip context and graph wrapper for easier access
+  return compact['@graph'][0]
+}
+// convert outgoing json-ld to fully compact format
+function toJSONLD (obj, targetContext) {
+  return jsonld.compact(obj, targetContext, {
+    // must supply initial context because it was stripped for easy handling
+    expandContext: targetContext
+  })
 }
 
 function idToIRIFactory (domain, route, param) {
@@ -52,7 +67,38 @@ function validateObject (object) {
 }
 
 function validateActivity (object) {
-  if (object && object.id && object.actor) {
+  if (validateObject(object) && Array.isArray(object.actor) && object.actor.length) {
     return true
   }
 }
+
+// TODO: enable caching and/or local copies of contexts for json-ld processor
+/*
+// how to override the default document loader with a custom one -- for
+// example, one that uses pre-loaded contexts:
+
+// define a mapping of context URL => context doc
+const CONTEXTS = {
+  "http://example.com": {
+    "@context": ...
+  }, ...
+};
+
+// grab the built-in node.js doc loader
+const nodeDocumentLoader = jsonld.documentLoaders.node();
+// or grab the XHR one: jsonld.documentLoaders.xhr()
+
+// change the default document loader
+const customLoader = async (url, options) => {
+  if (url in CONTEXTS) {
+    return {
+      contextUrl: null, // this is for a context via a link header
+      document: CONTEXTS[url], // this is the actual document that was loaded
+      documentUrl: url // this is the actual context URL after redirects
+    };
+  }
+  // call the default documentLoader
+  return nodeDocumentLoader(url);
+};
+jsonld.documentLoader = customLoader;
+*/

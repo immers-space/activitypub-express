@@ -58,9 +58,10 @@ async function address (activity) {
   return Array.from(new Set(audience))
 }
 
-function addToOutbox (actor, activity) {
-  return address(activity)
-    .then(addresses => pubFederation.deliver(actor, activity, addresses))
+async function addToOutbox (actor, activity, context) {
+  const tasks = [address(activity), pubUtils.toJSONLD(activity, context)]
+  const [addresses, outgoingActivity] = await Promise.all(tasks)
+  return pubFederation.deliver(actor, outgoingActivity, addresses)
 }
 
 function undo (activity, undoActor) {
