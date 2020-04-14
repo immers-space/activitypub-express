@@ -124,7 +124,7 @@ describe('inbox', function () {
       request(app)
         .post('/inbox/dummy')
         .set('Content-Type', 'application/activity+json')
-        .send({})
+        .send({ actor: 'bob', '@context': 'https://www.w3.org/ns/activitystreams' })
         .expect(400, 'Invalid activity', done)
     })
     // security verifySignature

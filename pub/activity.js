@@ -14,8 +14,8 @@ function build (iri, type, actorId, object, to, cc, etc) {
   const act = Object.assign({
     id: iri,
     type,
-    actor: actorId,
-    object,
+    actor: [actorId],
+    object: [object],
     to,
     cc,
     published: new Date().toISOString()

@@ -51,18 +51,44 @@ const dummy = {
   ]
 }
 const activity = {
-  '@context': 'https://www.w3.org/ns/activitystreams',
+  '@context': [
+    'https://www.w3.org/ns/activitystreams',
+    'https://w3id.org/security/v1'
+  ],
   type: 'Create',
-  to: ['https://ignore.com/u/ignored'],
+  to: 'https://ignore.com/u/ignored',
   actor: 'https://localhost/u/dummy',
   object: {
     type: 'Note',
     attributedTo: 'https://localhost/u/dummy',
-    to: ['https://ignore.com/u/ignored'],
+    to: 'https://ignore.com/u/ignored',
     content: 'Say, did you finish reading that book I lent you?'
   }
 }
 
+const activityNormalized = {
+  type: 'Create',
+  actor: [
+    'https://localhost/u/dummy'
+  ],
+  object: [
+    {
+      type: 'Note',
+      attributedTo: [
+        'https://localhost/u/dummy'
+      ],
+      content: [
+        'Say, did you finish reading that book I lent you?'
+      ],
+      to: [
+        'https://ignore.com/u/ignored'
+      ]
+    }
+  ],
+  to: [
+    'https://ignore.com/u/ignored'
+  ]
+}
 app.use(express.json({ type: apex.pub.consts.jsonldTypes }), apex)
 app.get('/outbox/:actor', apex.net.outbox.get)
 app.post('/outbox/:actor', apex.net.outbox.post)
@@ -122,7 +148,7 @@ describe('outbox', function () {
       request(app)
         .post('/outbox/dummy')
         .set('Content-Type', 'application/activity+json')
-        .send({})
+        .send({ actor: 'bob', '@context': 'https://www.w3.org/ns/activitystreams' })
         .expect(400, 'Invalid activity', done)
     })
     // activity getTargetActor
@@ -149,8 +175,8 @@ describe('outbox', function () {
           delete act._meta
           delete act._id
           delete act.id
-          delete act.object.id
-          expect(act).toEqual(activity)
+          delete act.object[0].id
+          expect(act).toEqual(activityNormalized)
           done()
         })
         .catch(done)
@@ -164,23 +190,25 @@ describe('outbox', function () {
         .then(() => {
           return apex.store.connection.getDb()
             .collection('objects')
-            .findOne({ attributedTo: 'https://localhost/u/dummy' })
+            .findOne({ attributedTo: ['https://localhost/u/dummy'] })
         })
         .then(o => {
           delete o._meta
           delete o._id
           expect(o.id).not.toBeFalsy()
           delete o.id
-          expect(o).toEqual(activity.object)
+          expect(o).toEqual(activityNormalized.object[0])
           done()
         })
         .catch(done)
     })
     it('wraps a bare object in a create activity', function (done) {
+      const bareObj = merge({}, activity.object)
+      bareObj['@context'] = 'https://www.w3.org/ns/activitystreams'
       request(app)
         .post('/outbox/dummy')
         .set('Content-Type', 'application/activity+json')
-        .send(activity.object)
+        .send(bareObj)
         .expect(200)
         .then(() => {
           return apex.store.connection.getDb()
@@ -189,15 +217,15 @@ describe('outbox', function () {
         })
         .then(act => {
           expect(act.type).toBe('Create')
-          delete act.object.id
-          expect(act.object).toEqual(activity.object)
+          delete act.object[0].id
+          expect(act.object[0]).toEqual(activityNormalized.object[0])
           done()
         })
         .catch(done)
     })
     it('delivers messages to federation targets', function (done) {
       const act = merge({}, activity)
-      act.to = act.object.to = ['https://mocked.com/user/mocked']
+      act.to = act.object.to = 'https://mocked.com/user/mocked'
       nock('https://mocked.com')
         .get('/user/mocked')
         .reply(200, { id: 'https://mocked.com/user/mocked', inbox: 'https://mocked.com/inbox/mocked' })
@@ -230,8 +258,8 @@ describe('outbox', function () {
         expect(msg.actor).toEqual(dummy)
         delete msg.activity.id
         delete msg.object.id
-        expect(msg.activity).toEqual(activity)
-        expect(msg.object).toEqual(activity.object)
+        expect(msg.activity).toEqual(activityNormalized)
+        expect(msg.object).toEqual(activityNormalized.object[0])
         done()
       })
       request(app)
@@ -255,7 +283,15 @@ describe('outbox', function () {
       app.once('apex-arrive', msg => {
         expect(msg.actor).toEqual(dummy)
         delete msg.activity.id
-        expect(msg.activity).toEqual(arriveAct)
+        expect(msg.activity).toEqual({
+          type: 'Arrive',
+          to: ['https://ignore.com/u/ignored'],
+          actor: ['https://localhost/u/dummy'],
+          location: [{
+            type: 'Place',
+            name: ['Here']
+          }]
+        })
         done()
       })
       request(app)

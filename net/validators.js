@@ -25,10 +25,15 @@ async function jsonld (req, res, next) {
   }
   if (req.method === 'POST' && req.is(apex.pub.consts.jsonldTypes)) {
     try {
-      req.body = await apex.pub.utils.fromJSONLD(req.body, apex.context)
+      const obj = await apex.pub.utils.fromJSONLD(req.body, apex.context)
+      if (!obj) {
+        return res.status(400).send('Request body is not valid JSON-LD')
+      }
+      req.body = obj
     } catch (err) {
+      // potential fetch errors on context sources
       console.error('jsonld validation', err)
-      res.status(400).send('Request body is not valid JSON-LD')
+      return res.status(500).send('Error processing request JSON-LD')
     }
     return next()
   }
@@ -81,16 +86,16 @@ function outboxActivity (req, res, next) {
     if (!apex.pub.utils.validateObject(object)) {
       return res.status(400).send('Invalid activity')
     }
-    object.attributedTo = actorIRI
+    object.attributedTo = [actorIRI]
     const extras = {}
     activity = apex.pub.activity
       .build(activityIRI, 'Create', actorIRI, object, object.to, object.cc, extras)
     req.body = activity
   } else if (activity.object) {
-    object = activity.object
+    object = activity.object[0]
     object.id = apex.utils.objectIdToIRI()
     // per spec, ensure attributedTo and audience fields in object are correct
-    object.attributedTo = actorIRI
+    object.attributedTo = [actorIRI]
     ;['to', 'bto', 'cc', 'bcc', 'audience'].forEach(t => {
       if (t in activity) {
         object[t] = activity[t]

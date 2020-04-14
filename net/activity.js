@@ -66,15 +66,15 @@ module.exports = {
     const apex = req.__apex
     const activity = req.body
     const actor = req.__apexLocal.target
-    // configure event hook to be triggered after response sent
     const resLocal = res.__apexLocal
+    // configure event hook to be triggered after response sent
     resLocal.eventMessage = { actor, activity }
 
     switch (activity.type.toLowerCase()) {
       case 'create':
         resLocal.eventName = 'apex-create'
         // save created object
-        toDo.push(apex.pub.object.resolve(activity.object).then(object => {
+        toDo.push(apex.pub.object.resolve(activity.object[0]).then(object => {
           resLocal.eventMessage.object = object
         }))
         break
