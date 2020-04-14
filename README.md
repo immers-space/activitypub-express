@@ -124,7 +124,7 @@ client.connect({ useNewUrlParser: true })
     * [x] https-signature
     * [x] webfinger
     * [ ] oauth
-    * [ ] json-ld
+    * [x] json-ld
       * [ ] context cache
   * [ ] Interchangable storage backend
 
