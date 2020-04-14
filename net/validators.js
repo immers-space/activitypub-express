@@ -1,5 +1,3 @@
-const pub = require('../pub')
-
 module.exports = {
   activity,
   jsonld,
@@ -9,7 +7,7 @@ module.exports = {
 }
 
 function activity (req, res, next) {
-  if (!pub.utils.validateActivity(req.body)) {
+  if (!req.__apex.pub.utils.validateActivity(req.body)) {
     return res.status(400).send('Invalid activity')
   }
   if (!req.body._meta) {
@@ -19,12 +17,24 @@ function activity (req, res, next) {
   next()
 }
 
-function jsonld (req, res, next) {
+async function jsonld (req, res, next) {
+  const apex = req.__apex
   // rule out */* requests
-  if (req.method === 'GET' && !req.accepts('text/html') && req.accepts(pub.consts.jsonldTypes)) {
+  if (req.method === 'GET' && !req.accepts('text/html') && req.accepts(apex.pub.consts.jsonldTypes)) {
     return next()
   }
-  if (req.method === 'POST' && req.is(pub.consts.jsonldTypes)) {
+  if (req.method === 'POST' && req.is(apex.pub.consts.jsonldTypes)) {
+    try {
+      const obj = await apex.pub.utils.fromJSONLD(req.body, apex.context)
+      if (!obj) {
+        return res.status(400).send('Request body is not valid JSON-LD')
+      }
+      req.body = obj
+    } catch (err) {
+      // potential fetch errors on context sources
+      console.error('jsonld validation', err)
+      return res.status(500).send('Error processing request JSON-LD')
+    }
     return next()
   }
   next('route')
@@ -63,28 +73,29 @@ async function targetActorWithMeta (req, res, next) {
 }
 
 function outboxActivity (req, res, next) {
+  const apex = req.__apex
   const actorIRI = req.__apexLocal.target.id
-  const activityIRI = req.__apex.utils.activityIdToIRI()
+  const activityIRI = apex.utils.activityIdToIRI()
   let activity = req.body
   let object
   activity.id = activityIRI
-  if (!pub.utils.validateActivity(activity)) {
+  if (!apex.pub.utils.validateActivity(activity)) {
     // if not valid activity, check for valid object and wrap in Create
     object = activity
-    object.id = req.__apex.utils.objectIdToIRI()
-    if (!pub.utils.validateObject(object)) {
+    object.id = apex.utils.objectIdToIRI()
+    if (!apex.pub.utils.validateObject(object)) {
       return res.status(400).send('Invalid activity')
     }
-    object.attributedTo = actorIRI
+    object.attributedTo = [actorIRI]
     const extras = {}
-    activity = req.__apex.pub.activity
+    activity = apex.pub.activity
       .build(activityIRI, 'Create', actorIRI, object, object.to, object.cc, extras)
     req.body = activity
   } else if (activity.object) {
-    object = activity.object
-    object.id = req.__apex.utils.objectIdToIRI()
+    object = activity.object[0]
+    object.id = apex.utils.objectIdToIRI()
     // per spec, ensure attributedTo and audience fields in object are correct
-    object.attributedTo = actorIRI
+    object.attributedTo = [actorIRI]
     ;['to', 'bto', 'cc', 'bcc', 'audience'].forEach(t => {
       if (t in activity) {
         object[t] = activity[t]

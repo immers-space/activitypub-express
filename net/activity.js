@@ -40,18 +40,17 @@ module.exports = {
         break
       case 'create':
         resLocal.eventName = 'apex-create'
-        toDo.push(apex.pub.object.resolve(activity.object).then(object => {
+        toDo.push(apex.pub.object.resolve(activity.object[0]).then(object => {
           resLocal.eventMessage.object = object
         }))
         break
       case 'undo':
         resLocal.eventName = 'apex-undo'
-        toDo.push(apex.pub.activity.undo(req.body.object, req.body.actor))
+        toDo.push(apex.pub.activity.undo(activity.object[0], actor))
         break
       default:
         resLocal.eventName = `apex-${activity.type.toLowerCase()}`
         break
-
     }
     Promise.all(toDo).then(() => {
       res.status(200).send()
@@ -67,15 +66,15 @@ module.exports = {
     const apex = req.__apex
     const activity = req.body
     const actor = req.__apexLocal.target
-    // configure event hook to be triggered after response sent
     const resLocal = res.__apexLocal
+    // configure event hook to be triggered after response sent
     resLocal.eventMessage = { actor, activity }
 
     switch (activity.type.toLowerCase()) {
       case 'create':
         resLocal.eventName = 'apex-create'
         // save created object
-        toDo.push(apex.pub.object.resolve(activity.object).then(object => {
+        toDo.push(apex.pub.object.resolve(activity.object[0]).then(object => {
           resLocal.eventMessage.object = object
         }))
         break
@@ -83,7 +82,7 @@ module.exports = {
         resLocal.eventName = `apex-${activity.type.toLowerCase()}`
         break
     }
-    resLocal.postWork.push(() => apex.pub.activity.addToOutbox(actor, activity))
+    resLocal.postWork.push(() => apex.pub.activity.addToOutbox(actor, activity, apex.context))
     Promise.all(toDo).then(() => {
       res.status(200).send()
     }).catch(next)

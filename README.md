@@ -124,7 +124,8 @@ client.connect({ useNewUrlParser: true })
     * [x] https-signature
     * [x] webfinger
     * [ ] oauth
-    * [ ] json-ld
+    * [x] json-ld
+      * [ ] context cache
   * [ ] Interchangable storage backend
 
 ## API
@@ -142,6 +143,7 @@ app.use(apex)
 
 Option | Description
 --- | ---
+**Required** |
 domain | String. Hostname for your app
 actorParam | String. Express route parameter used for actor name
 objectParam | String. Express route parameter used for object id
@@ -155,4 +157,6 @@ routes.outbox | Actor outbox route
 routes.following | Actor following collection route
 routes.followers | Actor followers collection route
 routes.liked | Actor liked collection route
+**Optional** |
+context | String, Array. JSON-LD context for your app. Defaults to AcivityStreams + Security vocabs
 store | Not fully implemented - replace the default storage model & database backend with your own

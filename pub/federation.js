@@ -39,7 +39,7 @@ function deliver (actor, activity, addresses) {
       json: true,
       resolveWithFullResponse: true,
       simple: false,
-      body: pubUtils.toJSONLD(activity)
+      body: activity
     })
       .then(result => console.log('delivery:', addr, result.statusCode))
       .catch(err => console.log(err.message))

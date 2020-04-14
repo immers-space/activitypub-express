@@ -31,6 +31,7 @@ module.exports = function (settings) {
   }
   apex.settings = settings
   apex.domain = settings.domain
+  apex.context = settings.context || pub.consts.ASContext
   apex.pub = pub
   apex.net = net
   apex.store = settings.store || defaultStore
