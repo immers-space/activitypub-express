@@ -20,22 +20,6 @@ const apex = ActivitypubExpress({
   }
 })
 const client = new MongoClient('mongodb://localhost:27017', { useUnifiedTopology: true, useNewUrlParser: true })
-const dummy = {
-  id: 'https://localhost/u/dummy',
-  type: 'Person',
-  following: 'https://localhost/u/dummy/following',
-  followers: 'https://localhost/u/dummy/followers',
-  liked: 'https://localhost/u/dummy/liked',
-  inbox: 'https://localhost/u/dummy/inbox',
-  outbox: 'https://localhost/u/dummy/outbox',
-  preferredUsername: 'dummy',
-  name: 'dummy group',
-  summary: 'dummy',
-  '@context': [
-    'https://www.w3.org/ns/activitystreams',
-    'https://w3id.org/security/v1'
-  ]
-}
 
 app.use(apex)
 app.get('/.well-known/webfinger', apex.net.webfinger)
@@ -45,15 +29,24 @@ app.use(function (err, req, res, next) {
 })
 
 describe('webfinger', function () {
+  let testUser
   beforeAll(function (done) {
-    client.connect({ useNewUrlParser: true }).then(done)
+    const actorName = 'test'
+    const actorIRI = apex.utils.usernameToIRI(actorName)
+    const actorRoutes = apex.utils.nameToActorStreams(actorName)
+    apex.pub.actor.create(apex.context, actorIRI, actorRoutes, actorName, actorName, 'test user')
+      .then(actor => {
+        testUser = actor
+        return client.connect({ useNewUrlParser: true })
+      })
+      .then(done)
   })
   beforeEach(function (done) {
     // reset db for each test
     client.db('apexTestingTempDb').dropDatabase()
       .then(() => {
         apex.store.connection.setDb(client.db('apexTestingTempDb'))
-        return apex.store.setup(dummy)
+        return apex.store.setup(testUser)
       })
       .then(done)
   })
@@ -61,13 +54,13 @@ describe('webfinger', function () {
     // validators jsonld
     it('returns link to profile', function (done) {
       request(app)
-        .get('/.well-known/webfinger?resource=acct:dummy@localhost')
+        .get('/.well-known/webfinger?resource=acct:test@localhost')
         .expect(200, {
-          subject: 'acct:dummy@localhost',
+          subject: 'acct:test@localhost',
           links: [{
             rel: 'self',
             type: 'application/activity+json',
-            href: 'https://localhost/u/dummy'
+            href: 'https://localhost/u/test'
           }]
         }, done)
     })

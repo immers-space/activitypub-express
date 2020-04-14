@@ -39,7 +39,8 @@ module.exports = function (settings) {
   apex.utils = {
     usernameToIRI: pub.utils.idToIRIFactory(settings.domain, settings.routes.actor, settings.actorParam),
     objectIdToIRI: pub.utils.idToIRIFactory(settings.domain, settings.routes.object, settings.objectParam),
-    activityIdToIRI: pub.utils.idToIRIFactory(settings.domain, settings.routes.activity, settings.activityParam)
+    activityIdToIRI: pub.utils.idToIRIFactory(settings.domain, settings.routes.activity, settings.activityParam),
+    nameToActorStreams: pub.utils.nameToActorStreamsFactory(settings.domain, settings.routes, settings.actorParam)
   }
   return apex
 }

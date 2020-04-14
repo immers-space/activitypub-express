@@ -72,7 +72,7 @@ async function targetActorWithMeta (req, res, next) {
   next()
 }
 
-function outboxActivity (req, res, next) {
+async function outboxActivity (req, res, next) {
   const apex = req.__apex
   const actorIRI = req.__apexLocal.target.id
   const activityIRI = apex.utils.activityIdToIRI()
@@ -88,8 +88,8 @@ function outboxActivity (req, res, next) {
     }
     object.attributedTo = [actorIRI]
     const extras = {}
-    activity = apex.pub.activity
-      .build(activityIRI, 'Create', actorIRI, object, object.to, object.cc, extras)
+    activity = await apex.pub.activity
+      .build(apex.context, activityIRI, 'Create', actorIRI, object, object.to, object.cc, extras)
     req.body = activity
   } else if (activity.object) {
     object = activity.object[0]

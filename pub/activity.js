@@ -10,17 +10,17 @@ module.exports = {
   undo
 }
 
-function build (iri, type, actorId, object, to, cc, etc) {
+function build (context, iri, type, actorId, object, to, cc, etc) {
   const act = Object.assign({
     id: iri,
     type,
-    actor: [actorId],
-    object: [object],
+    actor: actorId,
+    object,
     to,
     cc,
     published: new Date().toISOString()
   }, etc)
-  return act
+  return pubUtils.fromJSONLD(act, context)
 }
 
 async function address (activity) {

@@ -137,7 +137,8 @@ before any other apex midddleware. It needs to be configured with the routes you
 in order to correctly generate IRI's and actor profiles
 
 ```
-const apex = new ActivitypubExpress(options)
+const ActivitypubExpress = require('activitypub-express')
+const apex = ActivitypubExpress(options)
 app.use(apex)
 ```
 

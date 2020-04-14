@@ -1,6 +1,7 @@
 /* global describe, beforeAll, beforeEach, it, expect */
 const request = require('supertest')
 const express = require('express')
+const merge = require('deepmerge')
 const { MongoClient } = require('mongodb')
 
 const ActivitypubExpress = require('../../index')
@@ -20,46 +21,18 @@ const apex = ActivitypubExpress({
   }
 })
 const client = new MongoClient('mongodb://localhost:27017', { useUnifiedTopology: true, useNewUrlParser: true })
-const dummy = {
-  id: 'https://localhost/u/dummy',
-  type: 'Person',
-  inbox: [
-    'https://localhost/u/dummy/inbox'
-  ],
-  followers: [
-    'https://localhost/u/dummy/followers'
-  ],
-  following: [
-    'https://localhost/u/dummy/following'
-  ],
-  liked: [
-    'https://localhost/u/dummy/liked'
-  ],
-  name: [
-    'dummy group'
-  ],
-  outbox: [
-    'https://localhost/u/dummy/outbox'
-  ],
-  preferredUsername: [
-    'dummy'
-  ],
-  summary: [
-    'dummy'
-  ]
-}
 
 const activity = {
   '@context': 'https://www.w3.org/ns/activitystreams',
   type: 'Create',
   id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
-  to: ['https://localhost/u/dummy'],
-  actor: 'https://localhost/u/dummy',
+  to: ['https://localhost/u/test'],
+  actor: 'https://localhost/u/test',
   object: {
     type: 'Note',
     id: 'https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19',
-    attributedTo: 'https://localhost/u/dummy',
-    to: ['https://localhost/u/dummy'],
+    attributedTo: 'https://localhost/u/test',
+    to: ['https://localhost/u/test'],
     content: 'Say, did you finish reading that book I lent you?'
   }
 }
@@ -68,25 +41,25 @@ const activityNormalized = {
   id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
   type: 'Create',
   actor: [
-    'https://localhost/u/dummy'
+    'https://localhost/u/test'
   ],
   object: [
     {
       id: 'https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19',
       type: 'Note',
       attributedTo: [
-        'https://localhost/u/dummy'
+        'https://localhost/u/test'
       ],
       content: [
         'Say, did you finish reading that book I lent you?'
       ],
       to: [
-        'https://localhost/u/dummy'
+        'https://localhost/u/test'
       ]
     }
   ],
   to: [
-    'https://localhost/u/dummy'
+    'https://localhost/u/test'
   ]
 }
 
@@ -99,15 +72,24 @@ app.use(function (err, req, res, next) {
 })
 
 describe('inbox', function () {
+  let testUser
   beforeAll(function (done) {
-    client.connect({ useNewUrlParser: true }).then(done)
+    const actorName = 'test'
+    const actorIRI = apex.utils.usernameToIRI(actorName)
+    const actorRoutes = apex.utils.nameToActorStreams(actorName)
+    apex.pub.actor.create(apex.context, actorIRI, actorRoutes, actorName, actorName, 'test user')
+      .then(actor => {
+        testUser = actor
+        return client.connect({ useNewUrlParser: true })
+      })
+      .then(done)
   })
   beforeEach(function (done) {
     // reset db for each test
     client.db('apexTestingTempDb').dropDatabase()
       .then(() => {
         apex.store.connection.setDb(client.db('apexTestingTempDb'))
-        return apex.store.setup(dummy)
+        return apex.store.setup(testUser)
       })
       .then(done)
   })
@@ -115,14 +97,14 @@ describe('inbox', function () {
     // validators jsonld
     it('ignores invalid body types', function (done) {
       request(app)
-        .post('/inbox/dummy')
+        .post('/inbox/test')
         .send({})
         .expect(404, done)
     })
     // validators activity
     it('errors invalid activities', function (done) {
       request(app)
-        .post('/inbox/dummy')
+        .post('/inbox/test')
         .set('Content-Type', 'application/activity+json')
         .send({ actor: 'bob', '@context': 'https://www.w3.org/ns/activitystreams' })
         .expect(400, 'Invalid activity', done)
@@ -142,7 +124,7 @@ describe('inbox', function () {
     // activity save
     it('saves activity', function (done) {
       request(app)
-        .post('/inbox/dummy')
+        .post('/inbox/test')
         .set('Content-Type', 'application/activity+json')
         .send(activity)
         .expect(200)
@@ -152,7 +134,7 @@ describe('inbox', function () {
             .findOne({ id: activity.id })
         })
         .then(act => {
-          expect(act._meta._target).toBe('https://localhost/u/dummy')
+          expect(act._meta._target).toBe('https://localhost/u/test')
           delete act._meta
           delete act._id
           expect(act).toEqual(activityNormalized)
@@ -162,16 +144,18 @@ describe('inbox', function () {
     })
     // activity sideEffects
     it('fires create event', function (done) {
+      const recipient = merge({}, testUser)
+      delete recipient._meta
       app.once('apex-create', msg => {
-        expect(msg.actor).toBe('https://localhost/u/dummy')
-        expect(msg.recipient).toEqual(dummy)
-        const act = Object.assign({ _meta: { _target: 'https://localhost/u/dummy' } }, activityNormalized)
+        expect(msg.actor).toBe('https://localhost/u/test')
+        expect(msg.recipient).toEqual(recipient)
+        const act = Object.assign({ _meta: { _target: 'https://localhost/u/test' } }, activityNormalized)
         expect(msg.activity).toEqual(act)
         expect(msg.object).toEqual(activityNormalized.object[0])
         done()
       })
       request(app)
-        .post('/inbox/dummy')
+        .post('/inbox/test')
         .set('Content-Type', 'application/activity+json')
         .send(activity)
         .expect(200)
@@ -179,7 +163,7 @@ describe('inbox', function () {
     })
     it('saves created object', function (done) {
       request(app)
-        .post('/inbox/dummy')
+        .post('/inbox/test')
         .set('Content-Type', 'application/activity+json')
         .send(activity)
         .expect(200)
@@ -203,12 +187,12 @@ describe('inbox', function () {
         '@context': 'https://www.w3.org/ns/activitystreams',
         type: 'Accept',
         id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
-        to: ['https://localhost/u/dummy'],
-        actor: 'https://localhost/u/dummy',
+        to: ['https://localhost/u/test'],
+        actor: 'https://localhost/u/test',
         object: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d4'
       }
       request(app)
-        .post('/inbox/dummy')
+        .post('/inbox/test')
         .set('Content-Type', 'application/activity+json')
         .send(accept)
         .expect(200)
@@ -222,12 +206,12 @@ describe('inbox', function () {
         '@context': 'https://www.w3.org/ns/activitystreams',
         type: 'Follow',
         id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
-        to: ['https://localhost/u/dummy'],
-        actor: 'https://localhost/u/dummy',
-        object: 'https://localhost/u/dummy'
+        to: ['https://localhost/u/test'],
+        actor: 'https://localhost/u/test',
+        object: 'https://localhost/u/test'
       }
       request(app)
-        .post('/inbox/dummy')
+        .post('/inbox/test')
         .set('Content-Type', 'application/activity+json')
         .send(follow)
         .expect(200)
@@ -241,68 +225,65 @@ describe('inbox', function () {
         '@context': 'https://www.w3.org/ns/activitystreams',
         type: 'Undo',
         id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d4',
-        to: ['https://localhost/u/dummy'],
-        actor: 'https://localhost/u/dummy',
+        to: ['https://localhost/u/test'],
+        actor: 'https://localhost/u/test',
         object: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3'
       }
       request(app)
-        .post('/inbox/dummy')
+        .post('/inbox/test')
         .set('Content-Type', 'application/activity+json')
         .send(undo)
         .expect(200)
         .end(err => { if (err) done(err) })
     })
-    it('removes undone activity', function (done) {
+    it('removes undone activity', async function (done) {
+      const undone = await apex.pub.activity
+        .build(apex.context, 'https://localhost/s/to-undo', 'fake', 'https://localhost/u/test', 'https://localhost/u/test')
       const undo = {
         '@context': 'https://www.w3.org/ns/activitystreams',
         type: 'Undo',
         id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d4',
-        to: ['https://localhost/u/dummy'],
-        actor: 'https://localhost/u/dummy',
+        to: ['https://localhost/u/test'],
+        actor: 'https://localhost/u/test',
         object: 'https://localhost/s/to-undo'
       }
       const db = apex.store.connection.getDb()
-      db.collection('streams')
-        .insertOne({ id: 'https://localhost/s/to-undo', actor: 'https://localhost/u/dummy' })
-        .then(inserted => {
-          expect(inserted.insertedCount).toBe(1)
-          return request(app)
-            .post('/inbox/dummy')
-            .set('Content-Type', 'application/activity+json')
-            .send(undo)
-            .expect(200)
-        })
-        .then(() => {
-          return db.collection('streams')
-            .findOne({ id: 'https://localhost/s/to-undo' })
-        })
-        .then(result => {
-          expect(result).toBeFalsy()
-          done()
-        })
-        .catch(done)
+      const inserted = await db.collection('streams')
+        .insertOne(undone)
+      expect(inserted.insertedCount).toBe(1)
+      await request(app)
+        .post('/inbox/test')
+        .set('Content-Type', 'application/activity+json')
+        .send(undo)
+        .expect(200)
+      const result = await db.collection('streams')
+        .findOne({ id: 'https://localhost/s/to-undo' })
+      expect(result).toBeFalsy()
+      done()
     })
     it('fires other activity event', function (done) {
+      const recipient = merge({}, testUser)
+      delete recipient._meta
       const arriveAct = {
         '@context': 'https://www.w3.org/ns/activitystreams',
         type: 'Arrive',
         id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
-        to: ['https://localhost/u/dummy'],
-        actor: 'https://localhost/u/dummy',
+        to: ['https://localhost/u/test'],
+        actor: 'https://localhost/u/test',
         location: {
           type: 'Place',
           name: 'Here'
         }
       }
       app.once('apex-arrive', msg => {
-        expect(msg.actor).toBe('https://localhost/u/dummy')
-        expect(msg.recipient).toEqual(dummy)
+        expect(msg.actor).toBe('https://localhost/u/test')
+        expect(msg.recipient).toEqual(recipient)
         expect(msg.activity).toEqual({
-          _meta: { _target: 'https://localhost/u/dummy' },
+          _meta: { _target: 'https://localhost/u/test' },
           type: 'Arrive',
           id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
-          to: ['https://localhost/u/dummy'],
-          actor: ['https://localhost/u/dummy'],
+          to: ['https://localhost/u/test'],
+          actor: ['https://localhost/u/test'],
           location: [{
             type: 'Place',
             name: ['Here']
@@ -311,7 +292,7 @@ describe('inbox', function () {
         done()
       })
       request(app)
-        .post('/inbox/dummy')
+        .post('/inbox/test')
         .set('Content-Type', 'application/activity+json')
         .send(arriveAct)
         .expect(200)
@@ -321,7 +302,7 @@ describe('inbox', function () {
   describe('get', function () {
     it('returns inbox as ordered collection', (done) => {
       const inbox = []
-      const meta = { _target: 'https://localhost/u/dummy' }
+      const meta = { _target: 'https://localhost/u/test' }
       ;[1, 2, 3].forEach(i => {
         inbox.push(Object.assign({}, activity, { id: `${activity.id}${i}`, _meta: meta }))
       })
@@ -343,7 +324,7 @@ describe('inbox', function () {
           }
           expect(inserted.insertedCount).toBe(3)
           request(app)
-            .get('/inbox/dummy')
+            .get('/inbox/test')
             .set('Accept', 'application/activity+json')
             .expect(200, inboxCollection, done)
         })

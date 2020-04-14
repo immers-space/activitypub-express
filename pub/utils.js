@@ -5,6 +5,7 @@ const jsonld = require('jsonld')
 
 module.exports = {
   idToIRIFactory,
+  nameToActorStreamsFactory,
   toJSONLD,
   fromJSONLD,
   arrayToCollection,
@@ -35,18 +36,25 @@ function arrayToCollection (arr, ordered) {
 // convert incoming json-ld to local context and
 // partially expanded format for consistent property access
 async function fromJSONLD (obj, targetContext) {
-  const compact = await jsonld.compact(obj, targetContext, {
+  const opts = {
     // don't unbox arrays so that object structure will be predictable
     compactArrays: false
-  })
+  }
+  if (!('@context' in obj)) {
+    // if context is missing, try filling in ours
+    opts.expandContext = targetContext
+  }
+  const compact = await jsonld.compact(obj, targetContext, opts)
   // strip context and graph wrapper for easier access
   return compact['@graph'][0]
 }
-// convert outgoing json-ld to fully compact format
+// convert working objects to json-ld for transport
 function toJSONLD (obj, targetContext) {
   return jsonld.compact(obj, targetContext, {
     // must supply initial context because it was stripped for easy handling
-    expandContext: targetContext
+    expandContext: targetContext,
+    // unbox arrays on federated objects, in case other apps aren't using real json-ld
+    compactArrays: true
   })
 }
 
@@ -57,6 +65,22 @@ function idToIRIFactory (domain, route, param) {
       id = store.utils.generateId()
     }
     return `https://${domain}${route.replace(colonParam, id)}`.toLowerCase()
+  }
+}
+
+function nameToActorStreamsFactory (domain, routes, actorParam) {
+  const colonParam = `:${actorParam}`
+  const streamNames = ['inbox', 'outbox', 'following', 'followers', 'liked']
+  const streamTemplates = {}
+  streamNames.forEach(s => {
+    streamTemplates[s] = `https://${domain}${routes[s]}`
+  })
+  return name => {
+    const streams = {}
+    streamNames.forEach(s => {
+      streams[s] = streamTemplates[s].replace(colonParam, name)
+    })
+    return streams
   }
 }
 

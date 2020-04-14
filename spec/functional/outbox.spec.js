@@ -4,10 +4,7 @@ const express = require('express')
 const nock = require('nock')
 const httpSignature = require('http-signature')
 const { MongoClient } = require('mongodb')
-const crypto = require('crypto')
-const { promisify } = require('util')
 const merge = require('deepmerge')
-const generateKeyPairPromise = promisify(crypto.generateKeyPair)
 
 const ActivitypubExpress = require('../../index')
 
@@ -26,30 +23,6 @@ const apex = ActivitypubExpress({
   }
 })
 const client = new MongoClient('mongodb://localhost:27017', { useUnifiedTopology: true, useNewUrlParser: true })
-const dummy = {
-  _meta: {
-    privateKey: undefined
-  },
-  id: 'https://localhost/u/dummy',
-  type: 'Person',
-  following: 'https://localhost/u/dummy/following',
-  followers: 'https://localhost/u/dummy/followers',
-  liked: 'https://localhost/u/dummy/liked',
-  inbox: 'https://localhost/u/dummy/inbox',
-  outbox: 'https://localhost/u/dummy/outbox',
-  preferredUsername: 'dummy',
-  name: 'dummy group',
-  summary: 'dummy',
-  publicKey: {
-    id: 'https://localhost/u/dummy#main-key',
-    owner: 'https://localhost/u/dummy',
-    publicKeyPem: undefined
-  },
-  '@context': [
-    'https://www.w3.org/ns/activitystreams',
-    'https://w3id.org/security/v1'
-  ]
-}
 const activity = {
   '@context': [
     'https://www.w3.org/ns/activitystreams',
@@ -57,10 +30,10 @@ const activity = {
   ],
   type: 'Create',
   to: 'https://ignore.com/u/ignored',
-  actor: 'https://localhost/u/dummy',
+  actor: 'https://localhost/u/test',
   object: {
     type: 'Note',
-    attributedTo: 'https://localhost/u/dummy',
+    attributedTo: 'https://localhost/u/test',
     to: 'https://ignore.com/u/ignored',
     content: 'Say, did you finish reading that book I lent you?'
   }
@@ -69,13 +42,13 @@ const activity = {
 const activityNormalized = {
   type: 'Create',
   actor: [
-    'https://localhost/u/dummy'
+    'https://localhost/u/test'
   ],
   object: [
     {
       type: 'Note',
       attributedTo: [
-        'https://localhost/u/dummy'
+        'https://localhost/u/test'
       ],
       content: [
         'Say, did you finish reading that book I lent you?'
@@ -98,22 +71,17 @@ app.use(function (err, req, res, next) {
 })
 
 describe('outbox', function () {
+  let testUser
   beforeAll(function (done) {
-    generateKeyPairPromise('rsa', {
-      modulusLength: 4096,
-      publicKeyEncoding: {
-        type: 'spki',
-        format: 'pem'
-      },
-      privateKeyEncoding: {
-        type: 'pkcs8',
-        format: 'pem'
-      }
-    }).then(pair => {
-      dummy._meta.privateKey = pair.privateKey
-      dummy.publicKey.publicKeyPem = pair.publicKey
-      return client.connect({ useNewUrlParser: true })
-    }).then(done)
+    const actorName = 'test'
+    const actorIRI = apex.utils.usernameToIRI(actorName)
+    const actorRoutes = apex.utils.nameToActorStreams(actorName)
+    apex.pub.actor.create(apex.context, actorIRI, actorRoutes, actorName, actorName, 'test user')
+      .then(actor => {
+        testUser = actor
+        return client.connect({ useNewUrlParser: true })
+      })
+      .then(done)
   })
   beforeEach(function (done) {
     // block federation attempts
@@ -128,7 +96,7 @@ describe('outbox', function () {
     client.db('apexTestingTempDb').dropDatabase()
       .then(() => {
         apex.store.connection.setDb(client.db('apexTestingTempDb'))
-        return apex.store.setup(dummy)
+        return apex.store.setup(testUser)
       })
       .then(done)
   })
@@ -139,14 +107,14 @@ describe('outbox', function () {
     // validators jsonld
     it('ignores invalid body types', function (done) {
       request(app)
-        .post('/outbox/dummy')
+        .post('/outbox/test')
         .send({})
         .expect(404, done)
     })
     // validators activity
     it('errors invalid activities', function (done) {
       request(app)
-        .post('/outbox/dummy')
+        .post('/outbox/test')
         .set('Content-Type', 'application/activity+json')
         .send({ actor: 'bob', '@context': 'https://www.w3.org/ns/activitystreams' })
         .expect(400, 'Invalid activity', done)
@@ -162,14 +130,14 @@ describe('outbox', function () {
     // activity save
     it('saves activity in stream', function (done) {
       request(app)
-        .post('/outbox/dummy')
+        .post('/outbox/test')
         .set('Content-Type', 'application/activity+json')
         .send(activity)
         .expect(200)
         .then(() => {
           return apex.store.connection.getDb()
             .collection('streams')
-            .findOne({ actor: 'https://localhost/u/dummy' })
+            .findOne({ actor: 'https://localhost/u/test' })
         })
         .then(act => {
           delete act._meta
@@ -183,14 +151,14 @@ describe('outbox', function () {
     })
     it('saves object from activity', function (done) {
       request(app)
-        .post('/outbox/dummy')
+        .post('/outbox/test')
         .set('Content-Type', 'application/activity+json')
         .send(activity)
         .expect(200)
         .then(() => {
           return apex.store.connection.getDb()
             .collection('objects')
-            .findOne({ attributedTo: ['https://localhost/u/dummy'] })
+            .findOne({ attributedTo: ['https://localhost/u/test'] })
         })
         .then(o => {
           delete o._meta
@@ -206,14 +174,14 @@ describe('outbox', function () {
       const bareObj = merge({}, activity.object)
       bareObj['@context'] = 'https://www.w3.org/ns/activitystreams'
       request(app)
-        .post('/outbox/dummy')
+        .post('/outbox/test')
         .set('Content-Type', 'application/activity+json')
         .send(bareObj)
         .expect(200)
         .then(() => {
           return apex.store.connection.getDb()
             .collection('streams')
-            .findOne({ actor: 'https://localhost/u/dummy' })
+            .findOne({ actor: 'https://localhost/u/test' })
         })
         .then(act => {
           expect(act.type).toBe('Create')
@@ -240,11 +208,11 @@ describe('outbox', function () {
           // valid signature
           req.originalUrl = req.path
           const sigHead = httpSignature.parse(req)
-          expect(httpSignature.verifySignature(sigHead, dummy.publicKey.publicKeyPem)).toBeTruthy()
+          expect(httpSignature.verifySignature(sigHead, testUser.publicKey[0].publicKeyPem[0])).toBeTruthy()
           done()
         })
       request(app)
-        .post('/outbox/dummy')
+        .post('/outbox/test')
         .set('Content-Type', 'application/activity+json')
         .send(act)
         .expect(200)
@@ -255,7 +223,7 @@ describe('outbox', function () {
     // activity side effects
     it('fires create event', function (done) {
       app.once('apex-create', msg => {
-        expect(msg.actor).toEqual(dummy)
+        expect(msg.actor).toEqual(testUser)
         delete msg.activity.id
         delete msg.object.id
         expect(msg.activity).toEqual(activityNormalized)
@@ -263,7 +231,7 @@ describe('outbox', function () {
         done()
       })
       request(app)
-        .post('/outbox/dummy')
+        .post('/outbox/test')
         .set('Content-Type', 'application/activity+json')
         .send(activity)
         .expect(200)
@@ -274,19 +242,19 @@ describe('outbox', function () {
         '@context': 'https://www.w3.org/ns/activitystreams',
         type: 'Arrive',
         to: ['https://ignore.com/u/ignored'],
-        actor: 'https://localhost/u/dummy',
+        actor: 'https://localhost/u/test',
         location: {
           type: 'Place',
           name: 'Here'
         }
       }
       app.once('apex-arrive', msg => {
-        expect(msg.actor).toEqual(dummy)
+        expect(msg.actor).toEqual(testUser)
         delete msg.activity.id
         expect(msg.activity).toEqual({
           type: 'Arrive',
           to: ['https://ignore.com/u/ignored'],
-          actor: ['https://localhost/u/dummy'],
+          actor: ['https://localhost/u/test'],
           location: [{
             type: 'Place',
             name: ['Here']
@@ -295,7 +263,7 @@ describe('outbox', function () {
         done()
       })
       request(app)
-        .post('/outbox/dummy')
+        .post('/outbox/test')
         .set('Content-Type', 'application/activity+json')
         .send(arriveAct)
         .expect(200)
@@ -327,7 +295,7 @@ describe('outbox', function () {
           }
           expect(inserted.insertedCount).toBe(3)
           request(app)
-            .get('/outbox/dummy')
+            .get('/outbox/test')
             .set('Accept', 'application/activity+json')
             .expect(200, outboxCollection, done)
         })

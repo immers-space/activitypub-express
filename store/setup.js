@@ -1,6 +1,6 @@
 'use strict'
 const connection = require('./connection')
-module.exports = async function dbSetup (dummyUser) {
+module.exports = async function dbSetup (testUser) {
   const db = connection.getDb()
   // inbox
   await db.collection('streams').createIndex({
@@ -25,10 +25,10 @@ module.exports = async function dbSetup (dummyUser) {
   await db.collection('objects').createIndex({
     id: 1
   })
-  if (dummyUser) {
+  if (testUser) {
     return db.collection('objects').findOneAndReplace(
-      { preferredUsername: 'dummy' },
-      dummyUser,
+      { preferredUsername: [testUser.preferredUsername] },
+      testUser,
       {
         upsert: true,
         returnOriginal: false

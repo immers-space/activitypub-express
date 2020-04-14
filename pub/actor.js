@@ -9,8 +9,8 @@ module.exports = {
   create
 }
 
-function create (name, type) {
-  return generateKeyPairPromise('rsa', {
+async function create (context, id, routes, username, displayName, summary, icon, type = 'Person') {
+  const pair = await generateKeyPairPromise('rsa', {
     modulusLength: 4096,
     publicKeyEncoding: {
       type: 'spki',
@@ -20,32 +20,28 @@ function create (name, type) {
       type: 'pkcs8',
       format: 'pem'
     }
-  }).then(pair => {
-    const actorBase = pubUtils.usernameToIRI(name)
-    return {
-      _meta: {
-        privateKey: pair.privateKey
-      },
-      id: `${actorBase}`,
-      type: type,
-      following: `${actorBase}/following`,
-      followers: `${actorBase}/followers`,
-      liked: `${actorBase}/liked`,
-      inbox: `${actorBase}/inbox`,
-      outbox: `${actorBase}/outbox`,
-      preferredUsername: name,
-      // name: `${name} group`,
-      // summary: `I'm a group about ${name}. Follow me to get all the group posts. Tag me to share with the group. Create other groups by searching for or tagging @yourGroupName@${config.DOMAIN}`,
-      // icon: {
-      //   type: 'Image',
-      //   mediaType: 'image/jpeg',
-      //   url: `https://${config.DOMAIN}/f/guppe.png`
-      // },
-      publicKey: {
-        id: `${actorBase}#main-key`,
-        owner: `${actorBase}`,
-        publicKeyPem: pair.publicKey
-      }
-    }
   })
+  let actor = {
+    id,
+    type,
+    following: routes.following,
+    followers: routes.followers,
+    liked: routes.liked,
+    inbox: routes.inbox,
+    outbox: routes.outbox,
+    preferredUsername: username,
+    name: displayName,
+    summary,
+    publicKey: {
+      id: `${id}#main-key`,
+      owner: id,
+      publicKeyPem: pair.publicKey
+    }
+  }
+  if (icon) {
+    actor.icon = icon
+  }
+  actor = await pubUtils.fromJSONLD(actor, context)
+  actor._meta = { privateKey: pair.privateKey }
+  return actor
 }
