@@ -1,31 +1,31 @@
 const assert = require('assert')
 module.exports = {
   setTargetActor (req, res, next) {
-    assert(req.__apexLocal.activity)
-    assert(req.__apexLocal.target)
-    req.body._meta._target = req.__apexLocal.target.id
+    assert(res.locals.apex.activity)
+    assert(res.locals.apex.target)
+    req.body._meta._target = res.locals.apex.target.id
     next()
   },
   save (req, res, next) {
-    assert(req.__apexLocal.activity)
-    req.__apex.store.stream.save(req.body).then(saveResult => {
-      req.__apexLocal.isNewActivity = saveResult
+    assert(res.locals.apex.activity)
+    req.app.locals.apex.store.stream.save(req.body).then(saveResult => {
+      res.locals.apex.isNewActivity = saveResult
       next()
     }).catch(next)
   },
   inboxSideEffects (req, res, next) {
-    assert(req.__apexLocal.activity)
-    if (!req.__apexLocal.isNewActivity) {
+    assert(res.locals.apex.activity)
+    if (!res.locals.apex.isNewActivity) {
       // ignore duplicate deliveries
       return res.status(200).send()
     }
     const toDo = []
-    const apex = req.__apex
+    const apex = req.app.locals.apex
     const activity = req.body
     const actor = apex.pub.utils.actorFromActivity(activity)
-    const recipient = req.__apexLocal.target
+    const recipient = res.locals.apex.target
     // configure event hook to be triggered after response sent
-    const resLocal = res.__apexLocal
+    const resLocal = res.locals.apex
     resLocal.eventMessage = { actor, activity, recipient }
 
     switch (activity.type.toLowerCase()) {
@@ -57,16 +57,16 @@ module.exports = {
     }).catch(next)
   },
   outboxSideEffects (req, res, next) {
-    assert(req.__apexLocal.activity)
-    if (!req.__apexLocal.isNewActivity) {
+    assert(res.locals.apex.activity)
+    if (!res.locals.apex.isNewActivity) {
       // ignore duplicate deliveries
       return res.status(200).send()
     }
     const toDo = []
-    const apex = req.__apex
+    const apex = req.app.locals.apex
     const activity = req.body
-    const actor = req.__apexLocal.target
-    const resLocal = res.__apexLocal
+    const actor = res.locals.apex.target
+    const resLocal = res.locals.apex
     // configure event hook to be triggered after response sent
     resLocal.eventMessage = { actor, activity }
 

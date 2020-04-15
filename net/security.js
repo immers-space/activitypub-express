@@ -16,7 +16,7 @@ function auth (req, res, next) {
 
 async function verifySignature (req, res, next) {
   try {
-    const apex = req.__apex
+    const apex = req.app.locals.apex
     // support for apps not using signature extension to ActivityPub
     if (!req.get('authorization') && !req.get('signature')) {
       const actor = await apex.pub.object.resolve(apex.pub.utils.actorFromActivity(req.body))

@@ -7,18 +7,18 @@ module.exports = {
 }
 
 function activity (req, res, next) {
-  if (!req.__apex.pub.utils.validateActivity(req.body)) {
+  if (!req.app.locals.apex.pub.utils.validateActivity(req.body)) {
     return res.status(400).send('Invalid activity')
   }
   if (!req.body._meta) {
     req.body._meta = {}
   }
-  req.__apexLocal.activity = true
+  res.locals.apex.activity = true
   next()
 }
 
 async function jsonld (req, res, next) {
-  const apex = req.__apex
+  const apex = req.app.locals.apex
   // rule out */* requests
   if (req.method === 'GET' && !req.accepts('text/html') && req.accepts(apex.pub.consts.jsonldTypes)) {
     return next()
@@ -41,7 +41,7 @@ async function jsonld (req, res, next) {
 }
 
 async function targetActor (req, res, next) {
-  const apex = req.__apex
+  const apex = req.app.locals.apex
   const actor = req.params[apex.actorParam]
   const actorIRI = apex.utils.usernameToIRI(actor)
   let actorObj
@@ -51,14 +51,14 @@ async function targetActor (req, res, next) {
   if (!actorObj) {
     return res.status(404).send(`'${actor}' not found on this instance`)
   }
-  req.__apexLocal.target = actorObj
+  res.locals.apex.target = actorObj
   next()
 }
 
 // help prevent accidental disclosure of actor private keys by only
 // including them when explicitly requested
 async function targetActorWithMeta (req, res, next) {
-  const apex = req.__apex
+  const apex = req.app.locals.apex
   const actor = req.params[apex.actorParam]
   const actorIRI = apex.utils.usernameToIRI(actor)
   let actorObj
@@ -68,13 +68,13 @@ async function targetActorWithMeta (req, res, next) {
   if (!actorObj) {
     return res.status(404).send(`'${actor}' not found on this instance`)
   }
-  req.__apexLocal.target = actorObj
+  res.locals.apex.target = actorObj
   next()
 }
 
 async function outboxActivity (req, res, next) {
-  const apex = req.__apex
-  const actorIRI = req.__apexLocal.target.id
+  const apex = req.app.locals.apex
+  const actorIRI = res.locals.apex.target.id
   const activityIRI = apex.utils.activityIdToIRI()
   let activity = req.body
   let object
@@ -104,6 +104,6 @@ async function outboxActivity (req, res, next) {
       }
     })
   }
-  req.__apexLocal.activity = true
+  res.locals.apex.activity = true
   next()
 }

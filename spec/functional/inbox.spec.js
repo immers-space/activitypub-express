@@ -64,8 +64,9 @@ const activityNormalized = {
 }
 
 app.use(express.json({ type: apex.pub.consts.jsonldTypes }), apex)
-app.post('/inbox/:actor', apex.net.inbox.post)
-app.get('/inbox/:actor', apex.net.inbox.get)
+app.route('/inbox/:actor')
+  .post(apex.net.inbox.post)
+  .get(apex.net.inbox.get)
 app.use(function (err, req, res, next) {
   console.log(err)
   next(err)

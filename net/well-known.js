@@ -7,7 +7,7 @@ module.exports = {
 }
 
 async function parseWebfinger (req, res, next) {
-  const apex = req.__apex
+  const apex = req.app.locals.apex
   const acct = acctReg.exec(req.query.resource)
   if (!acct || acct.length < 2) {
     return res.status(400).send('Bad request. Please make sure "acct:USER@DOMAIN" is what you are sending as the "resource" query parameter.')
@@ -22,7 +22,7 @@ async function parseWebfinger (req, res, next) {
 
 function respondWebfinger (req, res, next) {
   const resource = req.query.resource
-  const actorObj = req.__apexLocal.target
+  const actorObj = res.locals.apex.target
   if (!actorObj) {
     return res.status(404).send(`${resource} not found`)
   }

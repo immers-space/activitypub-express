@@ -6,7 +6,7 @@ const defaultStore = require('./store')
 
 function onFinishedHandler (err, res) {
   if (err) return
-  const apexLocal = res.__apexLocal
+  const apexLocal = res.locals.apex
   Promise.all(apexLocal.postWork.map(task => task.call(res)))
     .then(() => {
       if (apexLocal.eventName) {
@@ -18,10 +18,8 @@ function onFinishedHandler (err, res) {
 
 module.exports = function (settings) {
   const apex = function (req, res, next) {
-    req.__apex = apex // apex api object
-    // temp request-level storage
-    req.__apexLocal = {}
-    res.__apexLocal = {
+    req.app.locals.apex = apex // apex api object
+    res.locals.apex = {
       eventName: null,
       eventMessage: {},
       postWork: []

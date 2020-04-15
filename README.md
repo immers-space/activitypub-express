@@ -44,10 +44,12 @@ const client = new MongoClient('mongodb://localhost:27017', { useUnifiedTopology
 
 app.use(express.json({ type: apex.pub.consts.jsonldTypes }), apex)
 // define routes using prepacakged middleware collections
-app.get(routes.inbox, apex.net.inbox.get)
-app.post(routes.inbox, apex.net.inbox.post)
-app.get(routes.outbox, apex.net.outbox.get)
-app.post(routes.outbox, apex.net.outbox.post)
+app.route(routes.inbox)
+  .get(apex.net.inbox.get)
+  .post(apex.net.inbox.post)
+app.route(routes.outbox)
+  .get(apex.net.outbox.get)
+  .post(apex.net.outbox.post)
 app.get('/.well-known/webfinger', apex.net.webfinger)
 // custom side-effects for your app
 app.on('apex-create', msg => {
