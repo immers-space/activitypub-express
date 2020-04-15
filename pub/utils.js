@@ -25,13 +25,12 @@ function actorFromActivity (activity) {
   return actor.id
 }
 
-function arrayToCollection (arr, ordered) {
-  return {
-    '@context': pubConsts.ASContext,
+function arrayToCollection (arr, context, ordered) {
+  return toJSONLD({
     totalItems: arr.length,
     type: ordered ? 'OrderedCollection' : 'Collection',
     [ordered ? 'orderedItems' : 'items']: arr
-  }
+  }, context)
 }
 // convert incoming json-ld to local context and
 // partially expanded format for consistent property access

@@ -6,9 +6,11 @@ module.exports = {
 }
 
 function inbox (req, res, next) {
+  const apex = req.app.locals.apex
   assert(res.locals.apex.target)
-  req.app.locals.apex.store.stream.getStream(res.locals.apex.target.id, true)
-    .then(stream => res.json(req.app.locals.apex.pub.utils.arrayToCollection(stream, true)))
+  apex.store.stream.getStream(res.locals.apex.target.id, true)
+    .then(stream => apex.pub.utils.arrayToCollection(stream, apex.context, true))
+    .then(coll => res.json(coll))
     .catch(err => {
       console.log(err.message)
       return res.status(500).send()
@@ -16,9 +18,11 @@ function inbox (req, res, next) {
 }
 
 function outbox (req, res, next) {
+  const apex = req.app.locals.apex
   assert(res.locals.apex.target)
-  req.app.locals.apex.store.stream.getStream(res.locals.apex.target.id)
-    .then(stream => res.json(req.app.locals.apex.pub.utils.arrayToCollection(stream, true)))
+  apex.store.stream.getStream(res.locals.apex.target.id)
+    .then(stream => apex.pub.utils.arrayToCollection(stream, apex.context, true))
+    .then(coll => res.json(coll))
     .catch(err => {
       console.log(err.message)
       return res.status(500).send()

@@ -9,6 +9,10 @@ const ActivitypubExpress = require('../../index')
 const app = express()
 const apex = ActivitypubExpress({
   domain: 'localhost',
+  context: [
+    'https://www.w3.org/ns/activitystreams',
+    'https://w3id.org/security/v1'
+  ],
   actorParam: 'actor',
   objectParam: 'id',
   activityParam: 'id',
@@ -17,7 +21,10 @@ const apex = ActivitypubExpress({
     object: '/o/:id',
     activity: '/s/:id',
     inbox: '/inbox/:actor',
-    outbox: '/outbox/:actor'
+    outbox: '/outbox/:actor',
+    followers: '/followers/:actor',
+    following: '/following/:actor',
+    liked: '/liked/:actor'
   }
 })
 const client = new MongoClient('mongodb://localhost:27017', { useUnifiedTopology: true, useNewUrlParser: true })
@@ -315,19 +322,29 @@ describe('inbox', function () {
             '@context': ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1'],
             type: 'OrderedCollection',
             totalItems: 3,
-            // sort chronological, and remove internal artifacts
-            orderedItems: inbox.reverse().map(act => {
-              delete act['@context']
-              delete act._id
-              delete act._meta
-              return act
-            })
+            orderedItems: [3, 2, 1].map(i => ({
+              type: 'Create',
+              id: `https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3${i}`,
+              to: 'https://localhost/u/test',
+              actor: 'https://localhost/u/test',
+              object: {
+                type: 'Note',
+                id: 'https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19',
+                attributedTo: 'https://localhost/u/test',
+                to: 'https://localhost/u/test',
+                content: 'Say, did you finish reading that book I lent you?'
+              }
+            }))
           }
           expect(inserted.insertedCount).toBe(3)
           request(app)
             .get('/inbox/test')
             .set('Accept', 'application/activity+json')
-            .expect(200, inboxCollection, done)
+            .expect(200)
+            .end((err, res) => {
+              expect(res.body).toEqual(inboxCollection)
+              done(err)
+            })
         })
     })
   })
