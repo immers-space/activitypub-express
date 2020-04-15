@@ -71,8 +71,10 @@ client.connect({ useNewUrlParser: true })
 * [ ] Shared server- & client-to-server
   * [x] Inbox GET
   * [x] Outbox GET
+  * [ ] Shared inbox GET
   * [ ] Resource GET
-    * [ ] Object & Actor
+    * [ ] Object
+    * [x] Actor
     * [ ] Activity
     * [ ] Collection
       * [ ] Pagination
@@ -96,9 +98,14 @@ client.connect({ useNewUrlParser: true })
       * [x] Other acivity types
     * [x] Security
       * [x] Signature validation
+    * [ ] Forwarding from inbox
+  * [ ] Shared inbox POST
+    * [ ] Delivery to targeted local inboxes
   * [x] Delivery
     * [x] Request signing
     * [x] Addressing
+      * [ ] Shared inbox optmization
+      * [ ] Direct delivery to local inboxes
     * [ ] Redelivery attempts
 * [ ] Client-to-server
   * [x] Outbox POST
@@ -123,13 +130,14 @@ client.connect({ useNewUrlParser: true })
     * [ ] localhost block
     * [ ] Content sanitization
   * [ ] Related standards
-    * [x] https-signature
+    * [x] http-signature
     * [x] webfinger
     * [ ] oauth
     * [x] json-ld
       * [ ] Context cache
+    * [ ] Linked data signatures
   * [x] Storage model (denormalized MongoDB)
-    * [ ] Index coverage for all common queries
+    * [ ] Index coverage for all queries
     * [ ] Fully interchangable with documented API
 
 
@@ -139,7 +147,7 @@ client.connect({ useNewUrlParser: true })
 
 Configures and returns an express middleware function that must be added to the route
 before any other apex midddleware. It needs to be configured with the routes you will use
-in order to correctly generate IRI's and actor profiles
+in order to correctly generate IRIs and actor profiles
 
 ```
 const ActivitypubExpress = require('activitypub-express')

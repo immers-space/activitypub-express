@@ -4,6 +4,7 @@ const validators = require('./validators')
 const security = require('./security')
 const activity = require('./activity')
 const collection = require('./collection')
+const object = require('./object')
 const wellKnown = require('./well-known')
 
 module.exports = {
@@ -12,6 +13,9 @@ module.exports = {
   activity,
   wellKnown,
   // meta - colletions of middleware to complete activitypub actions
+  actor: {
+    get: [validators.jsonld, validators.targetActor, object.respondActor]
+  },
   inbox: {
     post: [
       validators.jsonld,
