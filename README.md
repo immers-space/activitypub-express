@@ -113,8 +113,8 @@ client.connect({ useNewUrlParser: true })
       * [ ] Undo
       * [x] Other acivity types
 * [ ] Other
-  * [ ] Actor creation
-    * [ ] Key generation
+  * [x] Actor creation
+    * [x] Key generation
   * [ ] Security
     * [ ] Verification
     * [ ] Rate limits
@@ -125,8 +125,11 @@ client.connect({ useNewUrlParser: true })
     * [x] webfinger
     * [ ] oauth
     * [x] json-ld
-      * [ ] context cache
-  * [ ] Interchangable storage backend
+      * [ ] Context cache
+  * [x] Storage model (denormalized MongoDB)
+    * [ ] Index coverage for all common queries
+    * [ ] Fully interchangable with documented API
+
 
 ## API
 
