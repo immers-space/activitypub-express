@@ -50,7 +50,8 @@ app.route(routes.inbox)
 app.route(routes.outbox)
   .get(apex.net.outbox.get)
   .post(apex.net.outbox.post)
-app.get('/.well-known/webfinger', apex.net.webfinger)
+app.get(routes.actor, apex.net.actor.get)
+app.get('/.well-known/webfinger', apex.net.webfinger.get)
 // custom side-effects for your app
 app.on('apex-create', msg => {
   console.log(`New ${msg.object.type} from ${msg.actor} to ${msg.recipient}`)

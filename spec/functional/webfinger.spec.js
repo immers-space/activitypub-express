@@ -22,7 +22,7 @@ const apex = ActivitypubExpress({
 const client = new MongoClient('mongodb://localhost:27017', { useUnifiedTopology: true, useNewUrlParser: true })
 
 app.use(apex)
-app.get('/.well-known/webfinger', apex.net.webfinger)
+app.get('/.well-known/webfinger', apex.net.webfinger.get)
 app.use(function (err, req, res, next) {
   console.log(err)
   next(err)

@@ -46,9 +46,11 @@ module.exports = {
       collection.outbox
     ]
   },
-  webfinger: [
-    wellKnown.parseWebfinger,
-    validators.targetActor,
-    wellKnown.respondWebfinger
-  ]
+  webfinger: {
+    get: [
+      wellKnown.parseWebfinger,
+      validators.targetActor,
+      wellKnown.respondWebfinger
+    ]
+  }
 }
