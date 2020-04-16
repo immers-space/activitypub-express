@@ -1,6 +1,6 @@
 'use strict'
 const request = require('request-promise-native')
-const pubUtils = require('./utils')
+const pubConsts = require('./consts')
 
 // federation communication utilities
 module.exports = {
@@ -28,7 +28,7 @@ function deliver (actor, activity, addresses) {
       method: 'POST',
       url: addr,
       headers: {
-        'Content-Type': 'application/activity+json'
+        'Content-Type': pubConsts.jsonldTypes[0]
       },
       httpSignature: {
         key: actor._meta.privateKey,
