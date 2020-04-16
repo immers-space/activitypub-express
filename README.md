@@ -79,7 +79,7 @@ client.connect({ useNewUrlParser: true })
     * [ ] Activity
     * [ ] Collection
       * [ ] Pagination
-    * [ ] Relay requests for remote objets
+    * [ ] Relay requests for remote objects (proxyUrl endpoint?)
   * [ ] Security
     * [ ] Permission-based filtering
 * [ ] Server-to-server
@@ -99,6 +99,7 @@ client.connect({ useNewUrlParser: true })
       * [x] Other acivity types
     * [x] Security
       * [x] Signature validation
+    * [ ] Recursive resolution of related objects
     * [ ] Forwarding from inbox
   * [ ] Shared inbox POST
     * [ ] Delivery to targeted local inboxes
