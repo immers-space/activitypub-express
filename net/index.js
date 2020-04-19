@@ -1,10 +1,10 @@
 'use strict'
 // express middleware
 const validators = require('./validators')
+const responders = require('./responders')
 const security = require('./security')
 const activity = require('./activity')
 const collection = require('./collection')
-const object = require('./object')
 const wellKnown = require('./well-known')
 
 module.exports = {
@@ -14,10 +14,10 @@ module.exports = {
   wellKnown,
   // meta - colletions of middleware to complete activitypub actions
   activityStream: {
-    get: [validators.jsonld, validators.targetActivity, object.respondActivity]
+    get: [validators.jsonld, validators.targetActivity, responders.respondTarget]
   },
   actor: {
-    get: [validators.jsonld, validators.targetActor, object.respondActor]
+    get: [validators.jsonld, validators.targetActor, responders.respondTarget]
   },
   inbox: {
     post: [
@@ -36,7 +36,7 @@ module.exports = {
     ]
   },
   object: {
-    get: [validators.jsonld, validators.targetObject, object.respondObject]
+    get: [validators.jsonld, validators.targetObject, responders.respondTarget]
   },
   outbox: {
     post: [

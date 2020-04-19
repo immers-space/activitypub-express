@@ -55,7 +55,7 @@ async function targetActivity (req, res, next) {
   if (!activity) {
     return res.status(404).send(`'${aid}' not found`)
   }
-  res.locals.apex.targetActivity = activity
+  res.locals.apex.target = activity
   next()
 }
 
@@ -88,6 +88,21 @@ async function targetActorWithMeta (req, res, next) {
     return res.status(404).send(`'${actor}' not found on this instance`)
   }
   res.locals.apex.target = actorObj
+  next()
+}
+
+async function targetObject (req, res, next) {
+  const apex = req.app.locals.apex
+  const oid = req.params[apex.objectParam]
+  const objIRI = apex.utils.objectIdToIRI(oid)
+  let obj
+  try {
+    obj = await apex.store.object.get(objIRI)
+  } catch (err) { return next(err) }
+  if (!obj) {
+    return res.status(404).send(`'${oid}' not found`)
+  }
+  res.locals.apex.target = obj
   next()
 }
 
@@ -124,20 +139,5 @@ async function outboxActivity (req, res, next) {
     })
   }
   res.locals.apex.activity = true
-  next()
-}
-
-async function targetObject (req, res, next) {
-  const apex = req.app.locals.apex
-  const oid = req.params[apex.objectParam]
-  const objIRI = apex.utils.objectIdToIRI(oid)
-  let obj
-  try {
-    obj = await apex.store.object.get(objIRI)
-  } catch (err) { return next(err) }
-  if (!obj) {
-    return res.status(404).send(`'${oid}' not found`)
-  }
-  res.locals.apex.targetObject = obj
   next()
 }
