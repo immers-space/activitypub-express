@@ -30,12 +30,13 @@ const client = new MongoClient('mongodb://localhost:27017', { useUnifiedTopology
 
 app.use(apex)
 app.get('/u/:actor', apex.net.actor.get)
+app.get('/o/:id', apex.net.object.get)
 app.use(function (err, req, res, next) {
   console.log(err)
   next(err)
 })
 
-describe('actor', function () {
+describe('resources', function () {
   let testUser
   beforeAll(function (done) {
     const actorName = 'test'
@@ -57,8 +58,7 @@ describe('actor', function () {
       })
       .then(done)
   })
-  describe('get', function () {
-    // validators jsonld
+  describe('get actor', function () {
     it('returns actor object', function (done) {
       request(app)
         .get('/u/test')
@@ -83,6 +83,37 @@ describe('actor', function () {
               publicKeyPem: testUser.publicKey[0].publicKeyPem[0]
             }
           }
+          expect(res.body).toEqual(standard)
+          done(err)
+        })
+    })
+  })
+  describe('get object', function () {
+    it('returns the object', async function (done) {
+      const oid = apex.utils.objectIdToIRI()
+      let obj = {
+        id: oid,
+        type: 'Note',
+        content: 'Hello.',
+        attributedTo: 'https://localhost/u/test',
+        to: 'https://ignore.com/u/ignored'
+      }
+      obj = await apex.pub.utils.fromJSONLD(obj, apex.context)
+      await apex.store.object.save(obj)
+      request(app)
+        .get(oid.replace('https://localhost', ''))
+        .set('Accept', apex.pub.consts.jsonldTypes[0])
+        .expect(200)
+        .end(function (err, res) {
+          const standard = {
+            '@context': ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1'],
+            id: oid,
+            type: 'Note',
+            content: 'Hello.',
+            attributedTo: 'https://localhost/u/test',
+            to: 'https://ignore.com/u/ignored'
+          }
+          expect(res.get('content-type').includes('application/ld+json')).toBeTrue()
           expect(res.body).toEqual(standard)
           done(err)
         })

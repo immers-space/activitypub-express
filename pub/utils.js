@@ -1,6 +1,5 @@
 'use strict'
 const store = require('../store')
-const pubConsts = require('./consts')
 const jsonld = require('jsonld')
 
 module.exports = {

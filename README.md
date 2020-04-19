@@ -73,8 +73,8 @@ client.connect({ useNewUrlParser: true })
   * [x] Inbox GET
   * [x] Outbox GET
   * [ ] Shared inbox GET
-  * [ ] Resource GET
-    * [ ] Object
+  * [x] Resource GET
+    * [x] Object
     * [x] Actor
     * [ ] Activity
     * [ ] Collection
@@ -176,3 +176,9 @@ routes.liked | Actor liked collection route
 **Optional** |
 context | String, Array. JSON-LD context for your app. Defaults to AcivityStreams + Security vocabs
 store | Not fully implemented - replace the default storage model & database backend with your own
+
+## FAQ
+
+Q: How do I resolve this error seen when receiving/delivering activities or running the federation tests: `Uncaught exception: InvalidHeaderError: bad param format`
+
+A: Run `npm dedupe` to ensure `request` library is using the patched version of `http-signature` library.

@@ -3,7 +3,8 @@ module.exports = {
   jsonld,
   outboxActivity,
   targetActor,
-  targetActorWithMeta
+  targetActorWithMeta,
+  targetObject
 }
 
 function activity (req, res, next) {
@@ -19,8 +20,10 @@ function activity (req, res, next) {
 
 async function jsonld (req, res, next) {
   const apex = req.app.locals.apex
+  const jsonldAccepted = req.accepts(apex.pub.consts.jsonldTypes)
   // rule out */* requests
-  if (req.method === 'GET' && !req.accepts('text/html') && req.accepts(apex.pub.consts.jsonldTypes)) {
+  if (req.method === 'GET' && !req.accepts('text/html') && jsonldAccepted) {
+    res.locals.apex.responseType = jsonldAccepted
     return next()
   }
   if (req.method === 'POST' && req.is(apex.pub.consts.jsonldTypes)) {
@@ -105,5 +108,20 @@ async function outboxActivity (req, res, next) {
     })
   }
   res.locals.apex.activity = true
+  next()
+}
+
+async function targetObject (req, res, next) {
+  const apex = req.app.locals.apex
+  const oid = req.params[apex.objectParam]
+  const objIRI = apex.utils.objectIdToIRI(oid)
+  let obj
+  try {
+    obj = await apex.store.object.get(objIRI)
+  } catch (err) { return next(err) }
+  if (!obj) {
+    return res.status(404).send(`'${oid}' not found`)
+  }
+  res.locals.apex.targetObject = obj
   next()
 }

@@ -34,6 +34,8 @@ module.exports = function (settings) {
   apex.net = net
   apex.store = settings.store || defaultStore
   apex.actorParam = settings.actorParam
+  apex.objectParam = settings.objectParam
+  apex.activityParam = settings.activityParam
   apex.utils = {
     usernameToIRI: pub.utils.idToIRIFactory(settings.domain, settings.routes.actor, settings.actorParam),
     objectIdToIRI: pub.utils.idToIRIFactory(settings.domain, settings.routes.object, settings.objectParam),

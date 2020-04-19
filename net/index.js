@@ -32,6 +32,9 @@ module.exports = {
       collection.inbox
     ]
   },
+  object: {
+    get: [validators.jsonld, validators.targetObject, object.respondObject]
+  },
   outbox: {
     post: [
       validators.jsonld,
