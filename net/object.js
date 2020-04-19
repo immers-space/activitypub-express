@@ -1,8 +1,18 @@
 const assert = require('assert')
 
 module.exports = {
+  respondActivity,
   respondActor,
   respondObject
+}
+
+async function respondActivity (req, res) {
+  assert(res.locals.apex.targetActivity)
+  assert(res.locals.apex.responseType)
+  const apex = req.app.locals.apex
+  const activity = res.locals.apex.targetActivity
+  res.set('Content-Type', res.locals.apex.responseType)
+  res.json(await apex.pub.utils.toJSONLD(activity, apex.context))
 }
 
 async function respondActor (req, res) {

@@ -13,6 +13,9 @@ module.exports = {
   activity,
   wellKnown,
   // meta - colletions of middleware to complete activitypub actions
+  activityStream: {
+    get: [validators.jsonld, validators.targetActivity, object.respondActivity]
+  },
   actor: {
     get: [validators.jsonld, validators.targetActor, object.respondActor]
   },

@@ -51,6 +51,8 @@ app.route(routes.outbox)
   .get(apex.net.outbox.get)
   .post(apex.net.outbox.post)
 app.get(routes.actor, apex.net.actor.get)
+app.get(routes.object, apex.net.object.get)
+app.get(routes.activity, apex.net.activityStream.get)
 app.get('/.well-known/webfinger', apex.net.webfinger.get)
 // custom side-effects for your app
 app.on('apex-create', msg => {
@@ -76,7 +78,7 @@ client.connect({ useNewUrlParser: true })
   * [x] Resource GET
     * [x] Object
     * [x] Actor
-    * [ ] Activity
+    * [x] Activity
     * [ ] Collection
       * [ ] Pagination
     * [ ] Relay requests for remote objects (proxyUrl endpoint?)

@@ -2,6 +2,7 @@ module.exports = {
   activity,
   jsonld,
   outboxActivity,
+  targetActivity,
   targetActor,
   targetActorWithMeta,
   targetObject
@@ -41,6 +42,21 @@ async function jsonld (req, res, next) {
     return next()
   }
   next('route')
+}
+
+async function targetActivity (req, res, next) {
+  const apex = req.app.locals.apex
+  const aid = req.params[apex.activityParam]
+  const activityIRI = apex.utils.activityIdToIRI(aid)
+  let activity
+  try {
+    activity = await apex.store.stream.get(activityIRI)
+  } catch (err) { return next(err) }
+  if (!activity) {
+    return res.status(404).send(`'${aid}' not found`)
+  }
+  res.locals.apex.targetActivity = activity
+  next()
 }
 
 async function targetActor (req, res, next) {

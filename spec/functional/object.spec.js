@@ -31,6 +31,7 @@ const client = new MongoClient('mongodb://localhost:27017', { useUnifiedTopology
 app.use(apex)
 app.get('/u/:actor', apex.net.actor.get)
 app.get('/o/:id', apex.net.object.get)
+app.get('/s/:id', apex.net.activityStream.get)
 app.use(function (err, req, res, next) {
   console.log(err)
   next(err)
@@ -115,6 +116,36 @@ describe('resources', function () {
           }
           expect(res.get('content-type').includes('application/ld+json')).toBeTrue()
           expect(res.body).toEqual(standard)
+          done(err)
+        })
+    })
+  })
+  describe('get activity', function () {
+    it('returns the activity', async function (done) {
+      const aid = apex.utils.activityIdToIRI()
+      const activityInput = {
+        id: aid,
+        type: 'Create',
+        to: 'https://ignore.com/u/ignored',
+        actor: 'https://localhost/u/test',
+        object: {
+          id: apex.utils.objectIdToIRI(),
+          type: 'Note',
+          attributedTo: 'https://localhost/u/test',
+          to: 'https://ignore.com/u/ignored',
+          content: 'Say, did you finish reading that book I lent you?'
+        }
+      }
+      const activity = await apex.pub.utils.fromJSONLD(activityInput, apex.context)
+      await apex.store.stream.save(activity)
+      request(app)
+        .get(aid.replace('https://localhost', ''))
+        .set('Accept', apex.pub.consts.jsonldTypes[0])
+        .expect(200)
+        .end(function (err, res) {
+          activityInput['@context'] = ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1']
+          expect(res.get('content-type').includes('application/ld+json')).toBeTrue()
+          expect(res.body).toEqual(activityInput)
           done(err)
         })
     })
