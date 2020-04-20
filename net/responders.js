@@ -19,9 +19,9 @@ async function respondTarget (req, res) {
   res.status(200).send(body)
 }
 
-// strip any _meta properties as a safety mechanism to avoid leaking private keys, et c
+// strip any _meta properties to keeping jsonld valid and not leak private keys
 function skipMeta (key, value) {
-  if (key === '_meta') {
+  if (key === '_meta' || key === '_id') {
     return undefined
   }
   return value
