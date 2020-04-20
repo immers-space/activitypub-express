@@ -320,6 +320,7 @@ describe('inbox', function () {
         .then(inserted => {
           const inboxCollection = {
             '@context': ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1'],
+            id: 'https://localhost/inbox/test',
             type: 'OrderedCollection',
             totalItems: 3,
             orderedItems: [3, 2, 1].map(i => ({

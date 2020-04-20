@@ -3,11 +3,25 @@
 const assert = require('assert')
 
 module.exports = {
-  respondTarget
+  result,
+  target
 }
 
-// sends the target local variable as jsonld
-async function respondTarget (req, res) {
+// sends other output as jsonld
+async function result (req, res) {
+  assert(res.locals.apex.responseType)
+  const apex = req.app.locals.apex
+  const result = res.locals.apex.result
+  if (!result) {
+    return res.sendStatus(404)
+  }
+  const body = JSON.stringify(await apex.pub.utils.toJSONLD(result, apex.context), skipMeta)
+  res.type(res.locals.apex.responseType)
+  res.status(200).send(body)
+}
+
+// sends the target object as jsonld
+async function target (req, res) {
   assert(res.locals.apex.responseType)
   const apex = req.app.locals.apex
   const target = res.locals.apex.target

@@ -14,10 +14,10 @@ module.exports = {
   wellKnown,
   // meta - colletions of middleware to complete activitypub actions
   activityStream: {
-    get: [validators.jsonld, validators.targetActivity, responders.respondTarget]
+    get: [validators.jsonld, validators.targetActivity, responders.target]
   },
   actor: {
-    get: [validators.jsonld, validators.targetActor, responders.respondTarget]
+    get: [validators.jsonld, validators.targetActor, responders.target]
   },
   inbox: {
     post: [
@@ -32,11 +32,12 @@ module.exports = {
     get: [
       validators.jsonld,
       validators.targetActor,
-      collection.inbox
+      collection.inbox,
+      responders.result
     ]
   },
   object: {
-    get: [validators.jsonld, validators.targetObject, responders.respondTarget]
+    get: [validators.jsonld, validators.targetObject, responders.target]
   },
   outbox: {
     post: [
@@ -49,7 +50,8 @@ module.exports = {
     get: [
       validators.jsonld,
       validators.targetActor,
-      collection.outbox
+      collection.outbox,
+      responders.result
     ]
   },
   webfinger: {

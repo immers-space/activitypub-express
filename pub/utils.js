@@ -24,10 +24,11 @@ function actorFromActivity (activity) {
   return actor.id
 }
 
-function arrayToCollection (arr, context, ordered) {
-  return toJSONLD({
-    totalItems: arr.length,
+function arrayToCollection (context, id, arr, ordered) {
+  return fromJSONLD({
+    id,
     type: ordered ? 'OrderedCollection' : 'Collection',
+    totalItems: arr.length,
     [ordered ? 'orderedItems' : 'items']: arr
   }, context)
 }

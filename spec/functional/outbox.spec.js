@@ -293,6 +293,7 @@ describe('outbox', function () {
         .then(inserted => {
           const outboxCollection = {
             '@context': ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1'],
+            id: 'https://localhost/outbox/test',
             type: 'OrderedCollection',
             totalItems: 3,
             orderedItems: [3, 2, 1].map(i => ({

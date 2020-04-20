@@ -6,25 +6,25 @@ module.exports = {
 }
 
 function inbox (req, res, next) {
-  const apex = req.app.locals.apex
   assert(res.locals.apex.target)
-  apex.store.stream.getStream(res.locals.apex.target.id, true)
-    .then(stream => apex.pub.utils.arrayToCollection(stream, apex.context, true))
-    .then(coll => res.json(coll))
-    .catch(err => {
-      console.log(err.message)
-      return res.status(500).send()
+  const apex = req.app.locals.apex
+  const target = res.locals.apex.target
+  apex.store.stream.getStream(target.id, true)
+    .then(stream => apex.pub.utils.arrayToCollection(apex.context, target.inbox[0], stream, true))
+    .then(col => {
+      res.locals.apex.result = col
+      next()
     })
 }
 
 function outbox (req, res, next) {
-  const apex = req.app.locals.apex
   assert(res.locals.apex.target)
-  apex.store.stream.getStream(res.locals.apex.target.id)
-    .then(stream => apex.pub.utils.arrayToCollection(stream, apex.context, true))
-    .then(coll => res.json(coll))
-    .catch(err => {
-      console.log(err.message)
-      return res.status(500).send()
+  const apex = req.app.locals.apex
+  const target = res.locals.apex.target
+  apex.store.stream.getStream(target.id)
+    .then(stream => apex.pub.utils.arrayToCollection(apex.context, target.outbox[0], stream, true))
+    .then(col => {
+      res.locals.apex.result = col
+      next()
     })
 }
