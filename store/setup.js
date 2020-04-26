@@ -27,7 +27,7 @@ module.exports = async function dbSetup (testUser) {
   })
   if (testUser) {
     return db.collection('objects').findOneAndReplace(
-      { preferredUsername: [testUser.preferredUsername] },
+      { preferredUsername: testUser.preferredUsername },
       testUser,
       {
         upsert: true,
