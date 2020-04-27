@@ -245,29 +245,61 @@ describe('outbox', function () {
         .expect(200)
         .end(err => { if (err) done(err) })
     })
-    it('updates target object', async function (done) {
-      const sourceObj = merge({ id: apex.utils.objectIdToIRI() }, activityNormalized.object[0])
-      // partial object for partial update
-      const updatedObj = { id: sourceObj.id, content: ['updated'] }
-      const expectedObj = merge({}, sourceObj)
-      expectedObj.content = updatedObj.content
-      const db = apex.store.connection.getDb()
-      const inserted = await db.collection('objects')
-        .insertOne(sourceObj)
-      expect(inserted.insertedCount).toBe(1)
-
-      const update = await apex.pub.activity
-        .build(apex.context, 'https://localhost/s/23sdlkfj-update', 'Update', 'https://localhost/u/test', updatedObj, sourceObj.to)
-      await request(app)
-        .post('/outbox/test')
-        .set('Content-Type', 'application/activity+json')
-        .send(update)
-        .expect(200)
-      const result = await db.collection('objects')
-        .findOne({ id: sourceObj.id })
-      delete result._id
-      expect(result).toEqual(expectedObj)
-      done()
+    describe('update', function () {
+      let sourceObj
+      let updatedObj
+      let expectedObj
+      let update
+      beforeEach(async function () {
+        sourceObj = merge({ id: apex.utils.objectIdToIRI() }, activityNormalized.object[0])
+        // partial object for partial update
+        updatedObj = { id: sourceObj.id, content: ['updated'] }
+        expectedObj = merge({}, sourceObj)
+        expectedObj.content = updatedObj.content
+        await apex.store.connection.getDb().collection('objects')
+          .insertOne(sourceObj)
+        update = await apex.pub.activity
+          .build(apex.context, 'https://localhost/s/23sdlkfj-update', 'Update', 'https://localhost/u/test', updatedObj, sourceObj.to)
+      })
+      it('updates target object', async function () {
+        await request(app)
+          .post('/outbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(update)
+          .expect(200)
+        const result = await apex.store.connection.getDb().collection('objects')
+          .findOne({ id: sourceObj.id })
+        delete result._id
+        expect(result).toEqual(expectedObj)
+      })
+      it('federates whole updated object', async function (done) {
+        update.to = ['https://mocked.com/user/mocked']
+        update.object[0].to = ['https://mocked.com/user/mocked']
+        nock('https://mocked.com')
+          .get('/user/mocked')
+          .reply(200, { id: 'https://mocked.com/user/mocked', inbox: 'https://mocked.com/inbox/mocked' })
+        nock('https://mocked.com').post('/inbox/mocked')
+          .reply(200)
+          .on('request', (req, interceptor, body) => {
+            const sentActivity = JSON.parse(body)
+            expect(sentActivity.object).toEqual({
+              id: sourceObj.id,
+              type: 'Note',
+              attributedTo: 'https://localhost/u/test',
+              to: 'https://mocked.com/user/mocked',
+              content: 'updated'
+            })
+            done()
+          })
+        request(app)
+          .post('/outbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(update)
+          .expect(200)
+          .end(function (err) {
+            if (err) throw err
+          })
+      })
     })
     it('fires other activity event', function (done) {
       const arriveAct = {

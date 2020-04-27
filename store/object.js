@@ -6,7 +6,7 @@ module.exports = {
   update
 }
 
-const proj = { _id: 0, _meta: 0 }
+const projection = { _id: 0, _meta: 0 }
 const metaProj = { _id: 0 }
 
 function get (id, includeMeta) {
@@ -15,7 +15,7 @@ function get (id, includeMeta) {
     .find({ id: id })
     .limit(1)
     // strict comparison as we don't want to return private keys on accident
-    .project(includeMeta === true ? metaProj : proj)
+    .project(includeMeta === true ? metaProj : projection)
     .next()
 }
 
@@ -56,5 +56,5 @@ function update (object, actor) {
     op.$unset = unset
   }
   return connection.getDb().collection('objects')
-    .findOneAndUpdate({ id: object.id, attributedTo: actor }, op, { returnOriginal: false })
+    .findOneAndUpdate({ id: object.id, attributedTo: actor }, op, { returnOriginal: false, projection })
 }
