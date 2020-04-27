@@ -272,6 +272,22 @@ describe('outbox', function () {
         delete result._id
         expect(result).toEqual(expectedObj)
       })
+      it('updates activities containing object', async function () {
+        const db = apex.store.connection.getDb()
+        await db.collection('streams').insertMany([
+          await apex.pub.activity.build(apex.context, 'https://localhost/s/23sdlkfj-create', 'Create', 'https://localhost/u/test', sourceObj, sourceObj.to),
+          await apex.pub.activity.build(apex.context, 'https://localhost/s/23sdlkfj-create2', 'Create', 'https://localhost/u/test', sourceObj, sourceObj.to)
+        ])
+        await request(app)
+          .post('/outbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(update)
+          .expect(200)
+        const activities = await db.collection('streams').find({ type: 'Create', 'object.0.id': sourceObj.id }).toArray()
+        expect(activities[0].object[0].content).toEqual(['updated'])
+        expect(activities[1].object[0].content).toEqual(['updated'])
+      })
+      it('adds updated object recipients to audience')
       it('federates whole updated object', async function (done) {
         update.to = ['https://mocked.com/user/mocked']
         update.object[0].to = ['https://mocked.com/user/mocked']

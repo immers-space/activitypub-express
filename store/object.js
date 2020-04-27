@@ -33,7 +33,7 @@ async function save (object) {
     .insertOne(object, { forceServerObjectId: true })
 }
 
-function update (object, actor) {
+function update (object, actorId) {
   let doSet = false
   let doUnset = false
   const set = {}
@@ -56,5 +56,5 @@ function update (object, actor) {
     op.$unset = unset
   }
   return connection.getDb().collection('objects')
-    .findOneAndUpdate({ id: object.id, attributedTo: actor }, op, { returnOriginal: false, projection })
+    .findOneAndUpdate({ id: object.id, attributedTo: actorId }, op, { returnOriginal: false, projection })
 }

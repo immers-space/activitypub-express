@@ -4,7 +4,8 @@ module.exports = {
   get,
   getStream,
   remove,
-  save
+  save,
+  updateObject
 }
 
 function get (id) {
@@ -50,4 +51,10 @@ async function save (activity) {
 function remove (activity, actor) {
   return connection.getDb().collection('streams')
     .deleteMany({ id: activity.id, actor: actor })
+}
+
+// for denormalized storage model, must update all activities with copy of updated object
+function updateObject (object) {
+  connection.getDb().collection('streams')
+    .updateMany({ 'object.0.id': object.id }, { $set: { object: [object] } })
 }
