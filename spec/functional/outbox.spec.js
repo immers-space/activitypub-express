@@ -92,14 +92,6 @@ describe('outbox', function () {
       .then(done)
   })
   beforeEach(function (done) {
-    // block federation attempts
-    nock('https://ignore.com')
-      .get(() => true)
-      .reply(200, {})
-      .persist()
-      .post(() => true)
-      .reply(200)
-      .persist()
     // reset db for each test
     client.db('apexTestingTempDb').dropDatabase()
       .then(() => {
@@ -107,9 +99,6 @@ describe('outbox', function () {
         return apex.store.setup(testUser)
       })
       .then(done)
-  })
-  afterEach(function () {
-    nock.cleanAll()
   })
   describe('post', function () {
     // validators jsonld

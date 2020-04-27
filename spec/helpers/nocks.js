@@ -1,9 +1,9 @@
-/* global beforeEach, afterEach */
+/* global beforeAll, afterAll */
 const fs = require('fs')
 const nock = require('nock')
 const activities = fs.readFileSync('vocab/as.json')
 const security = fs.readFileSync('vocab/security.json')
-beforeEach(() => {
+beforeAll(() => {
   nock('https://www.w3.org')
     .get('/ns/activitystreams')
     .reply(200, activities)
@@ -12,7 +12,15 @@ beforeEach(() => {
     .get('/security/v1')
     .reply(200, security) // TODO get copy of real security vocab
     .persist(true)
+  // block federation attempts
+  nock('https://ignore.com')
+    .get(() => true)
+    .reply(200, {})
+    .persist()
+    .post(() => true)
+    .reply(200)
+    .persist()
 })
-afterEach(() => {
+afterAll(() => {
   nock.cleanAll()
 })
