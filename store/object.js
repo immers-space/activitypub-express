@@ -2,7 +2,8 @@
 const connection = require('./connection')
 module.exports = {
   get,
-  save
+  save,
+  update
 }
 
 const proj = { _id: 0, _meta: 0 }
@@ -30,4 +31,30 @@ async function save (object) {
   }
   return db.collection('objects')
     .insertOne(object, { forceServerObjectId: true })
+}
+
+function update (object, actor) {
+  let doSet = false
+  let doUnset = false
+  const set = {}
+  const unset = {}
+  const op = {}
+  for (const [key, value] of Object.entries(object)) {
+    if (key === 'id') continue
+    if (value === null) {
+      doUnset = true
+      unset[key] = ''
+    } else {
+      doSet = true
+      set[key] = value
+    }
+  }
+  if (doSet) {
+    op.$set = set
+  }
+  if (doUnset) {
+    op.$unset = unset
+  }
+  return connection.getDb().collection('objects')
+    .findOneAndUpdate({ id: object.id, attributedTo: actor }, op, { returnOriginal: false })
 }

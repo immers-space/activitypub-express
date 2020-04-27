@@ -78,6 +78,16 @@ module.exports = {
           resLocal.eventMessage.object = object
         }))
         break
+      case 'update':
+        resLocal.eventMessage = 'apex-update'
+        toDo.push(apex.store.object.update(activity.object[0], actor.id).then(updated => {
+          if (!updated.value) {
+            throw new Error('Update target object not found')
+          }
+          activity.object[0] = updated.value // send full replacement object when federating
+        }))
+
+        break
       default:
         resLocal.eventName = `apex-${activity.type.toLowerCase()}`
         break

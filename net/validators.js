@@ -125,7 +125,8 @@ async function outboxActivity (req, res, next) {
     activity = await apex.pub.activity
       .build(apex.context, activityIRI, 'Create', actorIRI, object, object.to, object.cc, extras)
     req.body = activity
-  } else if (activity.object) {
+  } else if (activity.type === 'Create') {
+    // validate content of created objects
     object = activity.object[0]
     object.id = apex.utils.objectIdToIRI()
     // per spec, ensure attributedTo and audience fields in object are correct

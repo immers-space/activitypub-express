@@ -252,8 +252,8 @@ describe('inbox', function () {
         type: 'Undo',
         id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d4',
         to: ['https://localhost/u/test'],
-        actor: 'https://localhost/u/test',
-        object: 'https://localhost/s/to-undo'
+        actor: ['https://localhost/u/test'],
+        object: ['https://localhost/s/to-undo']
       }
       const db = apex.store.connection.getDb()
       const inserted = await db.collection('streams')
