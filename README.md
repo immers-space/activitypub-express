@@ -79,7 +79,14 @@ client.connect({ useNewUrlParser: true })
     * [x] Object
     * [x] Actor
     * [x] Activity
-    * [ ] Collection
+    * [ ] Collections
+      * [ ] Special collections
+        * [x] Inbox
+        * [x] Outbox
+        * [ ] Followers
+        * [ ] Following
+        * [ ] Liked
+      * [ ] Misc collections
       * [ ] Pagination
     * [ ] Relay requests for remote objects (proxyUrl endpoint?)
   * [ ] Security
@@ -116,7 +123,8 @@ client.connect({ useNewUrlParser: true })
     * [x] Auto-Create for bare objects
     * [ ] Activity side-effects
       * [x] Create
-      * [ ] Update
+      * [x] Update
+        * [ ] Add prior recipients of updated object to federation audience
       * [ ] Delete
       * [ ] Follow
       * [ ] Add

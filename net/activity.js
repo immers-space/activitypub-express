@@ -81,10 +81,11 @@ module.exports = {
       case 'update':
         resLocal.eventMessage = 'apex-update'
         toDo.push(apex.store.combined.updateObject(activity.object[0], actor.id).then(updated => {
-          if (!updated.value) {
+          if (!updated) {
             throw new Error('Update target object not found or not authorized')
           }
-          activity.object[0] = updated.value // send full replacement object when federating
+          activity.object[0] = updated // send full replacement object when federating
+          resLocal.eventMessage.object = updated
         }))
 
         break

@@ -55,6 +55,10 @@ function update (object, actorId) {
   if (doUnset) {
     op.$unset = unset
   }
+  // limit udpates to owners of objects
+  const q = object.id === actorId
+    ? { id: object.id }
+    : { id: object.id, attributedTo: actorId }
   return connection.getDb().collection('objects')
-    .findOneAndUpdate({ id: object.id, attributedTo: actorId }, op, { returnOriginal: false, projection })
+    .findOneAndUpdate(q, op, { returnOriginal: false, projection })
 }

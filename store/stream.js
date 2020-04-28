@@ -55,6 +55,6 @@ function remove (activity, actor) {
 
 // for denormalized storage model, must update all activities with copy of updated object
 function updateObject (object) {
-  connection.getDb().collection('streams')
+  return connection.getDb().collection('streams')
     .updateMany({ 'object.0.id': object.id }, { $set: { object: [object] } })
 }

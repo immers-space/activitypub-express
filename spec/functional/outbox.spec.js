@@ -273,8 +273,8 @@ describe('outbox', function () {
           .send(update)
           .expect(200)
         const activities = await db.collection('streams').find({ type: 'Create', 'object.0.id': sourceObj.id }).toArray()
-        expect(activities[0].object[0].content).toEqual(['updated'])
-        expect(activities[1].object[0].content).toEqual(['updated'])
+        expect(activities[0].object[0]).toEqual(expectedObj)
+        expect(activities[1].object[0]).toEqual(expectedObj)
       })
       it('adds updated object recipients to audience')
       it('federates whole updated object', async function (done) {

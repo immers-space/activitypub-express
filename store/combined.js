@@ -13,9 +13,9 @@ async function updateObject (obj, actorId, fullReplace) {
   } else {
     updated = await object.update(obj, actorId)
   }
-  if (updated) {
+  if (updated.value) {
     // propogate update to all copies in streams
-    await stream.updateObject(obj)
+    await stream.updateObject(updated.value)
   }
-  return updated
+  return updated.value
 }
