@@ -26,7 +26,8 @@ module.exports = {
       validators.inboxActivity,
       security.verifySignature,
       activity.save,
-      activity.inboxSideEffects
+      activity.inboxSideEffects,
+      responders.ok
     ],
     get: [
       validators.jsonld,
@@ -44,7 +45,8 @@ module.exports = {
       validators.targetActorWithMeta,
       validators.outboxActivity,
       activity.save,
-      activity.outboxSideEffects
+      activity.outboxSideEffects,
+      responders.ok
     ],
     get: [
       validators.jsonld,

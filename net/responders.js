@@ -3,8 +3,13 @@
 const assert = require('assert')
 
 module.exports = {
+  ok,
   result,
   target
+}
+
+function ok (req, res) {
+  res.sendStatus(200)
 }
 
 // sends other output as jsonld

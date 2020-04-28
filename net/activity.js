@@ -13,7 +13,7 @@ module.exports = {
     assert(res.locals.apex.activity)
     if (!res.locals.apex.isNewActivity) {
       // ignore duplicate deliveries
-      return res.status(200).send()
+      return next()
     }
     const toDo = []
     const apex = req.app.locals.apex
@@ -49,14 +49,14 @@ module.exports = {
         break
     }
     Promise.all(toDo).then(() => {
-      res.status(200).send()
+      next()
     }).catch(next)
   },
   outboxSideEffects (req, res, next) {
     assert(res.locals.apex.activity)
     if (!res.locals.apex.isNewActivity) {
       // ignore duplicate deliveries
-      return res.status(200).send()
+      return next()
     }
     const toDo = []
     const apex = req.app.locals.apex
@@ -91,7 +91,7 @@ module.exports = {
     }
     resLocal.postWork.push(() => apex.pub.activity.addToOutbox(actor, activity, apex.context))
     Promise.all(toDo).then(() => {
-      res.status(200).send()
+      next()
     }).catch(next)
   }
 }
