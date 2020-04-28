@@ -137,6 +137,7 @@ describe('outbox', function () {
             .findOne({ actor: 'https://localhost/u/test' })
         })
         .then(act => {
+          expect(act._meta.collection).toEqual(['https://localhost/outbox/test'])
           delete act._meta
           delete act._id
           delete act.id
@@ -223,7 +224,8 @@ describe('outbox', function () {
         expect(msg.actor).toEqual(testUser)
         delete msg.activity.id
         delete msg.object.id
-        expect(msg.activity).toEqual(activityNormalized)
+        const exp = merge({ _meta: { collection: ['https://localhost/outbox/test'] } }, activityNormalized)
+        expect(msg.activity).toEqual(exp)
         expect(msg.object).toEqual(activityNormalized.object[0])
         done()
       })
@@ -321,6 +323,7 @@ describe('outbox', function () {
         expect(msg.actor).toEqual(testUser)
         delete msg.activity.id
         expect(msg.activity).toEqual({
+          _meta: { collection: ['https://localhost/outbox/test'] },
           type: 'Arrive',
           to: ['https://ignore.com/u/ignored'],
           actor: ['https://localhost/u/test'],
@@ -344,7 +347,7 @@ describe('outbox', function () {
     const fakeOId = 'https://localhost/o/a29a6843-9feb-4c74-a7f7-081b9c9201d3'
     it('returns outbox as ordered collection', (done) => {
       const outbox = [1, 2, 3].map(i => {
-        const a = Object.assign({}, activity, { id: `${fakeId}${i}` })
+        const a = Object.assign({}, activity, { id: `${fakeId}${i}`, _meta: { collection: ['https://localhost/outbox/test'] } })
         a.object = Object.assign({}, a.object, { id: `${fakeOId}${i}` })
         return a
       })

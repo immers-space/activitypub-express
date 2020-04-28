@@ -61,6 +61,7 @@ async function address (activity) {
 async function addToOutbox (actor, activity, context) {
   const tasks = [address(activity), pubUtils.toJSONLD(activity, context)]
   const [addresses, outgoingActivity] = await Promise.all(tasks)
+  delete outgoingActivity._meta
   return pubFederation.deliver(actor, outgoingActivity, addresses)
 }
 

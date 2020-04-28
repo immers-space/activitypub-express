@@ -1,14 +1,14 @@
 'use strict'
 const connection = require('./connection')
 module.exports = {
-  get,
+  getActivity,
   getStream,
   remove,
   save,
   updateObject
 }
 
-function get (id) {
+function getActivity (id) {
   const db = connection.getDb()
   return db.collection('streams')
     .find({ id: id })
@@ -17,23 +17,19 @@ function get (id) {
     .next()
 }
 
-function getStream (actorId, idIsTargetActor) {
+function getStream (collectionId) {
   const query = connection.getDb()
     .collection('streams')
-    .find({ [idIsTargetActor ? '_meta._target' : 'actor']: actorId })
+    .find({ '_meta.collection': collectionId })
     .sort({ _id: -1 })
-    .project({ _id: 0, _meta: 0, '@context': 0, 'object._id': 0, 'object.@context': 0, 'object._meta': 0 })
-  // TODO: pagination
+    .project({ _id: 0, _meta: 0, 'object._id': 0, 'object._meta': 0 })
   return query.toArray()
 }
 
 async function save (activity) {
   const db = connection.getDb()
-  const q = { id: activity.id }
-  // activities may be duplicated for multiple local targets
-  if (activity._meta && activity._meta._target) {
-    q['_meta._target'] = activity._meta._target
-  }
+  // activities may be duplicated with different target collections
+  const q = { id: activity.id, '_meta.collection': { $all: activity._meta.collection } }
   const exists = await db.collection('streams')
     .find(q)
     .project({ _id: 1 })

@@ -1,11 +1,7 @@
+'use strict'
+
 const assert = require('assert')
 module.exports = {
-  setTargetActor (req, res, next) {
-    assert(res.locals.apex.activity)
-    assert(res.locals.apex.target)
-    req.body._meta._target = res.locals.apex.target.id
-    next()
-  },
   save (req, res, next) {
     assert(res.locals.apex.activity)
     req.app.locals.apex.store.stream.save(req.body).then(saveResult => {
@@ -79,7 +75,7 @@ module.exports = {
         }))
         break
       case 'update':
-        resLocal.eventMessage = 'apex-update'
+        resLocal.eventName = 'apex-update'
         toDo.push(apex.store.combined.updateObject(activity.object[0], actor.id).then(updated => {
           if (!updated) {
             throw new Error('Update target object not found or not authorized')

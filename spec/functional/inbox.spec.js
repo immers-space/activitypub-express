@@ -142,7 +142,7 @@ describe('inbox', function () {
             .findOne({ id: activity.id })
         })
         .then(act => {
-          expect(act._meta._target).toBe('https://localhost/u/test')
+          expect(act._meta.collection).toEqual(['https://localhost/inbox/test'])
           delete act._meta
           delete act._id
           expect(act).toEqual(activityNormalized)
@@ -157,7 +157,7 @@ describe('inbox', function () {
       app.once('apex-create', msg => {
         expect(msg.actor).toBe('https://localhost/u/test')
         expect(msg.recipient).toEqual(recipient)
-        const act = Object.assign({ _meta: { _target: 'https://localhost/u/test' } }, activityNormalized)
+        const act = Object.assign({ _meta: { collection: ['https://localhost/inbox/test'] } }, activityNormalized)
         expect(msg.activity).toEqual(act)
         expect(msg.object).toEqual(activityNormalized.object[0])
         done()
@@ -287,7 +287,7 @@ describe('inbox', function () {
         expect(msg.actor).toBe('https://localhost/u/test')
         expect(msg.recipient).toEqual(recipient)
         expect(msg.activity).toEqual({
-          _meta: { _target: 'https://localhost/u/test' },
+          _meta: { collection: ['https://localhost/inbox/test'] },
           type: 'Arrive',
           id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
           to: ['https://localhost/u/test'],
@@ -310,7 +310,7 @@ describe('inbox', function () {
   describe('get', function () {
     it('returns inbox as ordered collection', (done) => {
       const inbox = []
-      const meta = { _target: 'https://localhost/u/test' }
+      const meta = { collection: ['https://localhost/inbox/test'] }
       ;[1, 2, 3].forEach(i => {
         inbox.push(Object.assign({}, activity, { id: `${activity.id}${i}`, _meta: meta }))
       })

@@ -4,14 +4,14 @@ module.exports = async function dbSetup (testUser) {
   const db = connection.getDb()
   // inbox
   await db.collection('streams').createIndex({
-    '_meta._target': 1,
+    '_meta.collection': 1,
     _id: -1
   }, {
     name: 'inbox'
   })
   // followers
   await db.collection('streams').createIndex({
-    '_meta._target': 1
+    '_meta.collection': 1
   }, {
     partialFilterExpression: { type: 'Follow' },
     name: 'followers'

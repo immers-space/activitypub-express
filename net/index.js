@@ -22,10 +22,9 @@ module.exports = {
   inbox: {
     post: [
       validators.jsonld,
-      validators.activity,
-      security.verifySignature,
       validators.targetActor,
-      activity.setTargetActor,
+      validators.inboxActivity,
+      security.verifySignature,
       activity.save,
       activity.inboxSideEffects
     ],

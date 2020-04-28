@@ -1,5 +1,9 @@
+'use strict'
+
+const assert = require('assert')
+
 module.exports = {
-  activity,
+  inboxActivity,
   jsonld,
   outboxActivity,
   targetActivity,
@@ -8,13 +12,13 @@ module.exports = {
   targetObject
 }
 
-function activity (req, res, next) {
-  if (!req.app.locals.apex.pub.utils.validateActivity(req.body)) {
+function inboxActivity (req, res, next) {
+  assert(res.locals.apex.target)
+  const apex = req.app.locals.apex
+  if (!apex.pub.utils.validateActivity(req.body)) {
     return res.status(400).send('Invalid activity')
   }
-  if (!req.body._meta) {
-    req.body._meta = {}
-  }
+  apex.pub.utils.addMeta(req.body, 'collection', res.locals.apex.target.inbox[0])
   res.locals.apex.activity = true
   next()
 }
@@ -50,7 +54,7 @@ async function targetActivity (req, res, next) {
   const activityIRI = apex.utils.activityIdToIRI(aid)
   let activity
   try {
-    activity = await apex.store.stream.get(activityIRI)
+    activity = await apex.store.stream.getActivity(activityIRI)
   } catch (err) { return next(err) }
   if (!activity) {
     return res.status(404).send(`'${aid}' not found`)
@@ -107,6 +111,7 @@ async function targetObject (req, res, next) {
 }
 
 async function outboxActivity (req, res, next) {
+  assert(res.locals.apex.target)
   const apex = req.app.locals.apex
   const actorIRI = res.locals.apex.target.id
   const activityIRI = apex.utils.activityIdToIRI()
@@ -139,6 +144,7 @@ async function outboxActivity (req, res, next) {
       }
     })
   }
+  apex.pub.utils.addMeta(req.body, 'collection', res.locals.apex.target.outbox[0])
   res.locals.apex.activity = true
   next()
 }

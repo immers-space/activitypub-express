@@ -137,6 +137,7 @@ describe('resources', function () {
         }
       }
       const activity = await apex.pub.utils.fromJSONLD(activityInput, apex.context)
+      activity._meta = { collection: [] }
       await apex.store.stream.save(activity)
       request(app)
         .get(aid.replace('https://localhost', ''))

@@ -3,6 +3,7 @@ const store = require('../store')
 const jsonld = require('jsonld')
 
 module.exports = {
+  addMeta,
   idToIRIFactory,
   nameToActorStreamsFactory,
   toJSONLD,
@@ -11,6 +12,17 @@ module.exports = {
   actorFromActivity,
   validateActivity,
   validateObject
+}
+
+function addMeta (obj, key, value) {
+  if (!obj._meta) {
+    obj._meta = {}
+  }
+  if (!obj._meta[key]) {
+    obj._meta[key] = [value]
+  } else {
+    obj._meta.push(value)
+  }
 }
 
 function actorFromActivity (activity) {

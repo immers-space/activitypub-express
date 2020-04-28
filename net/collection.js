@@ -8,9 +8,9 @@ module.exports = {
 function inbox (req, res, next) {
   assert(res.locals.apex.target)
   const apex = req.app.locals.apex
-  const target = res.locals.apex.target
-  apex.store.stream.getStream(target.id, true)
-    .then(stream => apex.pub.utils.arrayToCollection(apex.context, target.inbox[0], stream, true))
+  const inboxId = res.locals.apex.target.inbox[0]
+  apex.store.stream.getStream(inboxId)
+    .then(stream => apex.pub.utils.arrayToCollection(apex.context, inboxId, stream, true))
     .then(col => {
       res.locals.apex.result = col
       next()
@@ -20,9 +20,9 @@ function inbox (req, res, next) {
 function outbox (req, res, next) {
   assert(res.locals.apex.target)
   const apex = req.app.locals.apex
-  const target = res.locals.apex.target
-  apex.store.stream.getStream(target.id)
-    .then(stream => apex.pub.utils.arrayToCollection(apex.context, target.outbox[0], stream, true))
+  const outboxId = res.locals.apex.target.outbox[0]
+  apex.store.stream.getStream(outboxId)
+    .then(stream => apex.pub.utils.arrayToCollection(apex.context, outboxId, stream, true))
     .then(col => {
       res.locals.apex.result = col
       next()
