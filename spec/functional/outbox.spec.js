@@ -1,4 +1,4 @@
-/* global describe, beforeAll, beforeEach, afterEach, it, expect */
+/* global describe, beforeAll, beforeEach, it, expect */
 const request = require('supertest')
 const express = require('express')
 const nock = require('nock')
@@ -248,7 +248,7 @@ describe('outbox', function () {
         expectedObj = merge({}, sourceObj)
         expectedObj.content = updatedObj.content
         await apex.store.connection.getDb().collection('objects')
-          .insertOne(sourceObj)
+          .insertOne(sourceObj, { forceServerObjectId: true })
         update = await apex.pub.activity
           .build(apex.context, 'https://localhost/s/23sdlkfj-update', 'Update', 'https://localhost/u/test', updatedObj, sourceObj.to)
       })

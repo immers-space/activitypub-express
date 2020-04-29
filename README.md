@@ -79,13 +79,15 @@ client.connect({ useNewUrlParser: true })
     * [x] Object
     * [x] Actor
     * [x] Activity
-    * [ ] Collections
-      * [ ] Special collections
+    * [x] Collections
+      * [x] Special collections
         * [x] Inbox
         * [x] Outbox
-        * [ ] Followers
-        * [ ] Following
-        * [ ] Liked
+        * [x] Followers
+        * [x] Following
+        * [x] Liked
+        * [ ] Likes
+        * [ ] Shares
       * [ ] Misc collections
       * [ ] Pagination
     * [ ] Relay requests for remote objects (proxyUrl endpoint?)

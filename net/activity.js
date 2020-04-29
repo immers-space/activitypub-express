@@ -18,7 +18,7 @@ module.exports = {
     const toDo = []
     const apex = req.app.locals.apex
     const activity = req.body
-    const actor = apex.pub.utils.actorFromActivity(activity)
+    const actor = apex.pub.utils.actorIdFromActivity(activity)
     const recipient = res.locals.apex.target
     // configure event hook to be triggered after response sent
     const resLocal = res.locals.apex

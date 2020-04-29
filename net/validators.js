@@ -127,8 +127,13 @@ async function outboxActivity (req, res, next) {
     }
     object.attributedTo = [actorIRI]
     const extras = {}
+    ;['bto', 'cc', 'bcc', 'audience'].forEach(t => {
+      if (t in object) {
+        extras[t] = object[t]
+      }
+    })
     activity = await apex.pub.activity
-      .build(apex.context, activityIRI, 'Create', actorIRI, object, object.to, object.cc, extras)
+      .build(apex.context, activityIRI, 'Create', actorIRI, object, object.to, extras)
     req.body = activity
   } else if (activity.type === 'Create') {
     // validate content of created objects

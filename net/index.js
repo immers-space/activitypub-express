@@ -19,6 +19,22 @@ module.exports = {
   actor: {
     get: [validators.jsonld, validators.targetActor, responders.target]
   },
+  followers: {
+    get: [
+      validators.jsonld,
+      validators.targetActor,
+      collection.followers,
+      responders.result
+    ]
+  },
+  following: {
+    get: [
+      validators.jsonld,
+      validators.targetActor,
+      collection.following,
+      responders.result
+    ]
+  },
   inbox: {
     post: [
       validators.jsonld,
@@ -33,6 +49,14 @@ module.exports = {
       validators.jsonld,
       validators.targetActor,
       collection.inbox,
+      responders.result
+    ]
+  },
+  liked: {
+    get: [
+      validators.jsonld,
+      validators.targetActor,
+      collection.liked,
       responders.result
     ]
   },

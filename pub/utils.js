@@ -9,7 +9,8 @@ module.exports = {
   toJSONLD,
   fromJSONLD,
   arrayToCollection,
-  actorFromActivity,
+  actorIdFromActivity,
+  objectIdFromActivity,
   validateActivity,
   validateObject
 }
@@ -25,15 +26,29 @@ function addMeta (obj, key, value) {
   }
 }
 
-function actorFromActivity (activity) {
+function actorIdFromActivity (activity) {
   const actor = activity.actor[0]
   if (Object.prototype.toString.call(actor) === '[object String]') {
     return actor
   }
-  if (activity.actor.type === 'Link') {
-    return actor.href
+  if (actor.type === 'Link') {
+    return actor.href[0]
   }
   return actor.id
+}
+
+function objectIdFromActivity (activity) {
+  const object = activity.object && activity.object[0]
+  if (!object) {
+    return null
+  }
+  if (Object.prototype.toString.call(object) === '[object String]') {
+    return object
+  }
+  if (object.type === 'Link') {
+    return object.href[0]
+  }
+  return object.id
 }
 
 function arrayToCollection (context, id, arr, ordered) {

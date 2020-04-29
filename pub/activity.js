@@ -1,4 +1,6 @@
 'use strict'
+
+const merge = require('deepmerge')
 const store = require('../store')
 const pubUtils = require('./utils')
 const pubObject = require('./object')
@@ -10,17 +12,19 @@ module.exports = {
   undo
 }
 
-function build (context, iri, type, actorId, object, to, cc, etc) {
-  const act = Object.assign({
+function build (context, iri, type, actorId, object, to, etc = {}) {
+  const act = merge({
     id: iri,
     type,
     actor: actorId,
     object,
     to,
-    cc,
     published: new Date().toISOString()
   }, etc)
-  return pubUtils.fromJSONLD(act, context)
+  return pubUtils.fromJSONLD(act, context).then(activity => {
+    activity._meta = {}
+    return activity
+  })
 }
 
 async function address (activity) {

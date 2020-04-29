@@ -17,10 +17,14 @@ function getActivity (id) {
     .next()
 }
 
-function getStream (collectionId) {
+function getStream (collectionId, filterFlag) {
+  const q = { '_meta.collection': collectionId }
+  if (filterFlag) {
+    q[`_meta.${filterFlag}`] = { $exists: true }
+  }
   const query = connection.getDb()
     .collection('streams')
-    .find({ '_meta.collection': collectionId })
+    .find(q)
     .sort({ _id: -1 })
     .project({ _id: 0, _meta: 0, 'object._id': 0, 'object._meta': 0 })
   return query.toArray()
@@ -28,8 +32,11 @@ function getStream (collectionId) {
 
 async function save (activity) {
   const db = connection.getDb()
+  const q = { id: activity.id }
   // activities may be duplicated with different target collections
-  const q = { id: activity.id, '_meta.collection': { $all: activity._meta.collection } }
+  if (activity._meta.collection) {
+    q['_meta.collection'] = { $all: activity._meta.collection }
+  }
   const exists = await db.collection('streams')
     .find(q)
     .project({ _id: 1 })
