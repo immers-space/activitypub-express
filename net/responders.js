@@ -3,13 +3,9 @@
 const assert = require('assert')
 
 module.exports = {
-  ok,
   result,
+  status,
   target
-}
-
-function ok (req, res) {
-  res.sendStatus(200)
 }
 
 // sends other output as jsonld
@@ -23,6 +19,11 @@ async function result (req, res) {
   const body = JSON.stringify(await apex.pub.utils.toJSONLD(result, apex.context), skipMeta)
   res.type(res.locals.apex.responseType)
   res.status(200).send(body)
+}
+
+function status (req, res) {
+  res.status(res.locals.apex.status || 400)
+    .send(res.locals.apex.statusMessage || null)
 }
 
 // sends the target object as jsonld

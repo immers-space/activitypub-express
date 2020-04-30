@@ -1,17 +1,20 @@
 'use strict'
 const httpSignature = require('http-signature')
+const assert = require('assert')
 // http communication middleware
 module.exports = {
-  auth,
+  verifyActor,
   verifySignature
 }
 
-function auth (req, res, next) {
-  // no client-to-server support at this time
-  if (req.app.get('env') !== 'development') {
-    return res.status(405).send()
+function verifyActor (req, res, next) {
+  const apex = req.app.locals.apex
+  const locals = res.locals.apex
+  const actor = apex.pub.utils.actorIdFromActivity(req.body)
+  if (locals.sender && locals.sender.id === actor) {
+    locals.verified = true
   }
-  next()
+  // TODO: LD-signatures verification and/or check for valid inbox forwarding cases
 }
 
 async function verifySignature (req, res, next) {
@@ -24,6 +27,7 @@ async function verifySignature (req, res, next) {
         console.log('Missing http signature')
         return res.status(400).send('Missing http signature')
       }
+      res.locals.apex.sender = actor
       return next()
     }
     const sigHead = httpSignature.parse(req)
@@ -33,6 +37,7 @@ async function verifySignature (req, res, next) {
       console.log('signature validation failure', sigHead.keyId)
       return res.status(400).send('Invalid http signature')
     }
+    res.locals.apex.sender = signer
     next()
   } catch (err) {
     if (req.body.type === 'Delete' && err.message.startsWith('410')) {

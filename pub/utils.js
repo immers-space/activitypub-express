@@ -8,7 +8,6 @@ module.exports = {
   nameToActorStreamsFactory,
   toJSONLD,
   fromJSONLD,
-  arrayToCollection,
   actorIdFromActivity,
   objectIdFromActivity,
   validateActivity,
@@ -51,14 +50,6 @@ function objectIdFromActivity (activity) {
   return object.id
 }
 
-function arrayToCollection (context, id, arr, ordered) {
-  return fromJSONLD({
-    id,
-    type: ordered ? 'OrderedCollection' : 'Collection',
-    totalItems: arr.length,
-    [ordered ? 'orderedItems' : 'items']: arr
-  }, context)
-}
 // convert incoming json-ld to local context and
 // partially expanded format for consistent property access
 async function fromJSONLD (obj, targetContext) {

@@ -9,11 +9,9 @@ module.exports = {
 }
 
 function inbox (req, res, next) {
-  assert(res.locals.apex.target)
+  if (!res.locals.apex.target) return next()
   const apex = req.app.locals.apex
-  const inboxId = res.locals.apex.target.inbox[0]
-  apex.store.stream.getStream(inboxId)
-    .then(stream => apex.pub.utils.arrayToCollection(apex.context, inboxId, stream, true))
+  apex.pub.collection.get(apex.context, res.locals.apex.target.inbox[0])
     .then(col => {
       res.locals.apex.result = col
       next()
@@ -21,11 +19,9 @@ function inbox (req, res, next) {
 }
 
 function outbox (req, res, next) {
-  assert(res.locals.apex.target)
+  if (!res.locals.apex.target) return next()
   const apex = req.app.locals.apex
-  const outboxId = res.locals.apex.target.outbox[0]
-  apex.store.stream.getStream(outboxId)
-    .then(stream => apex.pub.utils.arrayToCollection(apex.context, outboxId, stream, true))
+  apex.pub.collection.get(apex.context, res.locals.apex.target.outbox[0])
     .then(col => {
       res.locals.apex.result = col
       next()
@@ -33,14 +29,10 @@ function outbox (req, res, next) {
 }
 
 function followers (req, res, next) {
-  assert(res.locals.apex.target)
+  if (!res.locals.apex.target) return next()
   const apex = req.app.locals.apex
   const followersId = res.locals.apex.target.followers[0]
-  apex.store.stream.getStream(followersId, 'accepted')
-    .then(stream => {
-      const actors = stream.map(apex.pub.utils.actorIdFromActivity)
-      return apex.pub.utils.arrayToCollection(apex.context, followersId, actors, true)
-    })
+  apex.pub.collection.get(apex.context, followersId, apex.pub.utils.actorIdFromActivity, 'accepted')
     .then(col => {
       res.locals.apex.result = col
       next()
@@ -48,14 +40,10 @@ function followers (req, res, next) {
 }
 
 function following (req, res, next) {
-  assert(res.locals.apex.target)
+  if (!res.locals.apex.target) return next()
   const apex = req.app.locals.apex
   const followingId = res.locals.apex.target.following[0]
-  apex.store.stream.getStream(followingId, 'accepted')
-    .then(stream => {
-      const recipients = stream.map(apex.pub.utils.objectIdFromActivity)
-      return apex.pub.utils.arrayToCollection(apex.context, followingId, recipients, true)
-    })
+  apex.pub.collection.get(apex.context, followingId, apex.pub.utils.objectIdFromActivity, 'accepted')
     .then(col => {
       res.locals.apex.result = col
       next()
@@ -63,14 +51,10 @@ function following (req, res, next) {
 }
 
 function liked (req, res, next) {
-  assert(res.locals.apex.target)
+  if (!res.locals.apex.target) return next()
   const apex = req.app.locals.apex
   const likedId = res.locals.apex.target.liked[0]
-  apex.store.stream.getStream(likedId)
-    .then(stream => {
-      const objects = stream.map(apex.pub.utils.objectIdFromActivity)
-      return apex.pub.utils.arrayToCollection(apex.context, likedId, objects, true)
-    })
+  apex.pub.collection.get(apex.context, likedId, apex.pub.utils.objectIdFromActivity)
     .then(col => {
       res.locals.apex.result = col
       next()

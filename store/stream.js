@@ -5,6 +5,7 @@ module.exports = {
   getStream,
   remove,
   save,
+  updateActivityMeta,
   updateObject
 }
 
@@ -54,6 +55,19 @@ async function save (activity) {
 function remove (activity, actor) {
   return connection.getDb().collection('streams')
     .deleteMany({ id: activity.id, actor: actor })
+}
+
+async function updateActivityMeta (activity, actorId, key, value, remove) {
+  const op = {}
+  if (remove) {
+    op.$pull = { [`_meta.${key}`]: value }
+  } else {
+    op.$addToSet = { [`_meta.${key}`]: value }
+  }
+  // limit udpates to owners of objects
+  const q = { id: activity.id, actor: actorId }
+  const result = await connection.getDb().collection('objects').updateMany(q, op)
+  return result.modifiedCount
 }
 
 // for denormalized storage model, must update all activities with copy of updated object

@@ -43,7 +43,7 @@ module.exports = {
       security.verifySignature,
       activity.save,
       activity.inboxSideEffects,
-      responders.ok
+      responders.status
     ],
     get: [
       validators.jsonld,
@@ -70,7 +70,7 @@ module.exports = {
       validators.outboxActivity,
       activity.save,
       activity.outboxSideEffects,
-      responders.ok
+      responders.status
     ],
     get: [
       validators.jsonld,
