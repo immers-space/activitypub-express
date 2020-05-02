@@ -93,7 +93,7 @@ describe('outbox', function () {
     // reset db for each test
     client.db('apexTestingTempDb').dropDatabase()
       .then(() => {
-        apex.store.connection.setDb(client.db('apexTestingTempDb'))
+        apex.store.db = client.db('apexTestingTempDb')
         return apex.store.setup(testUser)
       })
       .then(done)
@@ -130,7 +130,7 @@ describe('outbox', function () {
         .send(activity)
         .expect(200)
         .then(() => {
-          return apex.store.connection.getDb()
+          return apex.store.db
             .collection('streams')
             .findOne({ actor: 'https://localhost/u/test' })
         })
@@ -152,7 +152,7 @@ describe('outbox', function () {
         .send(activity)
         .expect(200)
         .then(() => {
-          return apex.store.connection.getDb()
+          return apex.store.db
             .collection('objects')
             .findOne({ attributedTo: ['https://localhost/u/test'] })
         })
@@ -175,7 +175,7 @@ describe('outbox', function () {
         .send(bareObj)
         .expect(200)
         .then(() => {
-          return apex.store.connection.getDb()
+          return apex.store.db
             .collection('streams')
             .findOne({ actor: 'https://localhost/u/test' })
         })
@@ -245,7 +245,7 @@ describe('outbox', function () {
         updatedObj = { id: sourceObj.id, content: ['updated'] }
         expectedObj = merge({}, sourceObj)
         expectedObj.content = updatedObj.content
-        await apex.store.connection.getDb().collection('objects')
+        await apex.store.db.collection('objects')
           .insertOne(sourceObj, { forceServerObjectId: true })
         update = await apex
           .buildActivity('https://localhost/s/23sdlkfj-update', 'Update', 'https://localhost/u/test', updatedObj, sourceObj.to)
@@ -256,13 +256,13 @@ describe('outbox', function () {
           .set('Content-Type', 'application/activity+json')
           .send(update)
           .expect(200)
-        const result = await apex.store.connection.getDb().collection('objects')
+        const result = await apex.store.db.collection('objects')
           .findOne({ id: sourceObj.id })
         delete result._id
         expect(result).toEqual(expectedObj)
       })
       it('updates activities containing object', async function () {
-        const db = apex.store.connection.getDb()
+        const db = apex.store.db
         await db.collection('streams').insertMany([
           await apex.buildActivity('https://localhost/s/23sdlkfj-create', 'Create', 'https://localhost/u/test', sourceObj, sourceObj.to),
           await apex.buildActivity('https://localhost/s/23sdlkfj-create2', 'Create', 'https://localhost/u/test', sourceObj, sourceObj.to)
@@ -349,7 +349,7 @@ describe('outbox', function () {
         a.object = Object.assign({}, a.object, { id: `${fakeOId}${i}` })
         return a
       })
-      apex.store.connection.getDb()
+      apex.store.db
         .collection('streams')
         .insertMany(outbox)
         .then(inserted => {

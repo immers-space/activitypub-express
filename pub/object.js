@@ -10,7 +10,7 @@ async function resolveObject (id) {
     // already an object
     object = id
   } else {
-    object = await this.store.object.get(id)
+    object = await this.store.getObject(id)
     if (object) {
       return object
     }
@@ -19,7 +19,7 @@ async function resolveObject (id) {
   }
   // cache non-collection objects
   if (object.type !== 'Collection' && object.type !== 'OrderedCollection') {
-    await this.store.object.save(object)
+    await this.store.saveObject(object)
   }
   return object
 }

@@ -43,7 +43,7 @@ describe('webfinger', function () {
     // reset db for each test
     client.db('apexTestingTempDb').dropDatabase()
       .then(() => {
-        apex.store.connection.setDb(client.db('apexTestingTempDb'))
+        apex.store.db = client.db('apexTestingTempDb')
         return apex.store.setup(testUser)
       })
       .then(done)

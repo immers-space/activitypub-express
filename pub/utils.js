@@ -78,7 +78,7 @@ function idToIRIFactory (domain, route, param) {
   const colonParam = `:${param}`
   return id => {
     if (!id) {
-      id = this.store.utils.generateId()
+      id = this.store.generateId()
     }
     return `https://${domain}${route.replace(colonParam, id)}`.toLowerCase()
   }

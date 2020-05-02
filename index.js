@@ -2,7 +2,7 @@
 const onFinished = require('on-finished')
 const pub = require('./pub')
 const net = require('./net')
-const defaultStore = require('./store')
+const ApexStore = require('./store')
 
 function onFinishedHandler (err, res) {
   if (err) return
@@ -33,7 +33,7 @@ module.exports = function (settings) {
   apex.domain = settings.domain
   apex.context = settings.context || pub.consts.ASContext
   apex.net = net
-  apex.store = settings.store || defaultStore
+  apex.store = settings.store || new ApexStore()
   apex.actorParam = settings.actorParam
   apex.objectParam = settings.objectParam
   apex.activityParam = settings.activityParam

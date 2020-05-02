@@ -74,5 +74,5 @@ function undoActivity (activity, undoActor) {
   }
   // matches the target activity with the actor from the undo
   // so actors can only undo their own activities
-  return this.store.stream.remove(activity, undoActor)
+  return this.store.removeActivity(activity, undoActor)
 }

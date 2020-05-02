@@ -5,7 +5,7 @@ module.exports = {
 }
 
 async function getCollection (collectionId, remapper, metaFilterProperty) {
-  let stream = await this.store.stream.getStream(collectionId, metaFilterProperty)
+  let stream = await this.store.getStream(collectionId, metaFilterProperty)
   if (remapper) {
     stream = stream.map(remapper)
   }

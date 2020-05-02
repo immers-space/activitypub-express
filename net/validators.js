@@ -54,7 +54,7 @@ async function targetActivity (req, res, next) {
   const activityIRI = apex.utils.activityIdToIRI(aid)
   let activity
   try {
-    activity = await apex.store.stream.getActivity(activityIRI)
+    activity = await apex.store.getActivity(activityIRI)
   } catch (err) { return next(err) }
   if (!activity) {
     return res.status(404).send(`'${aid}' not found`)
@@ -69,7 +69,7 @@ async function targetActor (req, res, next) {
   const actorIRI = apex.utils.usernameToIRI(actor)
   let actorObj
   try {
-    actorObj = await apex.store.object.get(actorIRI)
+    actorObj = await apex.store.getObject(actorIRI)
   } catch (err) { return next(err) }
   if (!actorObj) {
     return res.status(404).send(`'${actor}' not found on this instance`)
@@ -86,7 +86,7 @@ async function targetActorWithMeta (req, res, next) {
   const actorIRI = apex.utils.usernameToIRI(actor)
   let actorObj
   try {
-    actorObj = await apex.store.object.get(actorIRI, true)
+    actorObj = await apex.store.getObject(actorIRI, true)
   } catch (err) { return next(err) }
   if (!actorObj) {
     return res.status(404).send(`'${actor}' not found on this instance`)
@@ -101,7 +101,7 @@ async function targetObject (req, res, next) {
   const objIRI = apex.utils.objectIdToIRI(oid)
   let obj
   try {
-    obj = await apex.store.object.get(objIRI)
+    obj = await apex.store.getObject(objIRI)
   } catch (err) { return next(err) }
   if (!obj) {
     return res.status(404).send(`'${oid}' not found`)

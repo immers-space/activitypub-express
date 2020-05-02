@@ -52,7 +52,7 @@ describe('collections', function () {
     // reset db for each test
     client.db('apexTestingTempDb').dropDatabase()
       .then(() => {
-        apex.store.connection.setDb(client.db('apexTestingTempDb'))
+        apex.store.db = client.db('apexTestingTempDb')
         return apex.store.setup(testUser)
       })
       .then(done)
@@ -69,7 +69,7 @@ describe('collections', function () {
       apex.addMeta(followers[0], 'accepted', apex.utils.activityIdToIRI())
       apex.addMeta(followers[2], 'accepted', apex.utils.activityIdToIRI())
       for (const follower of followers) {
-        await apex.store.stream.save(follower)
+        await apex.store.saveActivity(follower)
       }
       request(app)
         .get('/followers/test')
@@ -98,7 +98,7 @@ describe('collections', function () {
       apex.addMeta(follows[0], 'accepted', apex.utils.activityIdToIRI())
       apex.addMeta(follows[2], 'accepted', apex.utils.activityIdToIRI())
       for (const follow of follows) {
-        await apex.store.stream.save(follow)
+        await apex.store.saveActivity(follow)
       }
       request(app)
         .get('/following/test')
@@ -125,7 +125,7 @@ describe('collections', function () {
       likes = await Promise.all(likes)
       likes.forEach(f => apex.addMeta(f, 'collection', testUser.liked[0]))
       for (const like of likes) {
-        await apex.store.stream.save(like)
+        await apex.store.saveActivity(like)
       }
       request(app)
         .get('/liked/test')

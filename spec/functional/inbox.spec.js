@@ -95,7 +95,7 @@ describe('inbox', function () {
     // reset db for each test
     client.db('apexTestingTempDb').dropDatabase()
       .then(() => {
-        apex.store.connection.setDb(client.db('apexTestingTempDb'))
+        apex.store.db = client.db('apexTestingTempDb')
         return apex.store.setup(testUser)
       })
       .then(done)
@@ -136,7 +136,7 @@ describe('inbox', function () {
         .send(activity)
         .expect(200)
         .then(() => {
-          return apex.store.connection.getDb()
+          return apex.store.db
             .collection('streams')
             .findOne({ id: activity.id })
         })
@@ -173,7 +173,7 @@ describe('inbox', function () {
         .send(activity)
         .expect(200)
         .then(() => {
-          return apex.store.connection.getDb()
+          return apex.store.db
             .collection('objects')
             .findOne({ id: activity.object.id })
         })
@@ -218,13 +218,13 @@ describe('inbox', function () {
           actor: 'https://ignore.com/bob',
           object: follow.id
         }
-        await apex.store.stream.save(follow)
+        await apex.store.saveActivity(follow)
         request(app)
           .post('/inbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(accept)
           .expect(200)
-          .then(() => apex.store.connection.getDb().collection('streams').findOne({ id: follow.id }))
+          .then(() => apex.store.db.collection('streams').findOne({ id: follow.id }))
           .then(updated => {
             expect(updated._meta.accepted).toEqual(['https://ignore.com/bob'])
             done()
@@ -273,7 +273,7 @@ describe('inbox', function () {
           actor: mockedUser,
           object: follow.id
         }
-        await apex.store.stream.save(follow)
+        await apex.store.saveActivity(follow)
         request(app)
           .post('/inbox/test')
           .set('Content-Type', 'application/activity+json')
@@ -331,7 +331,7 @@ describe('inbox', function () {
         actor: ['https://localhost/u/test'],
         object: ['https://localhost/s/to-undo']
       }
-      const db = apex.store.connection.getDb()
+      const db = apex.store.db
       const inserted = await db.collection('streams')
         .insertOne(undone)
       expect(inserted.insertedCount).toBe(1)
@@ -388,7 +388,7 @@ describe('inbox', function () {
       ;[1, 2, 3].forEach(i => {
         inbox.push(Object.assign({}, activity, { id: `${activity.id}${i}`, _meta: meta }))
       })
-      apex.store.connection.getDb()
+      apex.store.db
         .collection('streams')
         .insertMany(inbox)
         .then(inserted => {

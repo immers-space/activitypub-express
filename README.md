@@ -61,7 +61,7 @@ app.on('apex-create', msg => {
 
 client.connect({ useNewUrlParser: true })
   .then(() => {
-    apex.store.connection.setDb(client.db('DB_NAME'))
+    apex.store.db = client.db('DB_NAME')
     return apex.store.setup()
   })
   .then(() => {
@@ -187,7 +187,7 @@ routes.followers | Actor followers collection route
 routes.liked | Actor liked collection route
 **Optional** |
 context | String, Array. JSON-LD context for your app. Defaults to AcivityStreams + Security vocabs
-store | Not fully implemented - replace the default storage model & database backend with your own
+store | Replace the default storage model & database backend with your own (see `store/interface.js` for API)
 
 ## FAQ
 

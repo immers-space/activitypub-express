@@ -52,7 +52,7 @@ describe('resources', function () {
     // reset db for each test
     client.db('apexTestingTempDb').dropDatabase()
       .then(() => {
-        apex.store.connection.setDb(client.db('apexTestingTempDb'))
+        apex.store.db = client.db('apexTestingTempDb')
         return apex.store.setup(testUser)
       })
       .then(done)
@@ -98,7 +98,7 @@ describe('resources', function () {
         to: 'https://ignore.com/u/ignored'
       }
       obj = await apex.fromJSONLD(obj)
-      await apex.store.object.save(obj)
+      await apex.store.saveObject(obj)
       request(app)
         .get(oid.replace('https://localhost', ''))
         .set('Accept', apex.consts.jsonldTypes[0])
@@ -136,7 +136,7 @@ describe('resources', function () {
       }
       const activity = await apex.fromJSONLD(activityInput)
       activity._meta = { collection: [] }
-      await apex.store.stream.save(activity)
+      await apex.store.saveActivity(activity)
       request(app)
         .get(aid.replace('https://localhost', ''))
         .set('Accept', apex.consts.jsonldTypes[0])

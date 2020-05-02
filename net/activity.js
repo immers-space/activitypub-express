@@ -5,7 +5,7 @@ module.exports = {
     if (!res.locals.apex.activity) {
       return next()
     }
-    req.app.locals.apex.store.stream.save(req.body).then(saveResult => {
+    req.app.locals.apex.store.saveActivity(req.body).then(saveResult => {
       res.locals.apex.isNewActivity = saveResult
       next()
     }).catch(next)
@@ -32,7 +32,7 @@ module.exports = {
       case 'accept':
         resLocal.eventName = 'apex-accept'
         // Mark target as accepted (adds to following collection)
-        toDo.push(apex.store.stream.updateActivityMeta(
+        toDo.push(apex.store.updateActivityMeta(
           apex.objectIdFromActivity(activity),
           recipient.id,
           'accepted',
@@ -106,7 +106,7 @@ module.exports = {
         break
       case 'update':
         resLocal.eventName = 'apex-update'
-        toDo.push(apex.store.combined.updateObject(activity.object[0], actor.id).then(updated => {
+        toDo.push(apex.store.updateObject(activity.object[0], actor.id).then(updated => {
           if (!updated) {
             throw new Error('Update target object not found or not authorized')
           }
