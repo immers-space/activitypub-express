@@ -57,7 +57,7 @@ function remove (activity, actor) {
     .deleteMany({ id: activity.id, actor: actor })
 }
 
-async function updateActivityMeta (activity, actorId, key, value, remove) {
+async function updateActivityMeta (activityId, actorId, key, value, remove) {
   const op = {}
   if (remove) {
     op.$pull = { [`_meta.${key}`]: value }
@@ -65,8 +65,8 @@ async function updateActivityMeta (activity, actorId, key, value, remove) {
     op.$addToSet = { [`_meta.${key}`]: value }
   }
   // limit udpates to owners of objects
-  const q = { id: activity.id, actor: actorId }
-  const result = await connection.getDb().collection('objects').updateMany(q, op)
+  const q = { id: activityId, actor: actorId }
+  const result = await connection.getDb().collection('streams').updateMany(q, op)
   return result.modifiedCount
 }
 

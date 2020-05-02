@@ -99,8 +99,8 @@ client.connect({ useNewUrlParser: true })
       * [x] Create
       * [ ] Update
       * [ ] Delete
-      * [ ] Follow
-      * [ ] Accept
+      * [x] Follow
+      * [x] Accept
       * [ ] Reject
       * [ ] Add
       * [ ] Remove

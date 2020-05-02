@@ -2,6 +2,7 @@
 const request = require('supertest')
 const express = require('express')
 const merge = require('deepmerge')
+const nock = require('nock')
 const { MongoClient } = require('mongodb')
 
 const ActivitypubExpress = require('../../index')
@@ -152,11 +153,9 @@ describe('inbox', function () {
     })
     // activity sideEffects
     it('fires create event', function (done) {
-      const recipient = merge({}, testUser)
-      delete recipient._meta
       app.once('apex-create', msg => {
         expect(msg.actor).toBe('https://localhost/u/test')
-        expect(msg.recipient).toEqual(recipient)
+        expect(msg.recipient).toEqual(testUser)
         const act = Object.assign({ _meta: { collection: ['https://localhost/inbox/test'] } }, activityNormalized)
         expect(msg.activity).toEqual(act)
         expect(msg.object).toEqual(activityNormalized.object[0])
@@ -187,24 +186,103 @@ describe('inbox', function () {
         })
         .catch(done)
     })
-    it('fires accept event', function (done) {
-      app.once('apex-accept', () => {
-        done()
+    describe('accept', function () {
+      it('fires accept event', function (done) {
+        app.once('apex-accept', () => {
+          done()
+        })
+        const accept = {
+          '@context': 'https://www.w3.org/ns/activitystreams',
+          type: 'Accept',
+          id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
+          to: ['https://localhost/u/test'],
+          actor: 'https://localhost/u/test',
+          object: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d4'
+        }
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(accept)
+          .expect(200)
+          .end(err => { if (err) done(err) })
       })
-      const accept = {
-        '@context': 'https://www.w3.org/ns/activitystreams',
-        type: 'Accept',
-        id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
-        to: ['https://localhost/u/test'],
-        actor: 'https://localhost/u/test',
-        object: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d4'
-      }
-      request(app)
-        .post('/inbox/test')
-        .set('Content-Type', 'application/activity+json')
-        .send(accept)
-        .expect(200)
-        .end(err => { if (err) done(err) })
+      it('updates accepted activity', async function (done) {
+        const follow = merge({}, activityNormalized)
+        follow.type = 'Follow'
+        follow.to = ['https://ignore.com/bob']
+        follow.id = apex.utils.activityIdToIRI()
+        follow._meta = { collection: testUser.following }
+        const accept = {
+          '@context': 'https://www.w3.org/ns/activitystreams',
+          type: 'Accept',
+          id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
+          to: ['https://localhost/u/test'],
+          actor: 'https://ignore.com/bob',
+          object: follow.id
+        }
+        await apex.store.stream.save(follow)
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(accept)
+          .expect(200)
+          .then(() => apex.store.connection.getDb().collection('streams').findOne({ id: follow.id }))
+          .then(updated => {
+            expect(updated._meta.accepted).toEqual(['https://ignore.com/bob'])
+            done()
+          })
+      })
+      it('publishes collection update', async function (done) {
+        const mockedUser = 'https://mocked.com/user/mocked'
+        nock('https://mocked.com')
+          .get('/user/mocked')
+          .reply(200, { id: mockedUser, inbox: 'https://mocked.com/inbox/mocked' })
+        nock('https://mocked.com').post('/inbox/mocked')
+          .reply(200)
+          .on('request', (req, interceptor, body) => {
+            // correctly formed activity sent
+            const sentActivity = JSON.parse(body)
+            expect(sentActivity.id).toContain('https://localhost')
+            delete sentActivity.id
+            expect(new Date(sentActivity.published).toString()).not.toBe('Invalid Date')
+            delete sentActivity.published
+            expect(sentActivity).toEqual({
+              '@context': apex.context,
+              type: 'Update',
+              actor: testUser.id,
+              to: 'https://localhost/followers/test',
+              cc: 'https://mocked.com/user/mocked',
+              object: {
+                id: testUser.following[0],
+                type: 'OrderedCollection',
+                totalItems: 1,
+                orderedItems: [mockedUser]
+              }
+            })
+            done()
+          })
+        const follow = merge({}, activityNormalized)
+        follow.type = 'Follow'
+        follow.to = [mockedUser]
+        follow.id = apex.utils.activityIdToIRI()
+        follow.object = [mockedUser]
+        follow._meta = { collection: testUser.following }
+        const accept = {
+          '@context': 'https://www.w3.org/ns/activitystreams',
+          type: 'Accept',
+          id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
+          to: ['https://localhost/u/test'],
+          actor: mockedUser,
+          object: follow.id
+        }
+        await apex.store.stream.save(follow)
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(accept)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
     })
     it('fires follow event', function (done) {
       app.once('apex-follow', () => {
@@ -270,8 +348,6 @@ describe('inbox', function () {
       done()
     })
     it('fires other activity event', function (done) {
-      const recipient = merge({}, testUser)
-      delete recipient._meta
       const arriveAct = {
         '@context': 'https://www.w3.org/ns/activitystreams',
         type: 'Arrive',
@@ -285,7 +361,7 @@ describe('inbox', function () {
       }
       app.once('apex-arrive', msg => {
         expect(msg.actor).toBe('https://localhost/u/test')
-        expect(msg.recipient).toEqual(recipient)
+        expect(msg.recipient).toEqual(testUser)
         expect(msg.activity).toEqual({
           _meta: { collection: ['https://localhost/inbox/test'] },
           type: 'Arrive',

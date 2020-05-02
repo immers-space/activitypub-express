@@ -10,7 +10,7 @@ beforeAll(() => {
     .persist(true)
   nock('https://w3id.org')
     .get('/security/v1')
-    .reply(200, security) // TODO get copy of real security vocab
+    .reply(200, security)
     .persist(true)
   // block federation attempts
   nock('https://ignore.com')
@@ -19,6 +19,11 @@ beforeAll(() => {
     .persist()
     .post(() => true)
     .reply(200)
+    .persist()
+  // block attempts to resolve local objects until better logic allows these to be skipped
+  nock('https://localhost')
+    .get(() => true)
+    .reply(200, {})
     .persist()
 })
 afterAll(() => {

@@ -31,12 +31,35 @@ module.exports = {
     switch (activity.type.toLowerCase()) {
       case 'accept':
         resLocal.eventName = 'apex-accept'
-        // TODO - side effect necessary for following collection?
-        break
-      case 'follow':
-        // TODO resolve object and ensure specified target matches inbox user
-        // req.body._meta._target = req.body.object.id
-        resLocal.eventName = 'apex-follow'
+        // Mark target as accepted (adds to following collection)
+        toDo.push(apex.store.stream.updateActivityMeta(
+          apex.pub.utils.objectIdFromActivity(activity),
+          recipient.id,
+          'accepted',
+          activity.actor[0]
+        ).then(updateResult => {
+          // TODO: this should send discriminate what was accepted before sending following update
+          if (!updateResult) return
+          // publish update to following count
+          resLocal.postWork.push(async () => {
+            const followingCollection = await apex.pub.collection.get(
+              apex.context,
+              recipient.following[0],
+              apex.pub.utils.objectIdFromActivity,
+              'accepted'
+            )
+            const act = await apex.pub.activity.build(
+              apex.context,
+              apex.utils.activityIdToIRI(),
+              'Update',
+              recipient.id,
+              followingCollection,
+              recipient.followers[0],
+              { cc: actorId }
+            )
+            return apex.pub.activity.addToOutbox(recipient, act, apex.context)
+          })
+        }))
         break
       case 'create':
         resLocal.eventName = 'apex-create'
