@@ -71,7 +71,7 @@ const activityNormalized = {
   ]
 }
 
-app.use(express.json({ type: apex.pub.consts.jsonldTypes }), apex)
+app.use(express.json({ type: apex.consts.jsonldTypes }), apex)
 app.route('/inbox/:actor')
   .post(apex.net.inbox.post)
   .get(apex.net.inbox.get)
@@ -84,9 +84,7 @@ describe('inbox', function () {
   let testUser
   beforeAll(function (done) {
     const actorName = 'test'
-    const actorIRI = apex.utils.usernameToIRI(actorName)
-    const actorRoutes = apex.utils.nameToActorStreams(actorName)
-    apex.pub.actor.create(apex.context, actorIRI, actorRoutes, actorName, actorName, 'test user')
+    apex.createActor(actorName, actorName, 'test user')
       .then(actor => {
         testUser = actor
         return client.connect({ useNewUrlParser: true })
@@ -323,8 +321,8 @@ describe('inbox', function () {
         .end(err => { if (err) done(err) })
     })
     it('removes undone activity', async function (done) {
-      const undone = await apex.pub.activity
-        .build(apex.context, 'https://localhost/s/to-undo', 'fake', 'https://localhost/u/test', 'https://localhost/u/test')
+      const undone = await apex
+        .buildActivity('https://localhost/s/to-undo', 'fake', 'https://localhost/u/test', 'https://localhost/u/test')
       const undo = {
         '@context': 'https://www.w3.org/ns/activitystreams',
         type: 'Undo',

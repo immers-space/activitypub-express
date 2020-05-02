@@ -1,5 +1,4 @@
 'use strict'
-const store = require('../store')
 const jsonld = require('jsonld')
 
 module.exports = {
@@ -52,24 +51,24 @@ function objectIdFromActivity (activity) {
 
 // convert incoming json-ld to local context and
 // partially expanded format for consistent property access
-async function fromJSONLD (obj, targetContext) {
+async function fromJSONLD (obj) {
   const opts = {
     // don't unbox arrays so that object structure will be predictable
     compactArrays: false
   }
   if (!('@context' in obj)) {
     // if context is missing, try filling in ours
-    opts.expandContext = targetContext
+    opts.expandContext = this.context
   }
-  const compact = await jsonld.compact(obj, targetContext, opts)
+  const compact = await jsonld.compact(obj, this.context, opts)
   // strip context and graph wrapper for easier access
   return compact['@graph'][0]
 }
 // convert working objects to json-ld for transport
-function toJSONLD (obj, targetContext) {
-  return jsonld.compact(obj, targetContext, {
+function toJSONLD (obj) {
+  return jsonld.compact(obj, this.context, {
     // must supply initial context because it was stripped for easy handling
-    expandContext: targetContext,
+    expandContext: this.context,
     // unbox arrays on federated objects, in case other apps aren't using real json-ld
     compactArrays: true
   })
@@ -79,7 +78,7 @@ function idToIRIFactory (domain, route, param) {
   const colonParam = `:${param}`
   return id => {
     if (!id) {
-      id = store.utils.generateId()
+      id = this.store.utils.generateId()
     }
     return `https://${domain}${route.replace(colonParam, id)}`.toLowerCase()
   }

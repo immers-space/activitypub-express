@@ -27,20 +27,22 @@ module.exports = function (settings) {
     onFinished(res, onFinishedHandler)
     next()
   }
+  // bind pub methods at top level so their 'this' is apex instance
+  Object.assign(apex, pub)
   apex.settings = settings
   apex.domain = settings.domain
   apex.context = settings.context || pub.consts.ASContext
-  apex.pub = pub
   apex.net = net
   apex.store = settings.store || defaultStore
   apex.actorParam = settings.actorParam
   apex.objectParam = settings.objectParam
   apex.activityParam = settings.activityParam
   apex.utils = {
-    usernameToIRI: pub.utils.idToIRIFactory(settings.domain, settings.routes.actor, settings.actorParam),
-    objectIdToIRI: pub.utils.idToIRIFactory(settings.domain, settings.routes.object, settings.objectParam),
-    activityIdToIRI: pub.utils.idToIRIFactory(settings.domain, settings.routes.activity, settings.activityParam),
-    nameToActorStreams: pub.utils.nameToActorStreamsFactory(settings.domain, settings.routes, settings.actorParam)
+    usernameToIRI: apex.idToIRIFactory(settings.domain, settings.routes.actor, settings.actorParam),
+    objectIdToIRI: apex.idToIRIFactory(settings.domain, settings.routes.object, settings.objectParam),
+    activityIdToIRI: apex.idToIRIFactory(settings.domain, settings.routes.activity, settings.activityParam),
+    nameToActorStreams: apex.nameToActorStreamsFactory(settings.domain, settings.routes, settings.actorParam)
   }
+
   return apex
 }

@@ -32,9 +32,7 @@ describe('webfinger', function () {
   let testUser
   beforeAll(function (done) {
     const actorName = 'test'
-    const actorIRI = apex.utils.usernameToIRI(actorName)
-    const actorRoutes = apex.utils.nameToActorStreams(actorName)
-    apex.pub.actor.create(apex.context, actorIRI, actorRoutes, actorName, actorName, 'test user')
+    apex.createActor(actorName, actorName, 'test user')
       .then(actor => {
         testUser = actor
         return client.connect({ useNewUrlParser: true })

@@ -1,18 +1,14 @@
 'use strict'
 
 const merge = require('deepmerge')
-const store = require('../store')
-const pubUtils = require('./utils')
-const pubObject = require('./object')
-const pubFederation = require('./federation')
 module.exports = {
   address,
   addToOutbox,
-  build,
-  undo
+  buildActivity,
+  undoActivity
 }
 
-function build (context, iri, type, actorId, object, to, etc = {}) {
+function buildActivity (iri, type, actorId, object, to, etc = {}) {
   const act = merge({
     id: iri,
     type,
@@ -21,7 +17,7 @@ function build (context, iri, type, actorId, object, to, etc = {}) {
     to,
     published: new Date().toISOString()
   }, etc)
-  return pubUtils.fromJSONLD(act, context).then(activity => {
+  return this.fromJSONLD(act).then(activity => {
     activity._meta = {}
     return activity
   })
@@ -38,7 +34,7 @@ async function address (activity) {
     if (t === 'https://www.w3.org/ns/activitystreams#Public') {
       return null
     }
-    return pubObject.resolve(t)
+    return this.resolveObject(t)
   })
   audience = await Promise.all(audience).then(addresses => {
     // TODO: spec says only deliver to actor-owned collections
@@ -47,10 +43,10 @@ async function address (activity) {
         return t
       }
       if (t && t.items) {
-        return t.items.map(pubObject.resolve)
+        return t.items.map(this.resolveObject)
       }
       if (t && t.orderedItems) {
-        return t.orderedItems.map(pubObject.resolve)
+        return t.orderedItems.map(this.resolveObject)
       }
     })
     // flattens and resolves collections
@@ -62,15 +58,15 @@ async function address (activity) {
   return Array.from(new Set(audience))
 }
 
-async function addToOutbox (actor, activity, context) {
-  const tasks = [address(activity), pubUtils.toJSONLD(activity, context)]
+async function addToOutbox (actor, activity) {
+  const tasks = [this.address(activity), this.toJSONLD(activity)]
   const [addresses, outgoingActivity] = await Promise.all(tasks)
   delete outgoingActivity._meta
-  return pubFederation.deliver(actor, outgoingActivity, addresses)
+  return this.deliver(actor, outgoingActivity, addresses)
 }
 
-function undo (activity, undoActor) {
-  if (!pubUtils.validateActivity(activity)) {
+function undoActivity (activity, undoActor) {
+  if (!this.validateActivity(activity)) {
     if (!activity || Object.prototype.toString.call(activity) !== '[object String]') {
       throw new Error('Invalid undo target')
     }
@@ -78,5 +74,5 @@ function undo (activity, undoActor) {
   }
   // matches the target activity with the actor from the undo
   // so actors can only undo their own activities
-  return store.stream.remove(activity, undoActor)
+  return this.store.stream.remove(activity, undoActor)
 }

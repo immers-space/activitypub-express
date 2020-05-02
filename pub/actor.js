@@ -1,15 +1,15 @@
 const crypto = require('crypto')
 const { promisify } = require('util')
 
-const pubUtils = require('./utils')
-
 const generateKeyPairPromise = promisify(crypto.generateKeyPair)
 
 module.exports = {
-  create
+  createActor
 }
 
-async function create (context, id, routes, username, displayName, summary, icon, type = 'Person') {
+async function createActor (username, displayName, summary, icon, type = 'Person') {
+  const id = this.utils.usernameToIRI(username)
+  const routes = this.utils.nameToActorStreams(username)
   const pair = await generateKeyPairPromise('rsa', {
     modulusLength: 4096,
     publicKeyEncoding: {
@@ -41,7 +41,7 @@ async function create (context, id, routes, username, displayName, summary, icon
   if (icon) {
     actor.icon = icon
   }
-  actor = await pubUtils.fromJSONLD(actor, context)
+  actor = await this.fromJSONLD(actor)
   actor._meta = { privateKey: pair.privateKey }
   return actor
 }

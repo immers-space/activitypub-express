@@ -41,9 +41,7 @@ describe('resources', function () {
   let testUser
   beforeAll(function (done) {
     const actorName = 'test'
-    const actorIRI = apex.utils.usernameToIRI(actorName)
-    const actorRoutes = apex.utils.nameToActorStreams(actorName)
-    apex.pub.actor.create(apex.context, actorIRI, actorRoutes, actorName, actorName, 'test user')
+    apex.createActor(actorName, actorName, 'test user')
       .then(actor => {
         testUser = actor
         return client.connect({ useNewUrlParser: true })
@@ -99,11 +97,11 @@ describe('resources', function () {
         attributedTo: 'https://localhost/u/test',
         to: 'https://ignore.com/u/ignored'
       }
-      obj = await apex.pub.utils.fromJSONLD(obj, apex.context)
+      obj = await apex.fromJSONLD(obj)
       await apex.store.object.save(obj)
       request(app)
         .get(oid.replace('https://localhost', ''))
-        .set('Accept', apex.pub.consts.jsonldTypes[0])
+        .set('Accept', apex.consts.jsonldTypes[0])
         .expect(200)
         .end(function (err, res) {
           const standard = {
@@ -136,12 +134,12 @@ describe('resources', function () {
           content: 'Say, did you finish reading that book I lent you?'
         }
       }
-      const activity = await apex.pub.utils.fromJSONLD(activityInput, apex.context)
+      const activity = await apex.fromJSONLD(activityInput)
       activity._meta = { collection: [] }
       await apex.store.stream.save(activity)
       request(app)
         .get(aid.replace('https://localhost', ''))
-        .set('Accept', apex.pub.consts.jsonldTypes[0])
+        .set('Accept', apex.consts.jsonldTypes[0])
         .expect(200)
         .end(function (err, res) {
           activityInput['@context'] = ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1']

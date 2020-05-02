@@ -69,7 +69,7 @@ const activityNormalized = {
     'https://ignore.com/u/ignored'
   ]
 }
-app.use(express.json({ type: apex.pub.consts.jsonldTypes }), apex)
+app.use(express.json({ type: apex.consts.jsonldTypes }), apex)
 app.route('/outbox/:actor')
   .get(apex.net.outbox.get)
   .post(apex.net.outbox.post)
@@ -82,9 +82,7 @@ describe('outbox', function () {
   let testUser
   beforeAll(function (done) {
     const actorName = 'test'
-    const actorIRI = apex.utils.usernameToIRI(actorName)
-    const actorRoutes = apex.utils.nameToActorStreams(actorName)
-    apex.pub.actor.create(apex.context, actorIRI, actorRoutes, actorName, actorName, 'test user')
+    apex.createActor(actorName, actorName, 'test user')
       .then(actor => {
         testUser = actor
         return client.connect({ useNewUrlParser: true })
@@ -249,8 +247,8 @@ describe('outbox', function () {
         expectedObj.content = updatedObj.content
         await apex.store.connection.getDb().collection('objects')
           .insertOne(sourceObj, { forceServerObjectId: true })
-        update = await apex.pub.activity
-          .build(apex.context, 'https://localhost/s/23sdlkfj-update', 'Update', 'https://localhost/u/test', updatedObj, sourceObj.to)
+        update = await apex
+          .buildActivity('https://localhost/s/23sdlkfj-update', 'Update', 'https://localhost/u/test', updatedObj, sourceObj.to)
       })
       it('updates target object', async function () {
         await request(app)
@@ -266,8 +264,8 @@ describe('outbox', function () {
       it('updates activities containing object', async function () {
         const db = apex.store.connection.getDb()
         await db.collection('streams').insertMany([
-          await apex.pub.activity.build(apex.context, 'https://localhost/s/23sdlkfj-create', 'Create', 'https://localhost/u/test', sourceObj, sourceObj.to),
-          await apex.pub.activity.build(apex.context, 'https://localhost/s/23sdlkfj-create2', 'Create', 'https://localhost/u/test', sourceObj, sourceObj.to)
+          await apex.buildActivity('https://localhost/s/23sdlkfj-create', 'Create', 'https://localhost/u/test', sourceObj, sourceObj.to),
+          await apex.buildActivity('https://localhost/s/23sdlkfj-create2', 'Create', 'https://localhost/u/test', sourceObj, sourceObj.to)
         ])
         await request(app)
           .post('/outbox/test')

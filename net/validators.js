@@ -15,25 +15,25 @@ module.exports = {
 function inboxActivity (req, res, next) {
   assert(res.locals.apex.target)
   const apex = req.app.locals.apex
-  if (!apex.pub.utils.validateActivity(req.body)) {
+  if (!apex.validateActivity(req.body)) {
     return res.status(400).send('Invalid activity')
   }
-  apex.pub.utils.addMeta(req.body, 'collection', res.locals.apex.target.inbox[0])
+  apex.addMeta(req.body, 'collection', res.locals.apex.target.inbox[0])
   res.locals.apex.activity = true
   next()
 }
 
 async function jsonld (req, res, next) {
   const apex = req.app.locals.apex
-  const jsonldAccepted = req.accepts(apex.pub.consts.jsonldTypes)
+  const jsonldAccepted = req.accepts(apex.consts.jsonldTypes)
   // rule out */* requests
   if (req.method === 'GET' && !req.accepts('text/html') && jsonldAccepted) {
     res.locals.apex.responseType = jsonldAccepted
     return next()
   }
-  if (req.method === 'POST' && req.is(apex.pub.consts.jsonldTypes)) {
+  if (req.method === 'POST' && req.is(apex.consts.jsonldTypes)) {
     try {
-      const obj = await apex.pub.utils.fromJSONLD(req.body, apex.context)
+      const obj = await apex.fromJSONLD(req.body)
       if (!obj) {
         return res.status(400).send('Request body is not valid JSON-LD')
       }
@@ -118,11 +118,11 @@ async function outboxActivity (req, res, next) {
   let activity = req.body
   let object
   activity.id = activityIRI
-  if (!apex.pub.utils.validateActivity(activity)) {
+  if (!apex.validateActivity(activity)) {
     // if not valid activity, check for valid object and wrap in Create
     object = activity
     object.id = apex.utils.objectIdToIRI()
-    if (!apex.pub.utils.validateObject(object)) {
+    if (!apex.validateObject(object)) {
       return res.status(400).send('Invalid activity')
     }
     object.attributedTo = [actorIRI]
@@ -132,8 +132,8 @@ async function outboxActivity (req, res, next) {
         extras[t] = object[t]
       }
     })
-    activity = await apex.pub.activity
-      .build(apex.context, activityIRI, 'Create', actorIRI, object, object.to, extras)
+    activity = await apex
+      .buildActivity(activityIRI, 'Create', actorIRI, object, object.to, extras)
     req.body = activity
   } else if (activity.type === 'Create') {
     // validate content of created objects
@@ -149,7 +149,7 @@ async function outboxActivity (req, res, next) {
       }
     })
   }
-  apex.pub.utils.addMeta(req.body, 'collection', res.locals.apex.target.outbox[0])
+  apex.addMeta(req.body, 'collection', res.locals.apex.target.outbox[0])
   res.locals.apex.activity = true
   next()
 }

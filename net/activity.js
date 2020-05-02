@@ -17,7 +17,7 @@ module.exports = {
     const toDo = []
     const apex = req.app.locals.apex
     const activity = req.body
-    const actorId = apex.pub.utils.actorIdFromActivity(activity)
+    const actorId = apex.actorIdFromActivity(activity)
     const recipient = res.locals.apex.target
     const resLocal = res.locals.apex
     resLocal.status = 200
@@ -33,7 +33,7 @@ module.exports = {
         resLocal.eventName = 'apex-accept'
         // Mark target as accepted (adds to following collection)
         toDo.push(apex.store.stream.updateActivityMeta(
-          apex.pub.utils.objectIdFromActivity(activity),
+          apex.objectIdFromActivity(activity),
           recipient.id,
           'accepted',
           activity.actor[0]
@@ -42,14 +42,12 @@ module.exports = {
           if (!updateResult) return
           // publish update to following count
           resLocal.postWork.push(async () => {
-            const followingCollection = await apex.pub.collection.get(
-              apex.context,
+            const followingCollection = await apex.getCollection(
               recipient.following[0],
-              apex.pub.utils.objectIdFromActivity,
+              apex.objectIdFromActivity,
               'accepted'
             )
-            const act = await apex.pub.activity.build(
-              apex.context,
+            const act = await apex.buildActivity(
               apex.utils.activityIdToIRI(),
               'Update',
               recipient.id,
@@ -57,19 +55,19 @@ module.exports = {
               recipient.followers[0],
               { cc: actorId }
             )
-            return apex.pub.activity.addToOutbox(recipient, act, apex.context)
+            return apex.addToOutbox(recipient, act)
           })
         }))
         break
       case 'create':
         resLocal.eventName = 'apex-create'
-        toDo.push(apex.pub.object.resolve(activity.object[0]).then(object => {
+        toDo.push(apex.resolveObject(activity.object[0]).then(object => {
           resLocal.eventMessage.object = object
         }))
         break
       case 'undo':
         resLocal.eventName = 'apex-undo'
-        toDo.push(apex.pub.activity.undo(activity.object[0], actorId))
+        toDo.push(apex.undoActivity(activity.object[0], actorId))
         break
       default:
         // follow included here because it's the Accept that causes the side-effect
@@ -102,7 +100,7 @@ module.exports = {
       case 'create':
         resLocal.eventName = 'apex-create'
         // save created object
-        toDo.push(apex.pub.object.resolve(activity.object[0]).then(object => {
+        toDo.push(apex.resolveObject(activity.object[0]).then(object => {
           resLocal.eventMessage.object = object
         }))
         break
@@ -122,7 +120,7 @@ module.exports = {
         resLocal.eventName = `apex-${activity.type.toLowerCase()}`
         break
     }
-    resLocal.postWork.push(() => apex.pub.activity.addToOutbox(actor, activity, apex.context))
+    resLocal.postWork.push(() => apex.addToOutbox(actor, activity))
     Promise.all(toDo).then(() => {
       next()
     }).catch(next)

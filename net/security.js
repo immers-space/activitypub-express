@@ -10,7 +10,7 @@ module.exports = {
 function verifyActor (req, res, next) {
   const apex = req.app.locals.apex
   const locals = res.locals.apex
-  const actor = apex.pub.utils.actorIdFromActivity(req.body)
+  const actor = apex.actorIdFromActivity(req.body)
   if (locals.sender && locals.sender.id === actor) {
     locals.verified = true
   }
@@ -22,7 +22,7 @@ async function verifySignature (req, res, next) {
     const apex = req.app.locals.apex
     // support for apps not using signature extension to ActivityPub
     if (!req.get('authorization') && !req.get('signature')) {
-      const actor = await apex.pub.object.resolve(apex.pub.utils.actorIdFromActivity(req.body))
+      const actor = await apex.resolveObject(apex.actorIdFromActivity(req.body))
       if (actor.publicKey && req.app.get('env') !== 'development') {
         console.log('Missing http signature')
         return res.status(400).send('Missing http signature')
@@ -31,7 +31,7 @@ async function verifySignature (req, res, next) {
       return next()
     }
     const sigHead = httpSignature.parse(req)
-    const signer = await apex.pub.object.resolve(sigHead.keyId, req.app.get('db'))
+    const signer = await apex.resolveObject(sigHead.keyId, req.app.get('db'))
     const valid = httpSignature.verifySignature(sigHead, signer.publicKey.publicKeyPem)
     if (!valid) {
       console.log('signature validation failure', sigHead.keyId)

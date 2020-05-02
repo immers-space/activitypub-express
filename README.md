@@ -42,7 +42,7 @@ const apex = ActivitypubExpress({
 })
 const client = new MongoClient('mongodb://localhost:27017', { useUnifiedTopology: true, useNewUrlParser: true })
 
-app.use(express.json({ type: apex.pub.consts.jsonldTypes }), apex)
+app.use(express.json({ type: apex.consts.jsonldTypes }), apex)
 // define routes using prepacakged middleware collections
 app.route(routes.inbox)
   .get(apex.net.inbox.get)

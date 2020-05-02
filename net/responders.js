@@ -16,7 +16,7 @@ async function result (req, res) {
   if (!result) {
     return res.sendStatus(404)
   }
-  const body = JSON.stringify(await apex.pub.utils.toJSONLD(result, apex.context), skipMeta)
+  const body = JSON.stringify(await apex.toJSONLD(result), skipMeta)
   res.type(res.locals.apex.responseType)
   res.status(200).send(body)
 }
@@ -34,7 +34,7 @@ async function target (req, res) {
   if (!target) {
     return res.sendStatus(404)
   }
-  const body = JSON.stringify(await apex.pub.utils.toJSONLD(target, apex.context), skipMeta)
+  const body = JSON.stringify(await apex.toJSONLD(target), skipMeta)
   res.type(res.locals.apex.responseType)
   res.status(200).send(body)
 }
