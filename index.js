@@ -28,7 +28,13 @@ module.exports = function (settings) {
     next()
   }
   // bind pub methods at top level so their 'this' is apex instance
-  Object.assign(apex, pub)
+  for (const prop in pub) {
+    if (typeof pub[prop] === 'function') {
+      apex[prop] = pub[prop].bind(apex)
+    } else {
+      apex[prop] = pub[prop]
+    }
+  }
   apex.settings = settings
   apex.domain = settings.domain
   apex.context = settings.context || pub.consts.ASContext
