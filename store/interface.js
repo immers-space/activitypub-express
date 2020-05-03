@@ -31,6 +31,10 @@ module.exports = class IApexStore {
     throw new Error('Not implemented')
   }
 
+  updateActivity (activity, fullReplace) {
+    throw new Error('Not implemented')
+  }
+
   updateActivityMeta (activityId, actorId, key, value, remove) {
     throw new Error('Not implemented')
   }

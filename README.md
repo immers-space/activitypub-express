@@ -90,7 +90,7 @@ client.connect({ useNewUrlParser: true })
         * [ ] Shares
       * [ ] Misc collections
       * [ ] Pagination
-    * [ ] Relay requests for remote objects (proxyUrl endpoint?)
+    * [ ] Relay requests for remote objects
   * [ ] Security
     * [ ] Permission-based filtering
 * [ ] Server-to-server
@@ -129,6 +129,7 @@ client.connect({ useNewUrlParser: true })
         * [ ] Add prior recipients of updated object to federation audience
       * [ ] Delete
       * [ ] Follow
+      * [x] Accept
       * [ ] Add
       * [ ] Remove
       * [ ] Like

@@ -306,6 +306,81 @@ describe('outbox', function () {
           })
       })
     })
+    describe('accept', function () {
+      let follow
+      let accept
+      beforeEach(function () {
+        follow = merge({ _meta: { collection: testUser.inbox } }, activityNormalized)
+        follow.object = [testUser.id]
+        follow.type = 'Follow'
+        follow.actor = ['https://ignore.com/u/ignored']
+        follow.to = [testUser.id]
+        follow.id = apex.utils.activityIdToIRI()
+        accept = merge({}, activity)
+        accept.object = follow.id
+        accept.type = 'Accept'
+      })
+      it('fires accept event', async function (done) {
+        await apex.store.saveActivity(follow)
+        app.once('apex-accept', msg => {
+          expect(msg.actor).toEqual(testUser)
+          delete msg.activity.id
+          const exp = merge({ _meta: { collection: ['https://localhost/outbox/test'] } }, activityNormalized)
+          exp.type = 'Accept'
+          exp.object = [follow.id]
+          expect(msg.activity).toEqual(exp)
+          follow._meta.collection.push(testUser.followers[0])
+          expect(msg.object).toEqual(follow)
+          done()
+        })
+        request(app)
+          .post('/outbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(accept)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
+      it('publishes collection update', async function (done) {
+        const mockedUser = 'https://mocked.com/user/mocked'
+        nock('https://mocked.com')
+          .get('/user/mocked')
+          .reply(200, { id: mockedUser, inbox: 'https://mocked.com/inbox/mocked' })
+        nock('https://mocked.com')
+          .post('/inbox/mocked').reply(200) // accept activity delivery
+          .post('/inbox/mocked').reply(200)
+          .on('request', (req, interceptor, body) => {
+            // correctly formed activity sent
+            const sentActivity = JSON.parse(body)
+            if (sentActivity.type === 'Accept') return
+            expect(sentActivity.id).toContain('https://localhost')
+            delete sentActivity.id
+            expect(new Date(sentActivity.published).toString()).not.toBe('Invalid Date')
+            delete sentActivity.published
+            expect(sentActivity).toEqual({
+              '@context': apex.context,
+              type: 'Update',
+              actor: testUser.id,
+              to: testUser.followers[0],
+              object: {
+                id: testUser.followers[0],
+                type: 'OrderedCollection',
+                totalItems: 1,
+                orderedItems: [mockedUser]
+              }
+            })
+            done()
+          })
+        follow.actor = [mockedUser]
+        accept.to = mockedUser
+        await apex.store.saveActivity(follow)
+        request(app)
+          .post('/outbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(accept)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
+    })
     it('fires other activity event', function (done) {
       const arriveAct = {
         '@context': 'https://www.w3.org/ns/activitystreams',

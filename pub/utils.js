@@ -20,7 +20,7 @@ function addMeta (obj, key, value) {
   if (!obj._meta[key]) {
     obj._meta[key] = [value]
   } else {
-    obj._meta.push(value)
+    obj._meta[key].push(value)
   }
 }
 

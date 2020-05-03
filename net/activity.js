@@ -41,28 +41,28 @@ module.exports = {
     switch (activity.type.toLowerCase()) {
       case 'accept':
         resLocal.eventName = 'apex-accept'
-        // Mark target as accepted (adds to following collection)
-        toDo.push(apex.store.updateActivityMeta(
-          apex.objectIdFromActivity(activity),
-          recipient.id,
-          'accepted',
-          activity.actor[0]
-        ).then(updated => {
-          resLocal.eventMessage.object = updated
-          if (!updated || updated.type !== 'Follow') return
-          // publish update to following count
-          resLocal.postWork.push(async () => {
-            const act = await apex.buildActivity(
-              apex.utils.activityIdToIRI(),
-              'Update',
-              recipient.id,
-              await apex.getFollowing(recipient),
-              recipient.followers[0],
-              { cc: actorId }
-            )
-            return apex.addToOutbox(recipient, act)
+        toDo.push(
+          apex.store.getActivity(apex.objectIdFromActivity(activity), true).then(targetActivity => {
+            resLocal.eventMessage.object = targetActivity
+            if (!targetActivity || targetActivity.type !== 'Follow') return
+            // Add orignal follow activity to following collection
+            apex.addMeta(targetActivity, 'collection', recipient.following[0])
+            return apex.store.updateActivity(targetActivity, true)
+          }).then(updated => {
+            // publish update to following count
+            resLocal.postWork.push(async () => {
+              const act = await apex.buildActivity(
+                apex.utils.activityIdToIRI(),
+                'Update',
+                recipient.id,
+                await apex.getFollowing(recipient),
+                recipient.followers[0],
+                { cc: actorId }
+              )
+              return apex.addToOutbox(recipient, act)
+            })
           })
-        }))
+        )
         break
       case 'create':
         resLocal.eventName = 'apex-create'
@@ -102,6 +102,30 @@ module.exports = {
     resLocal.eventMessage = { actor, activity }
 
     switch (activity.type.toLowerCase()) {
+      case 'accept':
+        resLocal.eventName = 'apex-accept'
+        toDo.push(
+          apex.store.getActivity(apex.objectIdFromActivity(activity), true).then(targetActivity => {
+            resLocal.eventMessage.object = targetActivity
+            if (!targetActivity || targetActivity.type !== 'Follow') return
+            // add accepted follows to followers collection
+            apex.addMeta(targetActivity, 'collection', actor.followers[0])
+            return apex.store.updateActivity(targetActivity, true)
+          }).then(() => {
+            // publish update to followers count
+            resLocal.postWork.push(async () => {
+              const act = await apex.buildActivity(
+                apex.utils.activityIdToIRI(),
+                'Update',
+                actor.id,
+                await apex.getFollowers(actor),
+                actor.followers[0]
+              )
+              return apex.addToOutbox(actor, act)
+            })
+          })
+        )
+        break
       case 'create':
         resLocal.eventName = 'apex-create'
         // save created object
@@ -118,7 +142,6 @@ module.exports = {
           activity.object[0] = updated // send full replacement object when federating
           resLocal.eventMessage.object = updated
         }))
-
         break
       default:
         // follow included here because it's the Accept that causes the side-effect

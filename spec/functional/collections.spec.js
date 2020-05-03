@@ -65,9 +65,9 @@ describe('collections', function () {
             .buildActivity(apex.utils.activityIdToIRI(), 'Follow', followerId, testUser.id, testUser.id)
         })
       followers = await Promise.all(followers)
-      followers.forEach(f => apex.addMeta(f, 'collection', testUser.followers[0]))
-      apex.addMeta(followers[0], 'accepted', apex.utils.activityIdToIRI())
-      apex.addMeta(followers[2], 'accepted', apex.utils.activityIdToIRI())
+      followers.forEach(f => apex.addMeta(f, 'collection', testUser.inbox[0]))
+      apex.addMeta(followers[0], 'collection', testUser.followers[0])
+      apex.addMeta(followers[2], 'collection', testUser.followers[0])
       for (const follower of followers) {
         await apex.store.saveActivity(follower)
       }
@@ -94,9 +94,9 @@ describe('collections', function () {
             .buildActivity(apex.utils.activityIdToIRI(), 'Follow', testUser.id, followerId, followerId)
         })
       follows = await Promise.all(follows)
-      follows.forEach(f => apex.addMeta(f, 'collection', testUser.following[0]))
-      apex.addMeta(follows[0], 'accepted', apex.utils.activityIdToIRI())
-      apex.addMeta(follows[2], 'accepted', apex.utils.activityIdToIRI())
+      follows.forEach(f => apex.addMeta(f, 'collection', testUser.outbox[0]))
+      apex.addMeta(follows[0], 'collection', testUser.following[0])
+      apex.addMeta(follows[2], 'collection', testUser.following[0])
       for (const follow of follows) {
         await apex.store.saveActivity(follow)
       }

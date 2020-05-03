@@ -211,7 +211,7 @@ describe('inbox', function () {
         follow.type = 'Follow'
         follow.to = ['https://ignore.com/bob']
         follow.id = apex.utils.activityIdToIRI()
-        follow._meta = { collection: testUser.following }
+        follow._meta = { collection: testUser.outbox }
         accept = {
           '@context': 'https://www.w3.org/ns/activitystreams',
           type: 'Accept',
@@ -243,7 +243,7 @@ describe('inbox', function () {
           .expect(200)
           .then(() => apex.store.db.collection('streams').findOne({ id: follow.id }))
           .then(updated => {
-            expect(updated._meta.accepted).toEqual(['https://ignore.com/bob'])
+            expect(updated._meta.collection).toEqual([testUser.outbox[0], testUser.following[0]])
             done()
           })
       })

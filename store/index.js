@@ -76,22 +76,18 @@ class ApexStore extends IApexStore {
     return updated.value
   }
 
-  getActivity (id) {
+  getActivity (id, includeMeta) {
     return this.db.collection('streams')
       .find({ id: id })
       .limit(1)
-      .project({ _id: 0, _meta: 0 })
+      .project(includeMeta ? this.metaProj : this.projection)
       .next()
   }
 
-  getStream (collectionId, filterFlag) {
-    const q = { '_meta.collection': collectionId }
-    if (filterFlag) {
-      q[`_meta.${filterFlag}`] = { $exists: true }
-    }
+  getStream (collectionId) {
     const query = this.db
       .collection('streams')
-      .find(q)
+      .find({ '_meta.collection': collectionId })
       .sort({ _id: -1 })
       .project({ _id: 0, _meta: 0, 'object._id': 0, 'object._meta': 0 })
     return query.toArray()
@@ -113,6 +109,15 @@ class ApexStore extends IApexStore {
   removeActivity (activity, actorId) {
     return this.db.collection('streams')
       .deleteMany({ id: activity.id, actor: actorId })
+  }
+
+  async updateActivity (activity, fullReplace) {
+    if (!fullReplace) {
+      throw new Error('not implemented')
+    }
+    const result = await this.db.collection('streams')
+      .replaceOne({ id: activity.id }, activity)
+    return result.modifiedCount
   }
 
   async updateActivityMeta (activityId, actorId, key, value, remove) {

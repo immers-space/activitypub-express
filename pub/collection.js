@@ -9,8 +9,8 @@ module.exports = {
   getLiked
 }
 
-async function getCollection (collectionId, remapper, metaFilterProperty) {
-  let stream = await this.store.getStream(collectionId, metaFilterProperty)
+async function getCollection (collectionId, remapper) {
+  let stream = await this.store.getStream(collectionId)
   if (remapper) {
     stream = stream.map(remapper)
   }
@@ -31,11 +31,11 @@ function getOutbox (actor) {
 }
 
 function getFollowers (actor) {
-  return this.getCollection(actor.followers[0], this.actorIdFromActivity, 'accepted')
+  return this.getCollection(actor.followers[0], this.actorIdFromActivity)
 }
 
 function getFollowing (actor) {
-  return this.getCollection(actor.following[0], this.objectIdFromActivity, 'accepted')
+  return this.getCollection(actor.following[0], this.objectIdFromActivity)
 }
 
 function getLiked (actor) {
