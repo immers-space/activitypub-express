@@ -3,6 +3,7 @@ const jsonld = require('jsonld')
 
 module.exports = {
   addMeta,
+  collectionIRIToActorName,
   idToIRIFactory,
   nameToActorStreamsFactory,
   toJSONLD,
@@ -33,6 +34,13 @@ function actorIdFromActivity (activity) {
     return actor.href[0]
   }
   return actor.id
+}
+
+function collectionIRIToActorName (id, collectionType) {
+  const pattern = this.settings.routes[collectionType]
+    .replace(`:${this.actorParam}`, '([^/]+)')
+  const result = new RegExp(`^https://${this.domain}${pattern}$`).exec(id)
+  return result && result[1]
 }
 
 function objectIdFromActivity (activity) {

@@ -21,11 +21,6 @@ beforeAll(() => {
     .post(() => true)
     .reply(200)
     .persist()
-  // block attempts to resolve local objects until better logic allows these to be skipped
-  nock('https://localhost')
-    .get(() => true)
-    .reply(200, { id: (Math.random() * 1000).toFixed(0) })
-    .persist()
 })
 afterAll(() => {
   nock.cleanAll()

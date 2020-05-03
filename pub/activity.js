@@ -34,6 +34,9 @@ async function address (activity) {
     if (t === 'https://www.w3.org/ns/activitystreams#Public') {
       return null
     }
+    if (this.collectionIRIToActorName(t, 'followers')) {
+      return this.getCollection(t, this.actorIdFromActivity)
+    }
     return this.resolveObject(t)
   })
   audience = await Promise.all(audience).then(addresses => {
