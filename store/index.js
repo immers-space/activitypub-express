@@ -13,27 +13,19 @@ class ApexStore extends IApexStore {
     const db = this.db
     // inbox
     await db.collection('streams').createIndex({
+      id: 1
+    }, {
+      name: 'streams-primary',
+      unique: true
+    })
+    await db.collection('streams').createIndex({
       '_meta.collection': 1,
       _id: -1
     }, {
-      name: 'inbox'
-    })
-    // followers
-    await db.collection('streams').createIndex({
-      '_meta.collection': 1
-    }, {
-      partialFilterExpression: { type: 'Follow' },
-      name: 'followers'
-    })
-    // outbox
-    await db.collection('streams').createIndex({
-      actor: 1,
-      _id: -1
+      name: 'collections'
     })
     // object lookup
-    await db.collection('objects').createIndex({
-      id: 1
-    })
+    await db.collection('objects').createIndex({ id: 1 }, { unique: true, name: 'objects-primary' })
     if (initialUser) {
       return db.collection('objects').findOneAndReplace(
         { preferredUsername: initialUser.preferredUsername },
@@ -106,13 +98,8 @@ class ApexStore extends IApexStore {
   }
 
   async saveActivity (activity) {
-    const q = { id: activity.id }
-    // activities may be duplicated with different target collections
-    if (activity._meta.collection) {
-      q['_meta.collection'] = { $all: activity._meta.collection }
-    }
     const exists = await this.db.collection('streams')
-      .find(q)
+      .find({ id: activity.id })
       .project({ _id: 1 })
       .limit(1)
       .hasNext()
@@ -120,9 +107,10 @@ class ApexStore extends IApexStore {
       return false
     }
 
-    return this.db.collection('streams')
+    const insertResult = await this.db.collection('streams')
       // server object ID avoids mutating local copy of document
       .insertOne(activity, { forceServerObjectId: true })
+    return insertResult.insertedCount
   }
 
   removeActivity (activity, actorId) {
@@ -139,8 +127,9 @@ class ApexStore extends IApexStore {
     }
     // limit udpates to owners of objects
     const q = { id: activityId, actor: actorId }
-    const result = await this.db.collection('streams').updateMany(q, op)
-    return result.modifiedCount
+    const result = await this.db.collection('streams')
+      .findOneAndUpdate(q, op, { returnOriginal: false })
+    return result.value
   }
 
   generateId () {

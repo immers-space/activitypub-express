@@ -1,14 +1,24 @@
 'use strict'
 
 module.exports = {
-  save (req, res, next) {
+  async save (req, res, next) {
     if (!res.locals.apex.activity) {
       return next()
     }
-    req.app.locals.apex.store.saveActivity(req.body).then(saveResult => {
+    const apex = req.app.locals.apex
+    try {
+      const saveResult = await apex.store.saveActivity(req.body)
       res.locals.apex.isNewActivity = saveResult
+      if (!saveResult) {
+        // add additional target collection to activity
+        const actorId = apex.actorIdFromActivity(req.body)
+        const newTarget = req.body._meta.collection[0]
+        await apex.store.updateActivityMeta(req.body.id, actorId, 'collection', newTarget)
+      }
       next()
-    }).catch(next)
+    } catch (err) {
+      next(err)
+    }
   },
   inboxSideEffects (req, res, next) {
     if (!(res.locals.apex.activity && res.locals.apex.sender)) {
@@ -37,9 +47,8 @@ module.exports = {
           recipient.id,
           'accepted',
           activity.actor[0]
-        ).then(updateResult => {
-          // TODO: this should send discriminate what was accepted before sending following update
-          if (!updateResult) return
+        ).then(updated => {
+          if (!updated || updated.type !== 'Follow') return
           // publish update to following count
           resLocal.postWork.push(async () => {
             const act = await apex.buildActivity(

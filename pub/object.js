@@ -17,9 +17,7 @@ async function resolveObject (id) {
     // resolve remote object from id
     object = await this.requestObject(id)
   }
-  // cache non-collection objects
-  if (object.type !== 'Collection' && object.type !== 'OrderedCollection') {
-    await this.store.saveObject(object)
-  }
+  // cache
+  await this.store.saveObject(object)
   return object
 }

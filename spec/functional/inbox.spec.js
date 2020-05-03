@@ -149,6 +149,29 @@ describe('inbox', function () {
         })
         .catch(done)
     })
+    it('consolidates repeated deliveries', async function (done) {
+      const first = merge({ _meta: { collection: ['https://localhost/u/bob'] } }, activityNormalized)
+      await apex.store.saveActivity(first)
+      request(app)
+        .post('/inbox/test')
+        .set('Content-Type', 'application/activity+json')
+        .send(activity)
+        .expect(200)
+        .then(() => {
+          return apex.store.db
+            .collection('streams')
+            .findOne({ id: activity.id })
+        })
+        .then(act => {
+          expect(act._meta.collection).toEqual([
+            'https://localhost/u/bob',
+            'https://localhost/inbox/test'
+
+          ])
+          done()
+        })
+        .catch(done)
+    })
     // activity sideEffects
     it('fires create event', function (done) {
       app.once('apex-create', msg => {

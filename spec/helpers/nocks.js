@@ -15,7 +15,8 @@ beforeAll(() => {
   // block federation attempts
   nock('https://ignore.com')
     .get(() => true)
-    .reply(200, {})
+    // fake id to avoid unique contstraint errors when cached
+    .reply(200, { id: (Math.random() * 1000).toFixed(0) })
     .persist()
     .post(() => true)
     .reply(200)
@@ -23,7 +24,7 @@ beforeAll(() => {
   // block attempts to resolve local objects until better logic allows these to be skipped
   nock('https://localhost')
     .get(() => true)
-    .reply(200, {})
+    .reply(200, { id: (Math.random() * 1000).toFixed(0) })
     .persist()
 })
 afterAll(() => {
