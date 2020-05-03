@@ -42,16 +42,11 @@ module.exports = {
           if (!updateResult) return
           // publish update to following count
           resLocal.postWork.push(async () => {
-            const followingCollection = await apex.getCollection(
-              recipient.following[0],
-              apex.objectIdFromActivity,
-              'accepted'
-            )
             const act = await apex.buildActivity(
               apex.utils.activityIdToIRI(),
               'Update',
               recipient.id,
-              followingCollection,
+              await apex.getFollowing(recipient),
               recipient.followers[0],
               { cc: actorId }
             )

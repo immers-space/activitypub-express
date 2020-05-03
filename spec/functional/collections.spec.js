@@ -57,7 +57,7 @@ describe('collections', function () {
       })
       .then(done)
   })
-  describe('followers', function () {
+  describe('follows', function () {
     it('returns accepted followers', async function (done) {
       let followers = ['https://ignore.com/bob', 'https://ignore.com/mary', 'https://ignore.com/sue']
         .map(followerId => {
@@ -87,7 +87,7 @@ describe('collections', function () {
           done(err)
         })
     })
-    it('returns accepted follows', async function (done) {
+    it('returns accepted following', async function (done) {
       let follows = ['https://ignore.com/bob', 'https://ignore.com/mary', 'https://ignore.com/sue']
         .map(followerId => {
           return apex
