@@ -116,10 +116,6 @@ describe('inbox', function () {
         .send({ actor: 'bob', '@context': 'https://www.w3.org/ns/activitystreams' })
         .expect(400, 'Invalid activity', done)
     })
-    // security verifySignature
-    // it('todo', function () {
-
-    // })
     // activity getTargetActor
     it('errors on unknown actor', function (done) {
       request(app)
@@ -208,18 +204,29 @@ describe('inbox', function () {
         .catch(done)
     })
     describe('accept', function () {
-      it('fires accept event', function (done) {
-        app.once('apex-accept', () => {
-          done()
-        })
-        const accept = {
+      let follow
+      let accept
+      beforeEach(function () {
+        follow = merge({}, activityNormalized)
+        follow.type = 'Follow'
+        follow.to = ['https://ignore.com/bob']
+        follow.id = apex.utils.activityIdToIRI()
+        follow._meta = { collection: testUser.following }
+        accept = {
           '@context': 'https://www.w3.org/ns/activitystreams',
           type: 'Accept',
           id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
           to: ['https://localhost/u/test'],
-          actor: 'https://localhost/u/test',
-          object: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d4'
+          actor: 'https://ignore.com/bob',
+          object: follow.id
         }
+      })
+      it('fires accept event', async function (done) {
+        await apex.store.saveActivity(follow)
+        app.once('apex-accept', msg => {
+          expect(msg.object.id).toEqual(follow.id)
+          done()
+        })
         request(app)
           .post('/inbox/test')
           .set('Content-Type', 'application/activity+json')
@@ -228,19 +235,6 @@ describe('inbox', function () {
           .end(err => { if (err) done(err) })
       })
       it('updates accepted activity', async function (done) {
-        const follow = merge({}, activityNormalized)
-        follow.type = 'Follow'
-        follow.to = ['https://ignore.com/bob']
-        follow.id = apex.utils.activityIdToIRI()
-        follow._meta = { collection: testUser.following }
-        const accept = {
-          '@context': 'https://www.w3.org/ns/activitystreams',
-          type: 'Accept',
-          id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
-          to: ['https://localhost/u/test'],
-          actor: 'https://ignore.com/bob',
-          object: follow.id
-        }
         await apex.store.saveActivity(follow)
         request(app)
           .post('/inbox/test')
@@ -282,20 +276,9 @@ describe('inbox', function () {
             })
             done()
           })
-        const follow = merge({}, activityNormalized)
-        follow.type = 'Follow'
         follow.to = [mockedUser]
-        follow.id = apex.utils.activityIdToIRI()
         follow.object = [mockedUser]
-        follow._meta = { collection: testUser.following }
-        const accept = {
-          '@context': 'https://www.w3.org/ns/activitystreams',
-          type: 'Accept',
-          id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
-          to: ['https://localhost/u/test'],
-          actor: mockedUser,
-          object: follow.id
-        }
+        accept.actor = mockedUser
         await apex.store.saveActivity(follow)
         request(app)
           .post('/inbox/test')

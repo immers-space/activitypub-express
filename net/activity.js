@@ -48,6 +48,7 @@ module.exports = {
           'accepted',
           activity.actor[0]
         ).then(updated => {
+          resLocal.eventMessage.object = updated
           if (!updated || updated.type !== 'Follow') return
           // publish update to following count
           resLocal.postWork.push(async () => {
