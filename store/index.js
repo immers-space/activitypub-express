@@ -98,19 +98,16 @@ class ApexStore extends IApexStore {
   }
 
   async saveActivity (activity) {
-    const exists = await this.db.collection('streams')
-      .find({ id: activity.id })
-      .project({ _id: 1 })
-      .limit(1)
-      .hasNext()
-    if (exists) {
-      return false
+    let inserted
+    try {
+      const insertResult = await this.db.collection('streams')
+        .insertOne(activity, { forceServerObjectId: true })
+      inserted = insertResult.insertedCount
+    } catch (err) {
+      // if duplicate key error, ignore and return undefined
+      if (err.name !== 'MongoError' || err.code !== 11000) throw (err)
     }
-
-    const insertResult = await this.db.collection('streams')
-      // server object ID avoids mutating local copy of document
-      .insertOne(activity, { forceServerObjectId: true })
-    return insertResult.insertedCount
+    return inserted
   }
 
   removeActivity (activity, actorId) {
@@ -128,7 +125,7 @@ class ApexStore extends IApexStore {
     // limit udpates to owners of objects
     const q = { id: activityId, actor: actorId }
     const result = await this.db.collection('streams')
-      .findOneAndUpdate(q, op, { returnOriginal: false })
+      .findOneAndUpdate(q, op, { returnOriginal: false, projection: this.metaProj })
     return result.value
   }
 
