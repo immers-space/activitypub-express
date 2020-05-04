@@ -248,7 +248,7 @@ describe('outbox', function () {
         await apex.store.db.collection('objects')
           .insertOne(sourceObj, { forceServerObjectId: true })
         update = await apex
-          .buildActivity('https://localhost/s/23sdlkfj-update', 'Update', 'https://localhost/u/test', updatedObj, sourceObj.to)
+          .buildActivity('Update', 'https://localhost/u/test', sourceObj.to, { object: updatedObj })
       })
       it('updates target object', async function () {
         await request(app)
@@ -264,8 +264,8 @@ describe('outbox', function () {
       it('updates activities containing object', async function () {
         const db = apex.store.db
         await db.collection('streams').insertMany([
-          await apex.buildActivity('https://localhost/s/23sdlkfj-create', 'Create', 'https://localhost/u/test', sourceObj, sourceObj.to),
-          await apex.buildActivity('https://localhost/s/23sdlkfj-create2', 'Create', 'https://localhost/u/test', sourceObj, sourceObj.to)
+          await apex.buildActivity('Create', 'https://localhost/u/test', sourceObj.to, { object: sourceObj }),
+          await apex.buildActivity('Create', 'https://localhost/u/test', sourceObj.to, { object: sourceObj })
         ])
         await request(app)
           .post('/outbox/test')

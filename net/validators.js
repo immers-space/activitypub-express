@@ -126,14 +126,14 @@ async function outboxActivity (req, res, next) {
       return res.status(400).send('Invalid activity')
     }
     object.attributedTo = [actorIRI]
-    const extras = {}
+    const extras = { object }
     ;['bto', 'cc', 'bcc', 'audience'].forEach(t => {
       if (t in object) {
         extras[t] = object[t]
       }
     })
     activity = await apex
-      .buildActivity(activityIRI, 'Create', actorIRI, object, object.to, extras)
+      .buildActivity('Create', actorIRI, object.to, extras)
     req.body = activity
   } else if (activity.type === 'Create') {
     // validate content of created objects

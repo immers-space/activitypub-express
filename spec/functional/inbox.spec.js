@@ -328,7 +328,8 @@ describe('inbox', function () {
     })
     it('removes undone activity', async function (done) {
       const undone = await apex
-        .buildActivity('https://localhost/s/to-undo', 'fake', 'https://localhost/u/test', 'https://localhost/u/test')
+        .buildActivity('fake', 'https://localhost/u/test', 'https://localhost/u/test')
+      undone.id = 'https://localhost/s/to-undo'
       const undo = {
         '@context': 'https://www.w3.org/ns/activitystreams',
         type: 'Undo',

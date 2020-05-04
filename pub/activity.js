@@ -8,12 +8,11 @@ module.exports = {
   undoActivity
 }
 
-function buildActivity (iri, type, actorId, object, to, etc = {}) {
+function buildActivity (type, actorId, to, etc = {}) {
   const act = merge({
-    id: iri,
+    id: this.utils.activityIdToIRI(),
     type,
     actor: actorId,
-    object,
     to,
     published: new Date().toISOString()
   }, etc)

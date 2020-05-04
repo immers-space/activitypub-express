@@ -52,12 +52,10 @@ module.exports = {
             // publish update to following count
             resLocal.postWork.push(async () => {
               const act = await apex.buildActivity(
-                apex.utils.activityIdToIRI(),
                 'Update',
                 recipient.id,
-                await apex.getFollowing(recipient),
                 recipient.followers[0],
-                { cc: actorId }
+                { object: await apex.getFollowing(recipient), cc: actorId }
               )
               return apex.addToOutbox(recipient, act)
             })
@@ -115,11 +113,10 @@ module.exports = {
             // publish update to followers count
             resLocal.postWork.push(async () => {
               const act = await apex.buildActivity(
-                apex.utils.activityIdToIRI(),
                 'Update',
                 actor.id,
-                await apex.getFollowers(actor),
-                actor.followers[0]
+                actor.followers[0],
+                { object: await apex.getFollowers(actor) }
               )
               return apex.addToOutbox(actor, act)
             })

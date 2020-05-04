@@ -62,7 +62,7 @@ describe('collections', function () {
       let followers = ['https://ignore.com/bob', 'https://ignore.com/mary', 'https://ignore.com/sue']
         .map(followerId => {
           return apex
-            .buildActivity(apex.utils.activityIdToIRI(), 'Follow', followerId, testUser.id, testUser.id)
+            .buildActivity('Follow', followerId, testUser.id, { object: testUser.id })
         })
       followers = await Promise.all(followers)
       followers.forEach(f => apex.addMeta(f, 'collection', testUser.inbox[0]))
@@ -91,7 +91,7 @@ describe('collections', function () {
       let follows = ['https://ignore.com/bob', 'https://ignore.com/mary', 'https://ignore.com/sue']
         .map(followerId => {
           return apex
-            .buildActivity(apex.utils.activityIdToIRI(), 'Follow', testUser.id, followerId, followerId)
+            .buildActivity('Follow', testUser.id, followerId, { object: followerId })
         })
       follows = await Promise.all(follows)
       follows.forEach(f => apex.addMeta(f, 'collection', testUser.outbox[0]))
@@ -120,7 +120,7 @@ describe('collections', function () {
       let likes = ['https://ignore.com/o/1', 'https://ignore.com/o/2', 'https://ignore.com/o/3']
         .map(objId => {
           return apex
-            .buildActivity(apex.utils.activityIdToIRI(), 'Like', testUser.id, objId, 'https://ignore.com/bob')
+            .buildActivity('Like', testUser.id, 'https://ignore.com/bob', { object: objId })
         })
       likes = await Promise.all(likes)
       likes.forEach(f => apex.addMeta(f, 'collection', testUser.liked[0]))
