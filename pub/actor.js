@@ -8,6 +8,7 @@ module.exports = {
 }
 
 async function createActor (username, displayName, summary, icon, type = 'Person') {
+  username = username.toLowerCase()
   const id = this.utils.usernameToIRI(username)
   const routes = this.utils.nameToActorStreams(username)
   const pair = await generateKeyPairPromise('rsa', {
