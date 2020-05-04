@@ -103,24 +103,14 @@ module.exports = {
       case 'accept':
         resLocal.eventName = 'apex-accept'
         toDo.push(
-          apex.store.getActivity(apex.objectIdFromActivity(activity), true).then(targetActivity => {
-            resLocal.eventMessage.object = targetActivity
-            if (!targetActivity || targetActivity.type !== 'Follow') return
-            // add accepted follows to followers collection
-            apex.addMeta(targetActivity, 'collection', actor.followers[0])
-            return apex.store.updateActivity(targetActivity, true)
-          }).then(() => {
-            // publish update to followers count
-            resLocal.postWork.push(async () => {
-              const act = await apex.buildActivity(
-                'Update',
-                actor.id,
-                actor.followers[0],
-                { object: await apex.getFollowers(actor) }
-              )
-              return apex.addToOutbox(actor, act)
+          apex.store.getActivity(apex.objectIdFromActivity(activity), true)
+            .then(targetActivity => {
+              resLocal.eventMessage.object = targetActivity
+              if (!targetActivity || targetActivity.type !== 'Follow') return
+              return apex.acceptFollow(actor, targetActivity)
             })
-          })
+            .then(postTask => resLocal.postWork.push(postTask))
+            .catch(err => next(err))
         )
         break
       case 'create':

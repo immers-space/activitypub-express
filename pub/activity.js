@@ -2,6 +2,7 @@
 
 const merge = require('deepmerge')
 module.exports = {
+  acceptFollow,
   address,
   addToOutbox,
   buildActivity,
@@ -65,6 +66,21 @@ async function addToOutbox (actor, activity) {
   const [addresses, outgoingActivity] = await Promise.all(tasks)
   delete outgoingActivity._meta
   return this.deliver(actor, outgoingActivity, addresses)
+}
+
+// follow accept side effects: add to followers, publish updated followers
+async function acceptFollow (actor, targetActivity) {
+  this.addMeta(targetActivity, 'collection', actor.followers[0])
+  await this.store.updateActivity(targetActivity, true)
+  return async () => {
+    const act = await this.buildActivity(
+      'Update',
+      actor.id,
+      actor.followers[0],
+      { object: await this.getFollowers(actor) }
+    )
+    return this.addToOutbox(actor, act)
+  }
 }
 
 function undoActivity (activity, undoActor) {
