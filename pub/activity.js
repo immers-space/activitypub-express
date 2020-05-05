@@ -56,7 +56,7 @@ async function address (activity) {
     return Promise.all([].concat(...addresses))
   })
   audience = audience.filter(t => t && t.inbox)
-    .map(t => t.inbox)
+    .map(t => t.inbox[0])
   // de-dupe
   return Array.from(new Set(audience))
 }

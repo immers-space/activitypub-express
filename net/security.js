@@ -31,7 +31,7 @@ async function verifySignature (req, res, next) {
     }
     const sigHead = httpSignature.parse(req)
     const signer = await apex.resolveObject(sigHead.keyId, req.app.get('db'))
-    const valid = httpSignature.verifySignature(sigHead, signer.publicKey.publicKeyPem)
+    const valid = httpSignature.verifySignature(sigHead, signer.publicKey[0].publicKeyPem[0])
     if (!valid) {
       console.log('signature validation failure', sigHead.keyId)
       return res.status(400).send('Invalid http signature')

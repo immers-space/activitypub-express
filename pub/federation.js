@@ -12,7 +12,7 @@ function requestObject (id) {
     url: id,
     headers: { Accept: 'application/activity+json' },
     json: true
-  })
+  }).then(this.fromJSONLD)
 }
 
 function deliver (actor, activity, addresses) {
@@ -27,7 +27,7 @@ function deliver (actor, activity, addresses) {
       method: 'POST',
       url: addr,
       headers: {
-        'Content-Type': this.consts.jsonldTypes[0]
+        'Content-Type': this.consts.jsonldOutgoingType
       },
       httpSignature: {
         key: actor._meta.privateKey,
