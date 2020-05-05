@@ -7,12 +7,10 @@ const ApexStore = require('./store')
 function onFinishedHandler (err, res) {
   if (err) return
   const apexLocal = res.locals.apex
+  if (apexLocal.eventName) {
+    res.app.emit(apexLocal.eventName, apexLocal.eventMessage)
+  }
   Promise.all(apexLocal.postWork.map(task => task.call(res)))
-    .then(() => {
-      if (apexLocal.eventName) {
-        res.app.emit(apexLocal.eventName, apexLocal.eventMessage)
-      }
-    })
     .catch(err => console.error('post-response error:', err.message))
 }
 
