@@ -130,8 +130,8 @@ class ApexStore extends IApexStore {
     // limit udpates to owners of objects
     const q = { id: activityId, actor: actorId }
     const result = await this.db.collection('streams')
-      .findOneAndUpdate(q, op, { returnOriginal: false, projection: this.metaProj })
-    return result.value
+      .updateOne(q, op)
+    return result.modifiedCount
   }
 
   generateId () {

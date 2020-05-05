@@ -8,12 +8,16 @@ module.exports = {
     const apex = req.app.locals.apex
     try {
       const saveResult = await apex.store.saveActivity(req.body)
-      res.locals.apex.isNewActivity = saveResult
+      res.locals.apex.isNewActivity = !!saveResult
       if (!saveResult) {
         // add additional target collection to activity
         const actorId = apex.actorIdFromActivity(req.body)
         const newTarget = req.body._meta.collection[0]
-        await apex.store.updateActivityMeta(req.body.id, actorId, 'collection', newTarget)
+        const updated = await apex.store
+          .updateActivityMeta(req.body.id, actorId, 'collection', newTarget)
+        if (updated) {
+          res.locals.apex.isNewActivity = 'new collection'
+        }
       }
       next()
     } catch (err) {
@@ -37,7 +41,6 @@ module.exports = {
     }
     // configure event hook to be triggered after response sent
     resLocal.eventMessage = { actor: actorId, activity, recipient }
-
     switch (activity.type.toLowerCase()) {
       case 'accept':
         resLocal.eventName = 'apex-accept'
