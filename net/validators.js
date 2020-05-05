@@ -13,7 +13,7 @@ module.exports = {
 }
 
 function inboxActivity (req, res, next) {
-  assert(res.locals.apex.target)
+  if (!res.locals.apex.target) return next()
   const apex = req.app.locals.apex
   if (!apex.validateActivity(req.body)) {
     return res.status(400).send('Invalid activity')

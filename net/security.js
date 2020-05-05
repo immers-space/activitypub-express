@@ -1,6 +1,5 @@
 'use strict'
 const httpSignature = require('http-signature')
-const assert = require('assert')
 // http communication middleware
 module.exports = {
   verifyActor,
