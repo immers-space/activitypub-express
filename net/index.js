@@ -9,8 +9,10 @@ const wellKnown = require('./well-known')
 
 module.exports = {
   validators,
+  responders,
   security,
   activity,
+  collection,
   wellKnown,
   // meta - colletions of middleware to complete activitypub actions
   activityStream: {
