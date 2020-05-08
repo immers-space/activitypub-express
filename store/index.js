@@ -28,7 +28,7 @@ class ApexStore extends IApexStore {
     await db.collection('objects').createIndex({ id: 1 }, { unique: true, name: 'objects-primary' })
     if (initialUser) {
       return db.collection('objects').findOneAndReplace(
-        { preferredUsername: initialUser.preferredUsername },
+        { id: initialUser.id },
         initialUser,
         {
           upsert: true,
