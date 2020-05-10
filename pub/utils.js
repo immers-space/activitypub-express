@@ -1,5 +1,6 @@
 'use strict'
 const jsonld = require('jsonld')
+const { escape, unescape } = require('mongo-escape')
 
 module.exports = {
   addMeta,
@@ -69,17 +70,17 @@ async function fromJSONLD (obj) {
     opts.expandContext = this.context
   }
   const compact = await jsonld.compact(obj, this.context, opts)
-  // strip context and graph wrapper for easier access
-  return compact['@graph'][0]
+  // strip context and graph wrapper for easier access, escape mongo special characters
+  return escape(compact['@graph'][0])
 }
 // convert working objects to json-ld for transport
-function toJSONLD (obj) {
-  return jsonld.compact(obj, this.context, {
+async function toJSONLD (obj) {
+  return unescape(await jsonld.compact(obj, this.context, {
     // must supply initial context because it was stripped for easy handling
     expandContext: this.context,
     // unbox arrays on federated objects, in case other apps aren't using real json-ld
     compactArrays: true
-  })
+  }))
 }
 
 function idToIRIFactory (domain, route, param) {
