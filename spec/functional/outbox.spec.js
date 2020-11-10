@@ -218,7 +218,7 @@ describe('outbox', function () {
     })
     // activity side effects
     it('fires create event', function (done) {
-      app.once('apex-create', msg => {
+      app.once('apex-outbox', msg => {
         expect(msg.actor).toEqual(testUser)
         delete msg.activity.id
         delete msg.object.id
@@ -322,7 +322,7 @@ describe('outbox', function () {
       })
       it('fires accept event', async function (done) {
         await apex.store.saveActivity(follow)
-        app.once('apex-accept', msg => {
+        app.once('apex-outbox', msg => {
           expect(msg.actor).toEqual(testUser)
           delete msg.activity.id
           const exp = merge({ _meta: { collection: ['https://localhost/outbox/test'] } }, activityNormalized)
@@ -392,7 +392,7 @@ describe('outbox', function () {
           name: 'Here'
         }
       }
-      app.once('apex-arrive', msg => {
+      app.once('apex-outbox', msg => {
         expect(msg.actor).toEqual(testUser)
         delete msg.activity.id
         expect(msg.activity).toEqual({

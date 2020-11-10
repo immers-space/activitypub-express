@@ -40,10 +40,10 @@ module.exports = {
       return next()
     }
     // configure event hook to be triggered after response sent
+    resLocal.eventName = 'apex-inbox'
     resLocal.eventMessage = { actor: actorId, activity, recipient }
     switch (activity.type.toLowerCase()) {
       case 'accept':
-        resLocal.eventName = 'apex-accept'
         toDo.push(
           apex.store.getActivity(apex.objectIdFromActivity(activity), true).then(targetActivity => {
             resLocal.eventMessage.object = targetActivity
@@ -66,18 +66,15 @@ module.exports = {
         )
         break
       case 'create':
-        resLocal.eventName = 'apex-create'
         toDo.push(apex.resolveObject(activity.object[0]).then(object => {
           resLocal.eventMessage.object = object
         }))
         break
       case 'undo':
-        resLocal.eventName = 'apex-undo'
         toDo.push(apex.undoActivity(activity.object[0], actorId))
         break
       default:
         // follow included here because it's the Accept that causes the side-effect
-        resLocal.eventName = `apex-${activity.type.toLowerCase()}`
         break
     }
     Promise.all(toDo).then(() => {
@@ -101,10 +98,10 @@ module.exports = {
 
     // configure event hook to be triggered after response sent
     resLocal.eventMessage = { actor, activity }
+    resLocal.eventName = 'apex-outbox'
 
     switch (activity.type.toLowerCase()) {
       case 'accept':
-        resLocal.eventName = 'apex-accept'
         toDo.push(
           apex.store.getActivity(apex.objectIdFromActivity(activity), true)
             .then(targetActivity => {
@@ -117,14 +114,12 @@ module.exports = {
         )
         break
       case 'create':
-        resLocal.eventName = 'apex-create'
         // save created object
         toDo.push(apex.resolveObject(activity.object[0]).then(object => {
           resLocal.eventMessage.object = object
         }))
         break
       case 'update':
-        resLocal.eventName = 'apex-update'
         toDo.push(apex.store.updateObject(activity.object[0], actor.id).then(updated => {
           if (!updated) {
             throw new Error('Update target object not found or not authorized')
@@ -135,7 +130,6 @@ module.exports = {
         break
       default:
         // follow included here because it's the Accept that causes the side-effect
-        resLocal.eventName = `apex-${activity.type.toLowerCase()}`
         break
     }
     resLocal.postWork.push(() => apex.addToOutbox(actor, activity))

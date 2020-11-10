@@ -55,8 +55,15 @@ app.get(routes.object, apex.net.object.get)
 app.get(routes.activity, apex.net.activityStream.get)
 app.get('/.well-known/webfinger', apex.net.webfinger.get)
 // custom side-effects for your app
-app.on('apex-create', msg => {
-  console.log(`New ${msg.object.type} from ${msg.actor} to ${msg.recipient}`)
+app.on('apex-outbox', msg => {
+  if (msg.activity.type === 'Create') {
+    console.log(`New ${msg.object.type} from ${msg.actor}`)
+  }
+})
+app.on('apex-inbox', msg => {
+  if (msg.activity.type === 'Create') {
+    console.log(`New ${msg.object.type} from ${msg.actor} to ${msg.recipient}`)
+  }
 })
 
 client.connect({ useNewUrlParser: true })

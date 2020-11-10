@@ -170,7 +170,7 @@ describe('inbox', function () {
     })
     // activity sideEffects
     it('fires create event', function (done) {
-      app.once('apex-create', msg => {
+      app.once('apex-inbox', msg => {
         expect(msg.actor).toBe('https://localhost/u/test')
         expect(msg.recipient).toEqual(testUser)
         const act = Object.assign({ _meta: { collection: ['https://localhost/inbox/test'] } }, activityNormalized)
@@ -223,7 +223,7 @@ describe('inbox', function () {
       })
       it('fires accept event', async function (done) {
         await apex.store.saveActivity(follow)
-        app.once('apex-accept', msg => {
+        app.once('apex-inbox', msg => {
           expect(msg.object.id).toEqual(follow.id)
           done()
         })
@@ -289,7 +289,7 @@ describe('inbox', function () {
       })
     })
     it('fires follow event', function (done) {
-      app.once('apex-follow', () => {
+      app.once('apex-inbox', () => {
         done()
       })
       const follow = {
@@ -308,7 +308,7 @@ describe('inbox', function () {
         .end(err => { if (err) done(err) })
     })
     it('fires undo event', function (done) {
-      app.once('apex-undo', () => {
+      app.once('apex-inbox', () => {
         done()
       })
       const undo = {
@@ -364,7 +364,7 @@ describe('inbox', function () {
           name: 'Here'
         }
       }
-      app.once('apex-arrive', msg => {
+      app.once('apex-inbox', msg => {
         expect(msg.actor).toBe('https://localhost/u/test')
         expect(msg.recipient).toEqual(testUser)
         expect(msg.activity).toEqual({
