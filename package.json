@@ -27,7 +27,7 @@
     "deepmerge": "^4.2.2",
     "express": "^4.17.1",
     "http-signature": "github:wmurphyrd/node-http-signature#9c02eeb",
-    "jsonld": "^3.0.1",
+    "jsonld": "^3.2.0",
     "mongo-escape": "^2.0.6",
     "mongodb": "^3.3.2",
     "on-finished": "^2.3.0",
