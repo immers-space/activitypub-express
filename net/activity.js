@@ -34,8 +34,10 @@ module.exports = {
     const actorId = apex.actorIdFromActivity(activity)
     const recipient = res.locals.apex.target
     const resLocal = res.locals.apex
+    // true if brand new, truthy if new recipient of known activity
+    const isNew = res.locals.apex.isNewActivity
     resLocal.status = 200
-    if (!res.locals.apex.isNewActivity) {
+    if (!isNew) {
       // ignore duplicate deliveries
       return next()
     }
@@ -47,7 +49,7 @@ module.exports = {
         toDo.push(
           apex.store.getActivity(apex.objectIdFromActivity(activity), true).then(targetActivity => {
             resLocal.eventMessage.object = targetActivity
-            if (!targetActivity || targetActivity.type !== 'Follow') return
+            if (!targetActivity || targetActivity.type !== 'Follow' || isNew !== true) return
             // Add orignal follow activity to following collection
             apex.addMeta(targetActivity, 'collection', recipient.following[0])
             return apex.store.updateActivity(targetActivity, true)
@@ -71,12 +73,14 @@ module.exports = {
         }))
         break
       case 'undo':
+        if (isNew !== true) return
         toDo.push(apex.undoActivity(activity.object[0], actorId))
         break
       case 'announce':
         toDo.push((async () => {
           const targetActivity = await apex.resolveActivity(activity.object[0])
           resLocal.eventMessage.object = targetActivity
+          if (isNew !== true) return
           // add to object shares collection, increment share count
           if (apex.isLocalIRI(targetActivity.id) && targetActivity.shares) {
             await apex.store
