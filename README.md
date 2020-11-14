@@ -112,7 +112,7 @@ client.connect({ useNewUrlParser: true })
       * [ ] Add
       * [ ] Remove
       * [ ] Like
-      * [ ] Announce
+      * [x] Announce
       * [x] Undo
       * [x] Other acivity types
     * [x] Security
