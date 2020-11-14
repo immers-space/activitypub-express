@@ -1,4 +1,4 @@
-/* global describe, beforeAll, beforeEach, it, expect */
+/* global describe, beforeAll, beforeEach, it, expect, spyOn */
 const request = require('supertest')
 const express = require('express')
 const merge = require('deepmerge')
@@ -41,8 +41,9 @@ const activity = {
     id: 'https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19',
     attributedTo: 'https://localhost/u/test',
     to: ['https://localhost/u/test'],
-    content: 'Say, did you finish reading that book I lent you?'
-  }
+    content: 'Say, did you finish reading that book I lent you?',
+  },
+  shares: 'https://localhost/shares/a29a6843-9feb-4c74-a7f7-081b9c9201d3'
 }
 
 const activityNormalized = {
@@ -65,6 +66,9 @@ const activityNormalized = {
         'https://localhost/u/test'
       ]
     }
+  ],
+  shares: [
+    'https://localhost/shares/a29a6843-9feb-4c74-a7f7-081b9c9201d3'
   ],
   to: [
     'https://localhost/u/test'
@@ -387,6 +391,104 @@ describe('inbox', function () {
         .expect(200)
         .end(err => { if (err) done(err) })
     })
+    describe('announce', function () {
+      let targetAct
+      let announce
+      beforeEach(function () {
+        targetAct = merge({}, activityNormalized)
+        announce = {
+          '@context': 'https://www.w3.org/ns/activitystreams',
+          type: 'Announce',
+          id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-announce',
+          to: ['https://localhost/u/test'],
+          actor: 'https://ignore.com/bob',
+          object: targetAct.id
+        }
+      })
+      it('fires announce event', async function (done) {
+        await apex.store.saveActivity(targetAct)
+        app.once('apex-inbox', msg => {
+          expect(msg.object.id).toEqual(targetAct.id)
+          done()
+        })
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(announce)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
+      it('adds to shares collection if local', async function (done) {
+        await apex.store.saveActivity(targetAct)
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(announce)
+          .expect(200)
+          .then(() => apex.store.db.collection('streams').findOne({ id: announce.id }))
+          .then(act => {
+            expect(act._meta.collection).toEqual([testUser.inbox[0], targetAct.shares[0]])
+            done()
+          })
+      })
+      it('does not add to shares collection if remote', async function (done) {
+        targetAct.id = 'https://ignore.com/o/123-abc'
+        announce.object = targetAct.id
+        await apex.store.saveActivity(targetAct)
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(announce)
+          .expect(200)
+          .then(() => apex.store.db.collection('streams').findOne({ id: announce.id }))
+          .then(act => {
+            expect(act._meta.collection).toEqual([testUser.inbox[0]])
+            done()
+          })
+      })
+      xit('publishes shares collection update', async function (done) {
+        nock('https://mocked.com').post('/inbox/mocked')
+          .reply(200)
+          .on('request', (req, interceptor, body) => {
+            // correctly formed activity sent
+            const sentActivity = JSON.parse(body)
+            expect(sentActivity.id).toContain('https://localhost')
+            delete sentActivity.id
+            expect(new Date(sentActivity.published).toString()).not.toBe('Invalid Date')
+            delete sentActivity.published
+            delete announce['@context']
+            expect(sentActivity).toEqual({
+              '@context': apex.context,
+              type: 'Update',
+              actor: testUser.id,
+              to: 'https://localhost/followers/test',
+              cc: announce.actor,
+              object: {
+                id: targetAct.shares[0],
+                type: 'OrderedCollection',
+                totalItems: 1,
+                orderedItems: [{
+                  type: 'Announce',
+                  id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-announce',
+                  to: 'https://localhost/u/test',
+                  actor: 'https://ignore.com/bob',
+                  object: targetAct.id
+                }]
+              }
+            })
+            done()
+          })
+        // mocks followers collection
+        spyOn(apex, 'address').and.callFake(async () => ['https://mocked.com/inbox/mocked'])
+        await apex.store.saveActivity(targetAct)
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(announce)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
+    })
   })
   describe('get', function () {
     it('returns inbox as ordered collection', (done) => {
@@ -415,7 +517,8 @@ describe('inbox', function () {
                 attributedTo: 'https://localhost/u/test',
                 to: 'https://localhost/u/test',
                 content: 'Say, did you finish reading that book I lent you?'
-              }
+              },
+              shares: 'https://localhost/shares/a29a6843-9feb-4c74-a7f7-081b9c9201d3'
             }))
           }
           expect(inserted.insertedCount).toBe(3)

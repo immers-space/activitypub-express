@@ -6,6 +6,7 @@ module.exports = {
   address,
   addToOutbox,
   buildActivity,
+  resolveActivity,
   undoActivity
 }
 
@@ -81,6 +82,24 @@ async function acceptFollow (actor, targetActivity) {
     )
     return this.addToOutbox(actor, act)
   }
+}
+
+async function resolveActivity (id) {
+  let activity
+  if (this.validateActivity(id)) {
+    // already activity
+    activity = id
+  } else {
+    activity = await this.store.getActivity(id)
+    if (activity) {
+      return activity
+    }
+    // resolve remote activity object
+    activity = await this.requestObject(id)
+  }
+  // cache
+  await this.store.saveActivity(activity)
+  return activity
 }
 
 function undoActivity (activity, undoActor) {

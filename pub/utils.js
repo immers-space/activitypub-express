@@ -6,6 +6,7 @@ module.exports = {
   addMeta,
   collectionIRIToActorName,
   idToIRIFactory,
+  isLocalIRI,
   nameToActorStreamsFactory,
   toJSONLD,
   fromJSONLD,
@@ -91,6 +92,10 @@ function idToIRIFactory (domain, route, param) {
     }
     return `https://${domain}${route.replace(colonParam, id)}`.toLowerCase()
   }
+}
+
+function isLocalIRI (id) {
+  return id.startsWith(`https://${this.domain}`)
 }
 
 function nameToActorStreamsFactory (domain, routes, actorParam) {

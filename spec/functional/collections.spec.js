@@ -144,4 +144,8 @@ describe('collections', function () {
         })
     })
   })
+  describe('shares', function () {
+    it('adds shares collection to created objects')
+    it('returns announces for object')
+  })
 })

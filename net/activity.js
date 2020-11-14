@@ -73,6 +73,27 @@ module.exports = {
       case 'undo':
         toDo.push(apex.undoActivity(activity.object[0], actorId))
         break
+      case 'announce':
+        toDo.push((async () => {
+          const targetActivity = await apex.resolveActivity(activity.object[0])
+          resLocal.eventMessage.object = targetActivity
+          // add to object shares collection, increment share count
+          if (apex.isLocalIRI(targetActivity.id) && targetActivity.shares) {
+            await apex.store
+              .updateActivityMeta(activity.id, actorId, 'collection', targetActivity.shares[0])
+            // publish update to shares count
+            resLocal.postWork.push(async () => {
+              const act = await apex.buildActivity(
+                'Update',
+                recipient.id,
+                recipient.followers[0],
+                { object: await apex.getShares(targetActivity), cc: actorId }
+              )
+              return apex.addToOutbox(recipient, act)
+            })
+          }
+        })())
+        break
       default:
         // follow included here because it's the Accept that causes the side-effect
         break
