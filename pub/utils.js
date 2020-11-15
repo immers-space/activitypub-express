@@ -5,6 +5,7 @@ const { escape, unescape } = require('mongo-escape')
 module.exports = {
   addMeta,
   collectionIRIToActorName,
+  idToActivityCollectionsFactory,
   idToIRIFactory,
   isLocalIRI,
   nameToActorStreamsFactory,
@@ -109,6 +110,22 @@ function nameToActorStreamsFactory (domain, routes, actorParam) {
     const streams = {}
     streamNames.forEach(s => {
       streams[s] = streamTemplates[s].replace(colonParam, name)
+    })
+    return streams
+  }
+}
+
+function idToActivityCollectionsFactory (domain, routes, activityParam) {
+  const colonParam = `:${activityParam}`
+  const streamNames = ['shares', 'likes']
+  const streamTemplates = {}
+  streamNames.forEach(s => {
+    streamTemplates[s] = `https://${domain}${routes[s]}`
+  })
+  return id => {
+    const streams = {}
+    streamNames.forEach(s => {
+      streams[s] = streamTemplates[s].replace(colonParam, id)
     })
     return streams
   }

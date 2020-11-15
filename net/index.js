@@ -62,6 +62,22 @@ module.exports = {
       responders.result
     ]
   },
+  shares: {
+    get: [
+      validators.jsonld,
+      validators.targetActivity,
+      collection.shares,
+      responders.result
+    ]
+  },
+  likes: {
+    get: [
+      validators.jsonld,
+      validators.targetActivity,
+      collection.likes,
+      responders.result
+    ]
+  },
   object: {
     get: [validators.jsonld, validators.targetObject, responders.target]
   },

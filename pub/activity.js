@@ -11,13 +11,19 @@ module.exports = {
 }
 
 function buildActivity (type, actorId, to, etc = {}) {
-  const act = merge({
-    id: this.utils.activityIdToIRI(),
-    type,
-    actor: actorId,
-    to,
-    published: new Date().toISOString()
-  }, etc)
+  const activityId = this.store.generateId()
+  const collections = this.utils.idToActivityCollections(activityId)
+  const act = merge.all([
+    {
+      id: this.utils.activityIdToIRI(activityId),
+      type,
+      actor: actorId,
+      to,
+      published: new Date().toISOString()
+    },
+    collections,
+    etc
+  ])
   return this.fromJSONLD(act).then(activity => {
     activity._meta = {}
     return activity

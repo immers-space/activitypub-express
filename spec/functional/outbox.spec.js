@@ -26,7 +26,9 @@ const apex = ActivitypubExpress({
     outbox: '/outbox/:actor',
     followers: '/followers/:actor',
     following: '/following/:actor',
-    liked: '/liked/:actor'
+    liked: '/liked/:actor',
+    shares: '/s/:id/shares',
+    likes: '/s/:id/likes'
   }
 })
 const client = new MongoClient('mongodb://localhost:27017', { useUnifiedTopology: true, useNewUrlParser: true })
@@ -354,6 +356,8 @@ describe('outbox', function () {
             if (sentActivity.type === 'Accept') return
             expect(sentActivity.id).toContain('https://localhost')
             delete sentActivity.id
+            delete sentActivity.likes
+            delete sentActivity.shares
             expect(new Date(sentActivity.published).toString()).not.toBe('Invalid Date')
             delete sentActivity.published
             expect(sentActivity).toEqual({

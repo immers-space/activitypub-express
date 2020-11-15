@@ -25,7 +25,9 @@ const apex = ActivitypubExpress({
     outbox: '/outbox/:actor',
     followers: '/followers/:actor',
     following: '/following/:actor',
-    liked: '/liked/:actor'
+    liked: '/liked/:actor',
+    shares: '/s/:id/shares',
+    likes: '/s/:id/likes'
   }
 })
 const client = new MongoClient('mongodb://localhost:27017', { useUnifiedTopology: true, useNewUrlParser: true })
@@ -41,7 +43,7 @@ const activity = {
     id: 'https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19',
     attributedTo: 'https://localhost/u/test',
     to: ['https://localhost/u/test'],
-    content: 'Say, did you finish reading that book I lent you?',
+    content: 'Say, did you finish reading that book I lent you?'
   },
   shares: 'https://localhost/shares/a29a6843-9feb-4c74-a7f7-081b9c9201d3'
 }
@@ -263,6 +265,8 @@ describe('inbox', function () {
             const sentActivity = JSON.parse(body)
             expect(sentActivity.id).toContain('https://localhost')
             delete sentActivity.id
+            delete sentActivity.likes
+            delete sentActivity.shares
             expect(new Date(sentActivity.published).toString()).not.toBe('Invalid Date')
             delete sentActivity.published
             expect(sentActivity).toEqual({
@@ -446,7 +450,7 @@ describe('inbox', function () {
             done()
           })
       })
-      xit('publishes shares collection update', async function (done) {
+      it('publishes shares collection update', async function (done) {
         nock('https://mocked.com').post('/inbox/mocked')
           .reply(200)
           .on('request', (req, interceptor, body) => {
@@ -454,6 +458,8 @@ describe('inbox', function () {
             const sentActivity = JSON.parse(body)
             expect(sentActivity.id).toContain('https://localhost')
             delete sentActivity.id
+            delete sentActivity.likes
+            delete sentActivity.shares
             expect(new Date(sentActivity.published).toString()).not.toBe('Invalid Date')
             delete sentActivity.published
             delete announce['@context']
@@ -467,13 +473,7 @@ describe('inbox', function () {
                 id: targetAct.shares[0],
                 type: 'OrderedCollection',
                 totalItems: 1,
-                orderedItems: [{
-                  type: 'Announce',
-                  id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-announce',
-                  to: 'https://localhost/u/test',
-                  actor: 'https://ignore.com/bob',
-                  object: targetAct.id
-                }]
+                orderedItems: ['https://localhost/s/a29a6843-9feb-4c74-a7f7-announce']
               }
             })
             done()

@@ -16,7 +16,9 @@ const apex = ActivitypubExpress({
     object: '/o/:id',
     activity: '/s/:id',
     inbox: '/inbox/:actor',
-    outbox: '/outbox/:actor'
+    outbox: '/outbox/:actor',
+    shares: '/s/:id/shares',
+    likes: '/s/:id/likes'
   }
 })
 const client = new MongoClient('mongodb://localhost:27017', { useUnifiedTopology: true, useNewUrlParser: true })
