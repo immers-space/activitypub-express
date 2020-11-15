@@ -3,6 +3,7 @@
 const assert = require('assert')
 
 module.exports = {
+  actor,
   inboxActivity,
   jsonld,
   outboxActivity,
@@ -12,8 +13,25 @@ module.exports = {
   targetObject
 }
 
+// confirm activity actor is sender
+// TODO: alternative authorization via JSON-LD signatures for forwarding
+async function actor (req, res, next) {
+  if (!res.locals.apex.sender) return next()
+  const apex = req.app.locals.apex
+  const resLocal = res.locals.apex
+  let actor
+  if (req.body.actor) {
+    const actorId = apex.actorIdFromActivity(req.body)
+    actor = await apex.resolveObject(actorId)
+  }
+  if (actor.id === resLocal.sender.id) {
+    resLocal.actor = actor
+  }
+  next()
+}
+
 function inboxActivity (req, res, next) {
-  if (!res.locals.apex.target || !res.locals.apex.sender) return next()
+  if (!res.locals.apex.target || !res.locals.apex.actor) return next()
   const apex = req.app.locals.apex
   const resLocal = res.locals.apex
   const activity = req.body
@@ -25,22 +43,34 @@ function inboxActivity (req, res, next) {
   // aditional validation for specific activites
   const type = activity.type.toLowerCase()
   if (type === 'update') {
-    if (!activity.object || !apex.validateObject(activity.object[0])) {
+    if (!apex.validateObject(activity.object)) {
       resLocal.status = 400
       resLocal.statusMessage = 'Updates must include resolved object'
       return next()
     }
-    const obj = activity.object[0]
-    if (apex.validateActivity(obj)) {
+    if (apex.validateActivity(activity.object)) {
       resLocal.status = 400
       resLocal.statusMessage = 'Updates to activities not yet supported'
       return next()
     }
-    if (resLocal.sender.id !== obj.id && resLocal.sender.id !== obj.attributedTo[0]) {
+    if (!apex.validateOwner(activity.object, resLocal.actor.id)) {
       resLocal.status = 403
       resLocal.statusMessage = 'Objects can only be updated by attributedTo actor'
       return next()
     }
+  } else if (type === 'delete') {
+    if (apex.validateActivity(activity.object)) {
+      resLocal.status = 400
+      resLocal.statusMessage = 'Activities cannot be deleted, use Undo'
+      return next()
+    }
+    if (!apex.validateOwner(activity.object, resLocal.actor.id)) {
+      resLocal.status = 403
+      resLocal.statusMessage = 'Objects can only be deleted by attributedTo actor'
+      return next()
+    }
+  } else if (type === 'undo') {
+
   }
   apex.addMeta(req.body, 'collection', res.locals.apex.target.inbox[0])
   res.locals.apex.activity = true

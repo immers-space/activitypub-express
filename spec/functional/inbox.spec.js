@@ -542,6 +542,105 @@ describe('inbox', function () {
           .expect(200)
           .end(err => { if (err) done(err) })
       })
+      it('updates the object in streams', async function (done) {
+        await apex.store.saveActivity(activityNormalized)
+        await apex.store.saveObject(targetObj)
+        update.object.content = ['I have been updated']
+        app.once('apex-inbox', async msg => {
+          expect(msg.object.content).toEqual(['I have been updated'])
+          const upd = await apex.store.getActivity(activityNormalized.id)
+          expect(upd.object[0].content).toEqual(['I have been updated'])
+          done()
+        })
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(update)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
+    })
+    describe('delete', function () {
+      let targetObj
+      let del
+      beforeEach(function () {
+        targetObj = merge({}, activityNormalized.object[0])
+        del = {
+          '@context': 'https://www.w3.org/ns/activitystreams',
+          type: 'Delete',
+          id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-announce',
+          to: ['https://localhost/u/test'],
+          actor: 'https://localhost/u/test',
+          object: merge({}, targetObj)
+        }
+      })
+      it('fires delete event', async function (done) {
+        await apex.store.saveObject(targetObj)
+        app.once('apex-inbox', msg => {
+          expect(msg.object.id).toEqual(targetObj.id)
+          done()
+        })
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(del)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
+      it('403 if updater is not owner', async function (done) {
+        del.actor = 'https://ignore.com/bob'
+        await apex.store.saveObject(targetObj)
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(del)
+          .expect(403, done)
+      })
+      it('replaces object in storage with tombstone', async function (done) {
+        await apex.store.saveObject(targetObj)
+        app.once('apex-inbox', async msg => {
+          expect(msg.object.content).toEqual(['Say, did you finish reading that book I lent you?'])
+          const tomb = await apex.store.getObject(targetObj.id)
+          expect(new Date(tomb.deleted).toString()).not.toBe('Invalid Date')
+          delete tomb.deleted
+          delete tomb.updated
+          delete tomb.published
+          expect(tomb).toEqual({
+            id: targetObj.id,
+            type: 'Tombstone'
+          })
+          done()
+        })
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(del)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
+      it('replaces object in streams with tombstone', async function (done) {
+        await apex.store.saveObject(targetObj)
+        await apex.store.saveActivity(activityNormalized)
+        app.once('apex-inbox', async msg => {
+          expect(msg.object.content).toEqual(['Say, did you finish reading that book I lent you?'])
+          const tomb = (await apex.store.getActivity(activityNormalized.id)).object[0]
+          expect(new Date(tomb.deleted).toString()).not.toBe('Invalid Date')
+          delete tomb.deleted
+          delete tomb.updated
+          delete tomb.published
+          expect(tomb).toEqual({
+            id: targetObj.id,
+            type: 'Tombstone'
+          })
+          done()
+        })
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(del)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
     })
   })
   describe('get', function () {

@@ -143,7 +143,7 @@ class ApexStore extends IApexStore {
       return this.db.collection('objects')
         .replaceOne(q, object)
         .then(result => {
-          if (result.ok && result.nModified > 0) {
+          if (result.modifiedCount > 0) {
             return object
           }
         })

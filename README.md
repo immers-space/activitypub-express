@@ -115,7 +115,7 @@ client.connect({ useNewUrlParser: true })
     * [x] Activity side-effects
       * [x] Create
       * [x] Update
-      * [ ] Delete
+      * [x] Delete
       * [x] Follow
       * [x] Accept
       * [ ] Reject
@@ -123,7 +123,7 @@ client.connect({ useNewUrlParser: true })
       * [ ] Remove
       * [ ] Like
       * [x] Announce
-      * [x] Undo
+      * [ ] Undo
       * [x] Other acivity types
     * [x] Security
       * [x] Signature validation

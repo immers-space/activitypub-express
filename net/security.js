@@ -39,7 +39,7 @@ async function verifySignature (req, res, next) {
     res.locals.apex.sender = signer
     next()
   } catch (err) {
-    if (req.body.type === 'Delete' && err.message.startsWith('410')) {
+    if (req.body.type.toLowerCase() === 'delete' && /^(410|404)/.test(err.message)) {
       // user delete message that can't be verified because we don't have the user cached
       return res.status(200).send()
     }

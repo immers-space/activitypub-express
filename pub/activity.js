@@ -6,6 +6,7 @@ module.exports = {
   address,
   addToOutbox,
   buildActivity,
+  buildTombstone,
   resolveActivity,
   undoActivity
 }
@@ -28,6 +29,17 @@ function buildActivity (type, actorId, to, etc = {}) {
     activity._meta = {}
     return activity
   })
+}
+
+async function buildTombstone (object) {
+  const deleted = new Date().toISOString()
+  return {
+    id: object.id,
+    type: 'Tombstone',
+    deleted,
+    published: deleted,
+    updated: deleted
+  }
 }
 
 async function address (activity) {

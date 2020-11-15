@@ -14,7 +14,8 @@ module.exports = {
   actorIdFromActivity,
   objectIdFromActivity,
   validateActivity,
-  validateObject
+  validateObject,
+  validateOwner
 }
 
 function addMeta (obj, key, value) {
@@ -132,15 +133,34 @@ function idToActivityCollectionsFactory (domain, routes, activityParam) {
 }
 
 function validateObject (object) {
+  if (Array.isArray(object)) {
+    object = object[0]
+  }
   if (object && object.id && object.type) {
     return true
   }
 }
 
 function validateActivity (object) {
+  if (Array.isArray(object)) {
+    object = object[0]
+  }
   if (validateObject(object) && Array.isArray(object.actor) && object.actor.length) {
     return true
   }
+}
+
+function validateOwner (object, ownerId) {
+  if (Array.isArray(object)) {
+    object = object[0]
+  }
+  if (!validateObject(object)) return false
+  if (object.id === ownerId) return true
+  if (Array.isArray(object.actor) && object.actor[0] === ownerId) return true
+  if (Array.isArray(object.attributedTo) && object.attributedTo[0] === ownerId) {
+    return true
+  }
+  return false
 }
 
 // TODO: enable caching and/or local copies of contexts for json-ld processor

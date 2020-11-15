@@ -25,7 +25,7 @@ module.exports = {
     }
   },
   inboxSideEffects (req, res, next) {
-    if (!(res.locals.apex.activity && res.locals.apex.sender)) {
+    if (!(res.locals.apex.activity && res.locals.apex.actor)) {
       return next()
     }
     const toDo = []
@@ -33,7 +33,7 @@ module.exports = {
     const activity = req.body
     const resLocal = res.locals.apex
     const recipient = resLocal.target
-    const actor = resLocal.sender
+    const actor = resLocal.actor
     const actorId = actor.id
     resLocal.status = 200
     if (!res.locals.apex.isNewActivity) {
@@ -72,6 +72,7 @@ module.exports = {
         }))
         break
       case 'undo':
+        // TOOD: needs refactor
         toDo.push(apex.undoActivity(activity.object[0], actorId))
         break
       case 'announce':
@@ -97,7 +98,14 @@ module.exports = {
         break
       case 'update':
         toDo.push((async () => {
-          apex.store.updateObject(activity.object[0], actorId, true)
+          await apex.store.updateObject(activity.object[0], actorId, true)
+          resLocal.eventMessage.object = activity.object[0]
+        })())
+        break
+      case 'delete':
+        toDo.push((async () => {
+          const tombstone = await apex.buildTombstone(activity.object[0])
+          await apex.store.updateObject(tombstone, actorId, true)
           resLocal.eventMessage.object = activity.object[0]
         })())
         break
