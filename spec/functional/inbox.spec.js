@@ -6,6 +6,7 @@ const nock = require('nock')
 const { MongoClient } = require('mongodb')
 
 const ActivitypubExpress = require('../../index')
+const { target } = require('../../net/responders')
 
 const app = express()
 const apex = ActivitypubExpress({
@@ -119,7 +120,7 @@ describe('inbox', function () {
       request(app)
         .post('/inbox/test')
         .set('Content-Type', 'application/activity+json')
-        .send({ actor: 'bob', '@context': 'https://www.w3.org/ns/activitystreams' })
+        .send({ actor: 'https://ignore.com/bob', '@context': 'https://www.w3.org/ns/activitystreams' })
         .expect(400, 'Invalid activity', done)
     })
     // activity getTargetActor
@@ -177,7 +178,7 @@ describe('inbox', function () {
     // activity sideEffects
     it('fires create event', function (done) {
       app.once('apex-inbox', msg => {
-        expect(msg.actor).toBe('https://localhost/u/test')
+        expect(msg.actor.id).toEqual(testUser.id)
         expect(msg.recipient).toEqual(testUser)
         const act = Object.assign({ _meta: { collection: ['https://localhost/inbox/test'] } }, activityNormalized)
         expect(msg.activity).toEqual(act)
@@ -373,7 +374,7 @@ describe('inbox', function () {
         }
       }
       app.once('apex-inbox', msg => {
-        expect(msg.actor).toBe('https://localhost/u/test')
+        expect(msg.actor.id).toBe('https://localhost/u/test')
         expect(msg.recipient).toEqual(testUser)
         expect(msg.activity).toEqual({
           _meta: { collection: ['https://localhost/inbox/test'] },
@@ -405,7 +406,7 @@ describe('inbox', function () {
           type: 'Announce',
           id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-announce',
           to: ['https://localhost/u/test'],
-          actor: 'https://ignore.com/bob',
+          actor: 'https://localhost/u/test',
           object: targetAct.id
         }
       })
@@ -485,6 +486,59 @@ describe('inbox', function () {
           .post('/inbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(announce)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
+    })
+    describe('update', function () {
+      let targetObj
+      let update
+      beforeEach(function () {
+        targetObj = merge({}, activityNormalized.object[0])
+        update = {
+          '@context': 'https://www.w3.org/ns/activitystreams',
+          type: 'Update',
+          id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-announce',
+          to: ['https://localhost/u/test'],
+          actor: 'https://localhost/u/test',
+          object: merge({}, targetObj)
+        }
+      })
+      it('fires update event', async function (done) {
+        await apex.store.saveObject(targetObj)
+        app.once('apex-inbox', msg => {
+          expect(msg.object.id).toEqual(targetObj.id)
+          done()
+        })
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(update)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
+      it('403 if updater is not owner', async function (done) {
+        update.actor = 'https://ignore.com/bob'
+        await apex.store.saveObject(targetObj)
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(update)
+          .expect(403, done)
+      })
+      it('updates the object in storage', async function (done) {
+        await apex.store.saveObject(targetObj)
+        update.object.content = ['I have been updated']
+        app.once('apex-inbox', async msg => {
+          expect(msg.object.content).toEqual(['I have been updated'])
+          expect((await apex.store.getObject(targetObj.id)).content)
+            .toEqual(['I have been updated'])
+          done()
+        })
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(update)
           .expect(200)
           .end(err => { if (err) done(err) })
       })

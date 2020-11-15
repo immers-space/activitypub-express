@@ -31,9 +31,10 @@ module.exports = {
     const toDo = []
     const apex = req.app.locals.apex
     const activity = req.body
-    const actorId = apex.actorIdFromActivity(activity)
-    const recipient = res.locals.apex.target
     const resLocal = res.locals.apex
+    const recipient = resLocal.target
+    const actor = resLocal.sender
+    const actorId = actor.id
     resLocal.status = 200
     if (!res.locals.apex.isNewActivity) {
       // ignore duplicate deliveries
@@ -41,7 +42,7 @@ module.exports = {
     }
     // configure event hook to be triggered after response sent
     resLocal.eventName = 'apex-inbox'
-    resLocal.eventMessage = { actor: actorId, activity, recipient }
+    resLocal.eventMessage = { actor, activity, recipient }
     switch (activity.type.toLowerCase()) {
       case 'accept':
         toDo.push(
@@ -92,6 +93,12 @@ module.exports = {
               return apex.addToOutbox(recipient, act)
             })
           }
+        })())
+        break
+      case 'update':
+        toDo.push((async () => {
+          apex.store.updateObject(activity.object[0], actorId, true)
+          resLocal.eventMessage.object = activity.object[0]
         })())
         break
       default:

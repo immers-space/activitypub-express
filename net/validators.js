@@ -13,10 +13,34 @@ module.exports = {
 }
 
 function inboxActivity (req, res, next) {
-  if (!res.locals.apex.target) return next()
+  if (!res.locals.apex.target || !res.locals.apex.sender) return next()
   const apex = req.app.locals.apex
-  if (!apex.validateActivity(req.body)) {
-    return res.status(400).send('Invalid activity')
+  const resLocal = res.locals.apex
+  const activity = req.body
+  if (!apex.validateActivity(activity)) {
+    resLocal.status = 400
+    resLocal.statusMessage = 'Invalid activity'
+    return next()
+  }
+  // aditional validation for specific activites
+  const type = activity.type.toLowerCase()
+  if (type === 'update') {
+    if (!activity.object || !apex.validateObject(activity.object[0])) {
+      resLocal.status = 400
+      resLocal.statusMessage = 'Updates must include resolved object'
+      return next()
+    }
+    const obj = activity.object[0]
+    if (apex.validateActivity(obj)) {
+      resLocal.status = 400
+      resLocal.statusMessage = 'Updates to activities not yet supported'
+      return next()
+    }
+    if (resLocal.sender.id !== obj.id && resLocal.sender.id !== obj.attributedTo[0]) {
+      resLocal.status = 403
+      resLocal.statusMessage = 'Objects can only be updated by attributedTo actor'
+      return next()
+    }
   }
   apex.addMeta(req.body, 'collection', res.locals.apex.target.inbox[0])
   res.locals.apex.activity = true

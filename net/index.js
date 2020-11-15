@@ -41,8 +41,8 @@ module.exports = {
     post: [
       validators.jsonld,
       validators.targetActorWithMeta,
-      validators.inboxActivity,
       security.verifySignature,
+      validators.inboxActivity,
       activity.save,
       activity.inboxSideEffects,
       responders.status

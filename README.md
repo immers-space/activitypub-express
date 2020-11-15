@@ -114,7 +114,7 @@ client.connect({ useNewUrlParser: true })
   * [x] Inbox POST
     * [x] Activity side-effects
       * [x] Create
-      * [ ] Update
+      * [x] Update
       * [ ] Delete
       * [x] Follow
       * [x] Accept
