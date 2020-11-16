@@ -242,17 +242,18 @@ describe('inbox', function () {
           .end(err => { if (err) done(err) })
       })
       it('updates accepted activity', async function (done) {
+        app.once('apex-inbox', async () => {
+          const updated = await apex.store.db.collection('streams').findOne({ id: follow.id })
+          expect(updated._meta.collection).toEqual([testUser.outbox[0], testUser.following[0]])
+          done()
+        })
         await apex.store.saveActivity(follow)
         request(app)
           .post('/inbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(accept)
           .expect(200)
-          .then(() => apex.store.db.collection('streams').findOne({ id: follow.id }))
-          .then(updated => {
-            expect(updated._meta.collection).toEqual([testUser.outbox[0], testUser.following[0]])
-            done()
-          })
+          .end(err => { if (err) done(err) })
       })
       it('publishes collection update', async function (done) {
         const mockedUser = 'https://mocked.com/user/mocked'
@@ -399,6 +400,7 @@ describe('inbox', function () {
     describe('announce', function () {
       let targetAct
       let announce
+      let addrSpy
       beforeEach(function () {
         targetAct = merge({}, activityNormalized)
         announce = {
@@ -409,6 +411,8 @@ describe('inbox', function () {
           actor: 'https://localhost/u/test',
           object: targetAct.id
         }
+        // stubs followers collection to avoid resolving objects
+        addrSpy = spyOn(apex, 'address').and.callFake(async () => ['https://ignore.com/inbox/ignored'])
       })
       it('fires announce event', async function (done) {
         await apex.store.saveActivity(targetAct)
@@ -424,17 +428,18 @@ describe('inbox', function () {
           .end(err => { if (err) done(err) })
       })
       it('adds to shares collection if local', async function (done) {
+        app.once('apex-inbox', async () => {
+          const act = await apex.store.db.collection('streams').findOne({ id: announce.id })
+          expect(act._meta.collection).toEqual([testUser.inbox[0], targetAct.shares[0]])
+          done()
+        })
         await apex.store.saveActivity(targetAct)
         request(app)
           .post('/inbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(announce)
           .expect(200)
-          .then(() => apex.store.db.collection('streams').findOne({ id: announce.id }))
-          .then(act => {
-            expect(act._meta.collection).toEqual([testUser.inbox[0], targetAct.shares[0]])
-            done()
-          })
+          .end(err => { if (err) done(err) })
       })
       it('does not add to shares collection if remote', async function (done) {
         targetAct.id = 'https://ignore.com/o/123-abc'
@@ -480,7 +485,7 @@ describe('inbox', function () {
             done()
           })
         // mocks followers collection
-        spyOn(apex, 'address').and.callFake(async () => ['https://mocked.com/inbox/mocked'])
+        addrSpy.and.callFake(async () => ['https://mocked.com/inbox/mocked'])
         await apex.store.saveActivity(targetAct)
         request(app)
           .post('/inbox/test')
