@@ -96,6 +96,27 @@ module.exports = {
           }
         })())
         break
+      case 'like':
+        toDo.push((async () => {
+          const targetActivity = await apex.resolveActivity(activity.object[0])
+          resLocal.eventMessage.object = targetActivity
+          // add to object likes collection, incrementing like count
+          if (apex.isLocalIRI(targetActivity.id) && targetActivity.likes) {
+            await apex.store
+              .updateActivityMeta(activity.id, actorId, 'collection', targetActivity.likes[0])
+            // publish update to shares count
+            resLocal.postWork.push(async () => {
+              const act = await apex.buildActivity(
+                'Update',
+                recipient.id,
+                recipient.followers[0],
+                { object: await apex.getLikes(targetActivity), cc: actorId }
+              )
+              return apex.addToOutbox(recipient, act)
+            })
+          }
+        })())
+        break
       case 'update':
         toDo.push((async () => {
           await apex.store.updateObject(activity.object[0], actorId, true)

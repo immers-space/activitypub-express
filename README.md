@@ -121,7 +121,7 @@ client.connect({ useNewUrlParser: true })
       * [ ] Reject
       * [ ] Add
       * [ ] Remove
-      * [ ] Like
+      * [x] Like
       * [x] Announce
       * [ ] Undo
       * [x] Other acivity types
