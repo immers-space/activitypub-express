@@ -401,6 +401,68 @@ describe('inbox', function () {
         .expect(200)
         .end(err => { if (err) done(err) })
     })
+    it('fires Add event', function (done) {
+      const addAct = {
+        '@context': 'https://www.w3.org/ns/activitystreams',
+        type: 'Add',
+        id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
+        to: ['https://localhost/u/test'],
+        actor: 'https://localhost/u/test',
+        object: activityNormalized.id,
+        target: 'https://localhost/u/test/c/testCollection'
+      }
+      app.once('apex-inbox', msg => {
+        expect(msg.actor.id).toBe('https://localhost/u/test')
+        expect(msg.recipient).toEqual(testUser)
+        expect(msg.activity).toEqual({
+          _meta: { collection: ['https://localhost/inbox/test'] },
+          type: 'Add',
+          id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
+          to: ['https://localhost/u/test'],
+          actor: ['https://localhost/u/test'],
+          object: [activityNormalized.id],
+          target: ['https://localhost/u/test/c/testCollection']
+        })
+        done()
+      })
+      request(app)
+        .post('/inbox/test')
+        .set('Content-Type', 'application/activity+json')
+        .send(addAct)
+        .expect(200)
+        .end(err => { if (err) done(err) })
+    })
+    it('fires Remove event', function (done) {
+      const remAct = {
+        '@context': 'https://www.w3.org/ns/activitystreams',
+        type: 'Remove',
+        id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
+        to: ['https://localhost/u/test'],
+        actor: 'https://localhost/u/test',
+        object: activityNormalized.id,
+        target: 'https://localhost/u/test/c/testCollection'
+      }
+      app.once('apex-inbox', msg => {
+        expect(msg.actor.id).toBe('https://localhost/u/test')
+        expect(msg.recipient).toEqual(testUser)
+        expect(msg.activity).toEqual({
+          _meta: { collection: ['https://localhost/inbox/test'] },
+          type: 'Remove',
+          id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
+          to: ['https://localhost/u/test'],
+          actor: ['https://localhost/u/test'],
+          object: [activityNormalized.id],
+          target: ['https://localhost/u/test/c/testCollection']
+        })
+        done()
+      })
+      request(app)
+        .post('/inbox/test')
+        .set('Content-Type', 'application/activity+json')
+        .send(remAct)
+        .expect(200)
+        .end(err => { if (err) done(err) })
+    })
     describe('announce', function () {
       let targetAct
       let announce

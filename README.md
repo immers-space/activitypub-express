@@ -119,8 +119,8 @@ client.connect({ useNewUrlParser: true })
       * [x] Follow
       * [x] Accept
       * [ ] Reject
-      * [ ] Add
-      * [ ] Remove
+      * [x] Add[*](#implementation-notes)
+      * [x] Remove[*](#implementation-notes)
       * [x] Like
       * [x] Announce
       * [ ] Undo
@@ -171,6 +171,12 @@ client.connect({ useNewUrlParser: true })
   * [x] Storage model (denormalized MongoDB)
     * [ ] Index coverage for all queries
     * [ ] Fully interchangable with documented API
+
+### Implementation notes
+
+* Inbox Add/Remove: I don't see a general purpose
+(i.e. a remote actor being able to modify local collections);
+specific uses can be added in the implementation via the event handler.
 
 
 ## API
