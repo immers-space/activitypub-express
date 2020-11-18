@@ -118,7 +118,7 @@ client.connect({ useNewUrlParser: true })
       * [x] Delete
       * [x] Follow
       * [x] Accept
-      * [ ] Reject
+      * [x] Reject[*](#implementation-notes)
       * [x] Add[*](#implementation-notes)
       * [x] Remove[*](#implementation-notes)
       * [x] Like
@@ -178,6 +178,8 @@ client.connect({ useNewUrlParser: true })
 (i.e. a remote actor being able to modify local collections);
 specific uses can be added in the implementation via the event handler.
 
+* Inbox Reject: rejected activities are tagged with the `rejection` meta property,
+containing an array of Reject activity ids.
 
 ## API
 

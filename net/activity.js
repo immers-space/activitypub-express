@@ -66,6 +66,14 @@ module.exports = {
           })
         )
         break
+      case 'reject':
+        toDo.push((async () => {
+          const targetActivity = await apex.store.getActivity(apex.objectIdFromActivity(activity), true)
+          apex.addMeta(targetActivity, 'rejection', activity.id)
+          await apex.store.updateActivity(targetActivity, true)
+          resLocal.eventMessage.object = targetActivity
+        })())
+        break
       case 'create':
         toDo.push(apex.resolveObject(activity.object[0]).then(object => {
           resLocal.eventMessage.object = object

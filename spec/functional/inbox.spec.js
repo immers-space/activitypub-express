@@ -463,6 +463,88 @@ describe('inbox', function () {
         .expect(200)
         .end(err => { if (err) done(err) })
     })
+    describe('reject', function () {
+      it('fires Reject event', async function (done) {
+        await apex.store.saveActivity(activityNormalized)
+        const rejAct = {
+          '@context': 'https://www.w3.org/ns/activitystreams',
+          type: 'Reject',
+          id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-reject',
+          to: ['https://localhost/u/test'],
+          actor: 'https://localhost/u/test',
+          object: activityNormalized.id
+        }
+        app.once('apex-inbox', msg => {
+          expect(msg.actor.id).toBe('https://localhost/u/test')
+          expect(msg.recipient).toEqual(testUser)
+          expect(msg.activity).toEqual({
+            _meta: { collection: ['https://localhost/inbox/test'] },
+            type: 'Reject',
+            id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-reject',
+            to: ['https://localhost/u/test'],
+            actor: ['https://localhost/u/test'],
+            object: [activityNormalized.id]
+          })
+          const actRejected = merge(
+            { _meta: { rejection: ['https://localhost/s/a29a6843-9feb-4c74-a7f7-reject'] } },
+            activityNormalized
+          )
+          expect(msg.object).toEqual(actRejected)
+          done()
+        })
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(rejAct)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
+      it('updates rejected activity meta', async function () {
+        await apex.store.saveActivity(activityNormalized)
+        const rejAct = {
+          '@context': 'https://www.w3.org/ns/activitystreams',
+          type: 'Reject',
+          id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-reject',
+          to: ['https://localhost/u/test'],
+          actor: 'https://localhost/u/test',
+          object: activityNormalized.id
+        }
+        return request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(rejAct)
+          .expect(200)
+          .then(async () => {
+            const target = await apex.store.getActivity(activityNormalized.id, true)
+            expect(target._meta).toBeTruthy()
+            expect(target._meta.rejection).toEqual([rejAct.id])
+          })
+      })
+      it('does not add rejected follow to following', async function () {
+        const follow = merge({}, activityNormalized)
+        follow.type = 'Follow'
+        follow.object = ['https://localhost/u/meanface']
+        await apex.store.saveActivity(follow)
+        const rejAct = {
+          '@context': 'https://www.w3.org/ns/activitystreams',
+          type: 'Reject',
+          id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-reject',
+          to: ['https://localhost/u/test'],
+          actor: 'https://localhost/u/test',
+          object: follow.id
+        }
+        return request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(rejAct)
+          .expect(200)
+          .then(async () => {
+            const target = await apex.store.getActivity(follow.id, true)
+            expect(target._meta).toBeTruthy()
+            expect(target._meta.collection).not.toContain(testUser.following[0])
+          })
+      })
+    })
     describe('announce', function () {
       let targetAct
       let announce
