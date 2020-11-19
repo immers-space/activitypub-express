@@ -41,8 +41,9 @@ module.exports = {
     post: [
       validators.jsonld,
       validators.targetActorWithMeta,
-      validators.inboxActivity,
       security.verifySignature,
+      validators.actor,
+      validators.inboxActivity,
       activity.save,
       activity.inboxSideEffects,
       responders.status
@@ -59,6 +60,22 @@ module.exports = {
       validators.jsonld,
       validators.targetActor,
       collection.liked,
+      responders.result
+    ]
+  },
+  shares: {
+    get: [
+      validators.jsonld,
+      validators.targetActivity,
+      collection.shares,
+      responders.result
+    ]
+  },
+  likes: {
+    get: [
+      validators.jsonld,
+      validators.targetActivity,
+      collection.likes,
       responders.result
     ]
   },

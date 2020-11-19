@@ -31,7 +31,12 @@ const routes = {
   object: '/o/:id',
   activity: '/s/:id',
   inbox: '/inbox/:actor',
-  outbox: '/outbox/:actor'
+  outbox: '/outbox/:actor',
+  followers: '/followers/:actor',
+  following: '/following/:actor',
+  liked: '/liked/:actor',
+  shares: '/shares/:id',
+  likes: '/likes/:id',
 }
 const apex = ActivitypubExpress({
   domain: 'localhost',
@@ -51,8 +56,13 @@ app.route(routes.outbox)
   .get(apex.net.outbox.get)
   .post(apex.net.outbox.post)
 app.get(routes.actor, apex.net.actor.get)
+app.get(routes.followers, apex.net.followers.get)
+app.get(routes.following, apex.net.following.get)
+app.get(routes.liked, apex.net.liked.get)
 app.get(routes.object, apex.net.object.get)
 app.get(routes.activity, apex.net.activityStream.get)
+app.get(routes.shares, apex.net.shares.get)
+app.get(routes.likes, apex.net.likes.get)
 app.get('/.well-known/webfinger', apex.net.webfinger.get)
 // custom side-effects for your app
 app.on('apex-outbox', msg => {
@@ -93,8 +103,8 @@ client.connect({ useNewUrlParser: true })
         * [x] Followers
         * [x] Following
         * [x] Liked
-        * [ ] Likes
-        * [ ] Shares
+        * [x] Likes
+        * [x] Shares
       * [ ] Misc collections
       * [ ] Pagination
     * [ ] Relay requests for remote objects
@@ -104,16 +114,16 @@ client.connect({ useNewUrlParser: true })
   * [x] Inbox POST
     * [x] Activity side-effects
       * [x] Create
-      * [ ] Update
-      * [ ] Delete
+      * [x] Update
+      * [x] Delete
       * [x] Follow
       * [x] Accept
-      * [ ] Reject
-      * [ ] Add
-      * [ ] Remove
-      * [ ] Like
-      * [ ] Announce
-      * [x] Undo
+      * [x] Reject[*](#implementation-notes)
+      * [x] Add[*](#implementation-notes)
+      * [x] Remove[*](#implementation-notes)
+      * [x] Like
+      * [x] Announce
+      * [ ] Undo
       * [x] Other acivity types
     * [x] Security
       * [x] Signature validation
@@ -162,6 +172,14 @@ client.connect({ useNewUrlParser: true })
     * [ ] Index coverage for all queries
     * [ ] Fully interchangable with documented API
 
+### Implementation notes
+
+* Inbox Add/Remove: I don't see a general purpose
+(i.e. a remote actor being able to modify local collections);
+specific uses can be added in the implementation via the event handler.
+
+* Inbox Reject: rejected activities are tagged with the `rejection` meta property,
+containing an array of Reject activity ids.
 
 ## API
 

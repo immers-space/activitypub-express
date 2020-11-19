@@ -7,11 +7,15 @@ const ApexStore = require('./store')
 function onFinishedHandler (err, res) {
   if (err) return
   const apexLocal = res.locals.apex
-  if (apexLocal.eventName) {
-    res.app.emit(apexLocal.eventName, apexLocal.eventMessage)
-  }
   Promise.all(apexLocal.postWork.map(task => task.call(res)))
-    .catch(err => console.error('post-response error:', err.message))
+    .catch(err => {
+      console.error('post-response error:', err.message)
+    })
+    .then(() => {
+      if (apexLocal.eventName) {
+        res.app.emit(apexLocal.eventName, apexLocal.eventMessage)
+      }
+    })
 }
 
 module.exports = function (settings) {
@@ -45,7 +49,8 @@ module.exports = function (settings) {
     usernameToIRI: apex.idToIRIFactory(settings.domain, settings.routes.actor, settings.actorParam),
     objectIdToIRI: apex.idToIRIFactory(settings.domain, settings.routes.object, settings.objectParam),
     activityIdToIRI: apex.idToIRIFactory(settings.domain, settings.routes.activity, settings.activityParam),
-    nameToActorStreams: apex.nameToActorStreamsFactory(settings.domain, settings.routes, settings.actorParam)
+    nameToActorStreams: apex.nameToActorStreamsFactory(settings.domain, settings.routes, settings.actorParam),
+    idToActivityCollections: apex.idToActivityCollectionsFactory(settings.domain, settings.routes, settings.activityParam)
   }
 
   return apex

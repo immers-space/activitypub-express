@@ -25,15 +25,16 @@ module.exports = {
     }
   },
   inboxSideEffects (req, res, next) {
-    if (!(res.locals.apex.activity && res.locals.apex.sender)) {
+    if (!(res.locals.apex.activity && res.locals.apex.actor)) {
       return next()
     }
     const toDo = []
     const apex = req.app.locals.apex
     const activity = req.body
-    const actorId = apex.actorIdFromActivity(activity)
-    const recipient = res.locals.apex.target
     const resLocal = res.locals.apex
+    const recipient = resLocal.target
+    const actor = resLocal.actor
+    const actorId = actor.id
     resLocal.status = 200
     if (!res.locals.apex.isNewActivity) {
       // ignore duplicate deliveries
@@ -41,7 +42,7 @@ module.exports = {
     }
     // configure event hook to be triggered after response sent
     resLocal.eventName = 'apex-inbox'
-    resLocal.eventMessage = { actor: actorId, activity, recipient }
+    resLocal.eventMessage = { actor, activity, recipient }
     switch (activity.type.toLowerCase()) {
       case 'accept':
         toDo.push(
@@ -65,13 +66,77 @@ module.exports = {
           })
         )
         break
+      case 'reject':
+        toDo.push((async () => {
+          const targetActivity = await apex.store.getActivity(apex.objectIdFromActivity(activity), true)
+          apex.addMeta(targetActivity, 'rejection', activity.id)
+          await apex.store.updateActivity(targetActivity, true)
+          resLocal.eventMessage.object = targetActivity
+        })())
+        break
       case 'create':
         toDo.push(apex.resolveObject(activity.object[0]).then(object => {
           resLocal.eventMessage.object = object
         }))
         break
       case 'undo':
+        // TOOD: needs refactor
         toDo.push(apex.undoActivity(activity.object[0], actorId))
+        break
+      case 'announce':
+        toDo.push((async () => {
+          const targetActivity = await apex.resolveActivity(activity.object[0])
+          resLocal.eventMessage.object = targetActivity
+          // add to object shares collection, increment share count
+          if (apex.isLocalIRI(targetActivity.id) && targetActivity.shares) {
+            await apex.store
+              .updateActivityMeta(activity.id, actorId, 'collection', targetActivity.shares[0])
+            // publish update to shares count
+            resLocal.postWork.push(async () => {
+              const act = await apex.buildActivity(
+                'Update',
+                recipient.id,
+                recipient.followers[0],
+                { object: await apex.getShares(targetActivity), cc: actorId }
+              )
+              return apex.addToOutbox(recipient, act)
+            })
+          }
+        })())
+        break
+      case 'like':
+        toDo.push((async () => {
+          const targetActivity = await apex.resolveActivity(activity.object[0])
+          resLocal.eventMessage.object = targetActivity
+          // add to object likes collection, incrementing like count
+          if (apex.isLocalIRI(targetActivity.id) && targetActivity.likes) {
+            await apex.store
+              .updateActivityMeta(activity.id, actorId, 'collection', targetActivity.likes[0])
+            // publish update to shares count
+            resLocal.postWork.push(async () => {
+              const act = await apex.buildActivity(
+                'Update',
+                recipient.id,
+                recipient.followers[0],
+                { object: await apex.getLikes(targetActivity), cc: actorId }
+              )
+              return apex.addToOutbox(recipient, act)
+            })
+          }
+        })())
+        break
+      case 'update':
+        toDo.push((async () => {
+          await apex.store.updateObject(activity.object[0], actorId, true)
+          resLocal.eventMessage.object = activity.object[0]
+        })())
+        break
+      case 'delete':
+        toDo.push((async () => {
+          const tombstone = await apex.buildTombstone(activity.object[0])
+          await apex.store.updateObject(tombstone, actorId, true)
+          resLocal.eventMessage.object = activity.object[0]
+        })())
         break
       default:
         // follow included here because it's the Accept that causes the side-effect

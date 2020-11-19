@@ -6,21 +6,40 @@ module.exports = {
   address,
   addToOutbox,
   buildActivity,
+  buildTombstone,
+  resolveActivity,
   undoActivity
 }
 
 function buildActivity (type, actorId, to, etc = {}) {
-  const act = merge({
-    id: this.utils.activityIdToIRI(),
-    type,
-    actor: actorId,
-    to,
-    published: new Date().toISOString()
-  }, etc)
+  const activityId = this.store.generateId()
+  const collections = this.utils.idToActivityCollections(activityId)
+  const act = merge.all([
+    {
+      id: this.utils.activityIdToIRI(activityId),
+      type,
+      actor: actorId,
+      to,
+      published: new Date().toISOString()
+    },
+    collections,
+    etc
+  ])
   return this.fromJSONLD(act).then(activity => {
     activity._meta = {}
     return activity
   })
+}
+
+async function buildTombstone (object) {
+  const deleted = new Date().toISOString()
+  return {
+    id: object.id,
+    type: 'Tombstone',
+    deleted,
+    published: deleted,
+    updated: deleted
+  }
 }
 
 async function address (activity) {
@@ -81,6 +100,24 @@ async function acceptFollow (actor, targetActivity) {
     )
     return this.addToOutbox(actor, act)
   }
+}
+
+async function resolveActivity (id) {
+  let activity
+  if (this.validateActivity(id)) {
+    // already activity
+    activity = id
+  } else {
+    activity = await this.store.getActivity(id)
+    if (activity) {
+      return activity
+    }
+    // resolve remote activity object
+    activity = await this.requestObject(id)
+  }
+  // cache
+  await this.store.saveActivity(activity)
+  return activity
 }
 
 function undoActivity (activity, undoActor) {

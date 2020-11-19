@@ -1,4 +1,4 @@
-/* global describe, beforeAll, beforeEach, it, expect */
+/* global describe, beforeAll, beforeEach, it, expect, spyOn */
 const request = require('supertest')
 const express = require('express')
 const merge = require('deepmerge')
@@ -6,6 +6,7 @@ const nock = require('nock')
 const { MongoClient } = require('mongodb')
 
 const ActivitypubExpress = require('../../index')
+const { target } = require('../../net/responders')
 
 const app = express()
 const apex = ActivitypubExpress({
@@ -25,7 +26,9 @@ const apex = ActivitypubExpress({
     outbox: '/outbox/:actor',
     followers: '/followers/:actor',
     following: '/following/:actor',
-    liked: '/liked/:actor'
+    liked: '/liked/:actor',
+    shares: '/s/:id/shares',
+    likes: '/s/:id/likes'
   }
 })
 const client = new MongoClient('mongodb://localhost:27017', { useUnifiedTopology: true, useNewUrlParser: true })
@@ -42,7 +45,9 @@ const activity = {
     attributedTo: 'https://localhost/u/test',
     to: ['https://localhost/u/test'],
     content: 'Say, did you finish reading that book I lent you?'
-  }
+  },
+  shares: 'https://localhost/shares/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
+  likes: 'https://localhost/likes/a29a6843-9feb-4c74-a7f7-081b9c9201d3'
 }
 
 const activityNormalized = {
@@ -65,6 +70,12 @@ const activityNormalized = {
         'https://localhost/u/test'
       ]
     }
+  ],
+  shares: [
+    'https://localhost/shares/a29a6843-9feb-4c74-a7f7-081b9c9201d3'
+  ],
+  likes: [
+    'https://localhost/likes/a29a6843-9feb-4c74-a7f7-081b9c9201d3'
   ],
   to: [
     'https://localhost/u/test'
@@ -113,7 +124,7 @@ describe('inbox', function () {
       request(app)
         .post('/inbox/test')
         .set('Content-Type', 'application/activity+json')
-        .send({ actor: 'bob', '@context': 'https://www.w3.org/ns/activitystreams' })
+        .send({ actor: 'https://ignore.com/bob', '@context': 'https://www.w3.org/ns/activitystreams' })
         .expect(400, 'Invalid activity', done)
     })
     // activity getTargetActor
@@ -171,7 +182,7 @@ describe('inbox', function () {
     // activity sideEffects
     it('fires create event', function (done) {
       app.once('apex-inbox', msg => {
-        expect(msg.actor).toBe('https://localhost/u/test')
+        expect(msg.actor.id).toEqual(testUser.id)
         expect(msg.recipient).toEqual(testUser)
         const act = Object.assign({ _meta: { collection: ['https://localhost/inbox/test'] } }, activityNormalized)
         expect(msg.activity).toEqual(act)
@@ -235,17 +246,18 @@ describe('inbox', function () {
           .end(err => { if (err) done(err) })
       })
       it('updates accepted activity', async function (done) {
+        app.once('apex-inbox', async () => {
+          const updated = await apex.store.db.collection('streams').findOne({ id: follow.id })
+          expect(updated._meta.collection).toEqual([testUser.outbox[0], testUser.following[0]])
+          done()
+        })
         await apex.store.saveActivity(follow)
         request(app)
           .post('/inbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(accept)
           .expect(200)
-          .then(() => apex.store.db.collection('streams').findOne({ id: follow.id }))
-          .then(updated => {
-            expect(updated._meta.collection).toEqual([testUser.outbox[0], testUser.following[0]])
-            done()
-          })
+          .end(err => { if (err) done(err) })
       })
       it('publishes collection update', async function (done) {
         const mockedUser = 'https://mocked.com/user/mocked'
@@ -259,6 +271,8 @@ describe('inbox', function () {
             const sentActivity = JSON.parse(body)
             expect(sentActivity.id).toContain('https://localhost')
             delete sentActivity.id
+            delete sentActivity.likes
+            delete sentActivity.shares
             expect(new Date(sentActivity.published).toString()).not.toBe('Invalid Date')
             delete sentActivity.published
             expect(sentActivity).toEqual({
@@ -365,7 +379,7 @@ describe('inbox', function () {
         }
       }
       app.once('apex-inbox', msg => {
-        expect(msg.actor).toBe('https://localhost/u/test')
+        expect(msg.actor.id).toBe('https://localhost/u/test')
         expect(msg.recipient).toEqual(testUser)
         expect(msg.activity).toEqual({
           _meta: { collection: ['https://localhost/inbox/test'] },
@@ -386,6 +400,498 @@ describe('inbox', function () {
         .send(arriveAct)
         .expect(200)
         .end(err => { if (err) done(err) })
+    })
+    it('fires Add event', function (done) {
+      const addAct = {
+        '@context': 'https://www.w3.org/ns/activitystreams',
+        type: 'Add',
+        id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
+        to: ['https://localhost/u/test'],
+        actor: 'https://localhost/u/test',
+        object: activityNormalized.id,
+        target: 'https://localhost/u/test/c/testCollection'
+      }
+      app.once('apex-inbox', msg => {
+        expect(msg.actor.id).toBe('https://localhost/u/test')
+        expect(msg.recipient).toEqual(testUser)
+        expect(msg.activity).toEqual({
+          _meta: { collection: ['https://localhost/inbox/test'] },
+          type: 'Add',
+          id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
+          to: ['https://localhost/u/test'],
+          actor: ['https://localhost/u/test'],
+          object: [activityNormalized.id],
+          target: ['https://localhost/u/test/c/testCollection']
+        })
+        done()
+      })
+      request(app)
+        .post('/inbox/test')
+        .set('Content-Type', 'application/activity+json')
+        .send(addAct)
+        .expect(200)
+        .end(err => { if (err) done(err) })
+    })
+    it('fires Remove event', function (done) {
+      const remAct = {
+        '@context': 'https://www.w3.org/ns/activitystreams',
+        type: 'Remove',
+        id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
+        to: ['https://localhost/u/test'],
+        actor: 'https://localhost/u/test',
+        object: activityNormalized.id,
+        target: 'https://localhost/u/test/c/testCollection'
+      }
+      app.once('apex-inbox', msg => {
+        expect(msg.actor.id).toBe('https://localhost/u/test')
+        expect(msg.recipient).toEqual(testUser)
+        expect(msg.activity).toEqual({
+          _meta: { collection: ['https://localhost/inbox/test'] },
+          type: 'Remove',
+          id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
+          to: ['https://localhost/u/test'],
+          actor: ['https://localhost/u/test'],
+          object: [activityNormalized.id],
+          target: ['https://localhost/u/test/c/testCollection']
+        })
+        done()
+      })
+      request(app)
+        .post('/inbox/test')
+        .set('Content-Type', 'application/activity+json')
+        .send(remAct)
+        .expect(200)
+        .end(err => { if (err) done(err) })
+    })
+    describe('reject', function () {
+      it('fires Reject event', async function (done) {
+        await apex.store.saveActivity(activityNormalized)
+        const rejAct = {
+          '@context': 'https://www.w3.org/ns/activitystreams',
+          type: 'Reject',
+          id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-reject',
+          to: ['https://localhost/u/test'],
+          actor: 'https://localhost/u/test',
+          object: activityNormalized.id
+        }
+        app.once('apex-inbox', msg => {
+          expect(msg.actor.id).toBe('https://localhost/u/test')
+          expect(msg.recipient).toEqual(testUser)
+          expect(msg.activity).toEqual({
+            _meta: { collection: ['https://localhost/inbox/test'] },
+            type: 'Reject',
+            id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-reject',
+            to: ['https://localhost/u/test'],
+            actor: ['https://localhost/u/test'],
+            object: [activityNormalized.id]
+          })
+          const actRejected = merge(
+            { _meta: { rejection: ['https://localhost/s/a29a6843-9feb-4c74-a7f7-reject'] } },
+            activityNormalized
+          )
+          expect(msg.object).toEqual(actRejected)
+          done()
+        })
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(rejAct)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
+      it('updates rejected activity meta', async function () {
+        await apex.store.saveActivity(activityNormalized)
+        const rejAct = {
+          '@context': 'https://www.w3.org/ns/activitystreams',
+          type: 'Reject',
+          id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-reject',
+          to: ['https://localhost/u/test'],
+          actor: 'https://localhost/u/test',
+          object: activityNormalized.id
+        }
+        return request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(rejAct)
+          .expect(200)
+          .then(async () => {
+            const target = await apex.store.getActivity(activityNormalized.id, true)
+            expect(target._meta).toBeTruthy()
+            expect(target._meta.rejection).toEqual([rejAct.id])
+          })
+      })
+      it('does not add rejected follow to following', async function () {
+        const follow = merge({}, activityNormalized)
+        follow.type = 'Follow'
+        follow.object = ['https://localhost/u/meanface']
+        await apex.store.saveActivity(follow)
+        const rejAct = {
+          '@context': 'https://www.w3.org/ns/activitystreams',
+          type: 'Reject',
+          id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-reject',
+          to: ['https://localhost/u/test'],
+          actor: 'https://localhost/u/test',
+          object: follow.id
+        }
+        return request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(rejAct)
+          .expect(200)
+          .then(async () => {
+            const target = await apex.store.getActivity(follow.id, true)
+            expect(target._meta).toBeTruthy()
+            expect(target._meta.collection).not.toContain(testUser.following[0])
+          })
+      })
+    })
+    describe('announce', function () {
+      let targetAct
+      let announce
+      let addrSpy
+      beforeEach(function () {
+        targetAct = merge({}, activityNormalized)
+        announce = {
+          '@context': 'https://www.w3.org/ns/activitystreams',
+          type: 'Announce',
+          id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-announce',
+          to: ['https://localhost/u/test'],
+          actor: 'https://localhost/u/test',
+          object: targetAct.id
+        }
+        // stubs followers collection to avoid resolving objects
+        addrSpy = spyOn(apex, 'address').and.callFake(async () => ['https://ignore.com/inbox/ignored'])
+      })
+      it('fires announce event', async function (done) {
+        await apex.store.saveActivity(targetAct)
+        app.once('apex-inbox', msg => {
+          expect(msg.object.id).toEqual(targetAct.id)
+          done()
+        })
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(announce)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
+      it('adds to shares collection if local', async function (done) {
+        app.once('apex-inbox', async () => {
+          const act = await apex.store.db.collection('streams').findOne({ id: announce.id })
+          expect(act._meta.collection).toEqual([testUser.inbox[0], targetAct.shares[0]])
+          done()
+        })
+        await apex.store.saveActivity(targetAct)
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(announce)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
+      it('does not add to shares collection if remote', async function (done) {
+        targetAct.id = 'https://ignore.com/o/123-abc'
+        announce.object = targetAct.id
+        await apex.store.saveActivity(targetAct)
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(announce)
+          .expect(200)
+          .then(() => apex.store.db.collection('streams').findOne({ id: announce.id }))
+          .then(act => {
+            expect(act._meta.collection).toEqual([testUser.inbox[0]])
+            done()
+          })
+      })
+      it('publishes shares collection update', async function (done) {
+        nock('https://mocked.com').post('/inbox/mocked')
+          .reply(200)
+          .on('request', (req, interceptor, body) => {
+            // correctly formed activity sent
+            const sentActivity = JSON.parse(body)
+            expect(sentActivity.id).toContain('https://localhost')
+            delete sentActivity.id
+            delete sentActivity.likes
+            delete sentActivity.shares
+            expect(new Date(sentActivity.published).toString()).not.toBe('Invalid Date')
+            delete sentActivity.published
+            delete announce['@context']
+            expect(sentActivity).toEqual({
+              '@context': apex.context,
+              type: 'Update',
+              actor: testUser.id,
+              to: 'https://localhost/followers/test',
+              cc: announce.actor,
+              object: {
+                id: targetAct.shares[0],
+                type: 'OrderedCollection',
+                totalItems: 1,
+                orderedItems: ['https://localhost/s/a29a6843-9feb-4c74-a7f7-announce']
+              }
+            })
+            done()
+          })
+        // mocks followers collection
+        addrSpy.and.callFake(async () => ['https://mocked.com/inbox/mocked'])
+        await apex.store.saveActivity(targetAct)
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(announce)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
+    })
+    describe('like', function () {
+      let targetAct
+      let like
+      let addrSpy
+      beforeEach(function () {
+        targetAct = merge({}, activityNormalized)
+        like = {
+          '@context': 'https://www.w3.org/ns/activitystreams',
+          type: 'Like',
+          id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-like',
+          to: ['https://localhost/u/test'],
+          actor: 'https://localhost/u/test',
+          object: targetAct.id
+        }
+        // mocks followers collection to avoid resolving objects
+        addrSpy = spyOn(apex, 'address').and.callFake(async () => ['https://ignore.com/inbox/ignored'])
+      })
+      it('fires like event', async function (done) {
+        await apex.store.saveActivity(targetAct)
+        app.once('apex-inbox', msg => {
+          expect(msg.object.id).toEqual(targetAct.id)
+          done()
+        })
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(like)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
+      it('adds to likes collection if local', async function (done) {
+        app.once('apex-inbox', async () => {
+          const act = await apex.store.db.collection('streams').findOne({ id: like.id })
+          expect(act._meta.collection).toEqual([testUser.inbox[0], targetAct.likes[0]])
+          done()
+        })
+        await apex.store.saveActivity(targetAct)
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(like)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
+      it('does not add to likes collection if remote', async function (done) {
+        targetAct.id = 'https://ignore.com/o/123-abc'
+        like.object = targetAct.id
+        await apex.store.saveActivity(targetAct)
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(like)
+          .expect(200)
+          .then(() => apex.store.db.collection('streams').findOne({ id: like.id }))
+          .then(act => {
+            expect(act._meta.collection).toEqual([testUser.inbox[0]])
+            done()
+          })
+      })
+      it('publishes likes collection update', async function (done) {
+        nock('https://mocked.com').post('/inbox/mocked')
+          .reply(200)
+          .on('request', (req, interceptor, body) => {
+            // correctly formed activity sent
+            const sentActivity = JSON.parse(body)
+            expect(sentActivity.id).toContain('https://localhost')
+            delete sentActivity.id
+            delete sentActivity.likes
+            delete sentActivity.shares
+            expect(new Date(sentActivity.published).toString()).not.toBe('Invalid Date')
+            delete sentActivity.published
+            delete like['@context']
+            expect(sentActivity).toEqual({
+              '@context': apex.context,
+              type: 'Update',
+              actor: testUser.id,
+              to: 'https://localhost/followers/test',
+              cc: like.actor,
+              object: {
+                id: targetAct.likes[0],
+                type: 'OrderedCollection',
+                totalItems: 1,
+                orderedItems: ['https://localhost/s/a29a6843-9feb-4c74-a7f7-like']
+              }
+            })
+            done()
+          })
+        // mocks followers collection
+        addrSpy.and.callFake(async () => ['https://mocked.com/inbox/mocked'])
+        await apex.store.saveActivity(targetAct)
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(like)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
+    })
+    describe('update', function () {
+      let targetObj
+      let update
+      beforeEach(function () {
+        targetObj = merge({}, activityNormalized.object[0])
+        update = {
+          '@context': 'https://www.w3.org/ns/activitystreams',
+          type: 'Update',
+          id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-announce',
+          to: ['https://localhost/u/test'],
+          actor: 'https://localhost/u/test',
+          object: merge({}, targetObj)
+        }
+      })
+      it('fires update event', async function (done) {
+        await apex.store.saveObject(targetObj)
+        app.once('apex-inbox', msg => {
+          expect(msg.object.id).toEqual(targetObj.id)
+          done()
+        })
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(update)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
+      it('403 if updater is not owner', async function (done) {
+        update.actor = 'https://ignore.com/bob'
+        await apex.store.saveObject(targetObj)
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(update)
+          .expect(403, done)
+      })
+      it('updates the object in storage', async function (done) {
+        await apex.store.saveObject(targetObj)
+        update.object.content = ['I have been updated']
+        app.once('apex-inbox', async msg => {
+          expect(msg.object.content).toEqual(['I have been updated'])
+          expect((await apex.store.getObject(targetObj.id)).content)
+            .toEqual(['I have been updated'])
+          done()
+        })
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(update)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
+      it('updates the object in streams', async function (done) {
+        await apex.store.saveActivity(activityNormalized)
+        await apex.store.saveObject(targetObj)
+        update.object.content = ['I have been updated']
+        app.once('apex-inbox', async msg => {
+          expect(msg.object.content).toEqual(['I have been updated'])
+          const upd = await apex.store.getActivity(activityNormalized.id)
+          expect(upd.object[0].content).toEqual(['I have been updated'])
+          done()
+        })
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(update)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
+    })
+    describe('delete', function () {
+      let targetObj
+      let del
+      beforeEach(function () {
+        targetObj = merge({}, activityNormalized.object[0])
+        del = {
+          '@context': 'https://www.w3.org/ns/activitystreams',
+          type: 'Delete',
+          id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-announce',
+          to: ['https://localhost/u/test'],
+          actor: 'https://localhost/u/test',
+          object: merge({}, targetObj)
+        }
+      })
+      it('fires delete event', async function (done) {
+        await apex.store.saveObject(targetObj)
+        app.once('apex-inbox', msg => {
+          expect(msg.object.id).toEqual(targetObj.id)
+          done()
+        })
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(del)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
+      it('403 if updater is not owner', async function (done) {
+        del.actor = 'https://ignore.com/bob'
+        await apex.store.saveObject(targetObj)
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(del)
+          .expect(403, done)
+      })
+      it('replaces object in storage with tombstone', async function (done) {
+        await apex.store.saveObject(targetObj)
+        app.once('apex-inbox', async msg => {
+          expect(msg.object.content).toEqual(['Say, did you finish reading that book I lent you?'])
+          const tomb = await apex.store.getObject(targetObj.id)
+          expect(new Date(tomb.deleted).toString()).not.toBe('Invalid Date')
+          delete tomb.deleted
+          delete tomb.updated
+          delete tomb.published
+          expect(tomb).toEqual({
+            id: targetObj.id,
+            type: 'Tombstone'
+          })
+          done()
+        })
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(del)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
+      it('replaces object in streams with tombstone', async function (done) {
+        await apex.store.saveObject(targetObj)
+        await apex.store.saveActivity(activityNormalized)
+        app.once('apex-inbox', async msg => {
+          expect(msg.object.content).toEqual(['Say, did you finish reading that book I lent you?'])
+          const tomb = (await apex.store.getActivity(activityNormalized.id)).object[0]
+          expect(new Date(tomb.deleted).toString()).not.toBe('Invalid Date')
+          delete tomb.deleted
+          delete tomb.updated
+          delete tomb.published
+          expect(tomb).toEqual({
+            id: targetObj.id,
+            type: 'Tombstone'
+          })
+          done()
+        })
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(del)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
     })
   })
   describe('get', function () {
@@ -415,7 +921,9 @@ describe('inbox', function () {
                 attributedTo: 'https://localhost/u/test',
                 to: 'https://localhost/u/test',
                 content: 'Say, did you finish reading that book I lent you?'
-              }
+              },
+              shares: 'https://localhost/shares/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
+              likes: 'https://localhost/likes/a29a6843-9feb-4c74-a7f7-081b9c9201d3'
             }))
           }
           expect(inserted.insertedCount).toBe(3)

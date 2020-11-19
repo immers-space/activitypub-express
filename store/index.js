@@ -63,17 +63,12 @@ class ApexStore extends IApexStore {
   }
 
   async updateObject (obj, actorId, fullReplace) {
-    let updated
-    if (fullReplace) {
-      throw new Error('not implemented')
-    } else {
-      updated = await this.updateObjectSource(obj, actorId)
-    }
-    if (updated.value) {
+    const updated = await this.updateObjectSource(obj, actorId, fullReplace)
+    if (updated) {
       // propogate update to all copies in streams
-      await this.updateObjectCopies(updated.value)
+      await this.updateObjectCopies(updated)
     }
-    return updated.value
+    return updated
   }
 
   getActivity (id, includeMeta) {
@@ -139,7 +134,20 @@ class ApexStore extends IApexStore {
   }
 
   // class methods
-  updateObjectSource (object, actorId) {
+  updateObjectSource (object, actorId, fullReplace) {
+    // limit udpates to owners of objects
+    const q = object.id === actorId
+      ? { id: object.id }
+      : { id: object.id, attributedTo: actorId }
+    if (fullReplace) {
+      return this.db.collection('objects')
+        .replaceOne(q, object)
+        .then(result => {
+          if (result.modifiedCount > 0) {
+            return object
+          }
+        })
+    }
     let doSet = false
     let doUnset = false
     const set = {}
@@ -161,12 +169,10 @@ class ApexStore extends IApexStore {
     if (doUnset) {
       op.$unset = unset
     }
-    // limit udpates to owners of objects
-    const q = object.id === actorId
-      ? { id: object.id }
-      : { id: object.id, attributedTo: actorId }
+
     return this.db.collection('objects')
       .findOneAndUpdate(q, op, { returnOriginal: false, projection: this.projection })
+      .then(result => result.value)
   }
 
   // for denormalized storage model, must update all activities with copy of updated object

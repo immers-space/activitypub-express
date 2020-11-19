@@ -3,7 +3,9 @@ module.exports = {
   outbox,
   followers,
   following,
-  liked
+  liked,
+  shares,
+  likes
 }
 
 function inbox (req, res, next) {
@@ -46,6 +48,24 @@ function liked (req, res, next) {
   if (!res.locals.apex.target) return next()
   const apex = req.app.locals.apex
   apex.getLiked(res.locals.apex.target).then(col => {
+    res.locals.apex.result = col
+    next()
+  })
+}
+
+function shares (req, res, next) {
+  if (!res.locals.apex.target) return next()
+  const apex = req.app.locals.apex
+  apex.getShares(res.locals.apex.target).then(col => {
+    res.locals.apex.result = col
+    next()
+  })
+}
+
+function likes (req, res, next) {
+  if (!res.locals.apex.target) return next()
+  const apex = req.app.locals.apex
+  apex.getLikes(res.locals.apex.target).then(col => {
     res.locals.apex.result = col
     next()
   })

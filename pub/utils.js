@@ -5,14 +5,17 @@ const { escape, unescape } = require('mongo-escape')
 module.exports = {
   addMeta,
   collectionIRIToActorName,
+  idToActivityCollectionsFactory,
   idToIRIFactory,
+  isLocalIRI,
   nameToActorStreamsFactory,
   toJSONLD,
   fromJSONLD,
   actorIdFromActivity,
   objectIdFromActivity,
   validateActivity,
-  validateObject
+  validateObject,
+  validateOwner
 }
 
 function addMeta (obj, key, value) {
@@ -93,6 +96,10 @@ function idToIRIFactory (domain, route, param) {
   }
 }
 
+function isLocalIRI (id) {
+  return id.startsWith(`https://${this.domain}`)
+}
+
 function nameToActorStreamsFactory (domain, routes, actorParam) {
   const colonParam = `:${actorParam}`
   const streamNames = ['inbox', 'outbox', 'following', 'followers', 'liked']
@@ -109,16 +116,51 @@ function nameToActorStreamsFactory (domain, routes, actorParam) {
   }
 }
 
+function idToActivityCollectionsFactory (domain, routes, activityParam) {
+  const colonParam = `:${activityParam}`
+  const streamNames = ['shares', 'likes']
+  const streamTemplates = {}
+  streamNames.forEach(s => {
+    streamTemplates[s] = `https://${domain}${routes[s]}`
+  })
+  return id => {
+    const streams = {}
+    streamNames.forEach(s => {
+      streams[s] = streamTemplates[s].replace(colonParam, id)
+    })
+    return streams
+  }
+}
+
 function validateObject (object) {
+  if (Array.isArray(object)) {
+    object = object[0]
+  }
   if (object && object.id && object.type) {
     return true
   }
 }
 
 function validateActivity (object) {
+  if (Array.isArray(object)) {
+    object = object[0]
+  }
   if (validateObject(object) && Array.isArray(object.actor) && object.actor.length) {
     return true
   }
+}
+
+function validateOwner (object, ownerId) {
+  if (Array.isArray(object)) {
+    object = object[0]
+  }
+  if (!validateObject(object)) return false
+  if (object.id === ownerId) return true
+  if (Array.isArray(object.actor) && object.actor[0] === ownerId) return true
+  if (Array.isArray(object.attributedTo) && object.attributedTo[0] === ownerId) {
+    return true
+  }
+  return false
 }
 
 // TODO: enable caching and/or local copies of contexts for json-ld processor
