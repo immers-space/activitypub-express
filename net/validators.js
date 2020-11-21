@@ -15,12 +15,12 @@ module.exports = {
 }
 
 const needsResolveObject = ['create']
-const needsResolveActivity = ['undo', 'announce', 'like']
-const needsLocalActivity = ['accept', 'reject']
+const needsResolveActivity = ['announce', 'like']
+const needsLocalActivity = ['accept', 'reject', 'undo']
 const needsLocalObject = ['delete']
 const needsInlineObject = ['update']
 const requiresObject = ['update']
-const requiresActivityObject = ['accept', 'reject', 'undo', 'announce', 'like']
+const requiresActivityObject = ['accept', 'reject', 'announce', 'like']
 
 function activityObject (req, res, next) {
   const apex = req.app.locals.apex
@@ -100,7 +100,7 @@ function inboxActivity (req, res, next) {
       resLocal.statusMessage = 'Objects can only be updated by attributedTo actor'
       return next()
     }
-  } else if (type === 'delete') {
+  } else if (type === 'delete' && object) {
     if (apex.validateActivity(object)) {
       resLocal.status = 400
       resLocal.statusMessage = 'Activities cannot be deleted, use Undo'
@@ -123,8 +123,11 @@ function inboxActivity (req, res, next) {
       resLocal.status = 403
       return next()
     }
-  } else if (type === 'undo') {
-
+  } else if (type === 'undo' && object) {
+    if (!apex.validateOwner(object, actor.id)) {
+      resLocal.status = 403
+      return next()
+    }
   }
   apex.addMeta(req.body, 'collection', recipient.inbox[0])
   res.locals.apex.activity = true

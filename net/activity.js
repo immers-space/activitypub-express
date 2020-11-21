@@ -59,11 +59,18 @@ module.exports = {
         break
       case 'reject':
         apex.addMeta(object, 'rejection', activity.id)
+        // reject is also the undo of a follow accept
+        if (object.type.toLowerCase() === 'follow') {
+          apex.removeMeta(object, 'collection', recipient.following[0])
+        }
         toDo.push(apex.store.updateActivity(object, true))
         break
       case 'undo':
-        // TOOD: needs refactor
-        toDo.push(apex.undoActivity(object, actorId))
+        if (object) {
+          // deleting the activity also removes it from all collections
+          toDo.push(apex.undoActivity(object, actorId))
+          // TODO: publish appropriate collection updates (after #8)
+        }
         break
       case 'announce':
         toDo.push((async () => {

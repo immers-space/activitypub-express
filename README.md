@@ -124,7 +124,7 @@ client.connect({ useNewUrlParser: true })
       * [x] Remove[*](#implementation-notes)
       * [x] Like
       * [x] Announce
-      * [ ] Undo
+      * [x] Undo
       * [x] Other acivity types
     * [x] Security
       * [x] Signature validation

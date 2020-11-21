@@ -348,51 +348,53 @@ describe('inbox', function () {
         .expect(200)
         .end(err => { if (err) done(err) })
     })
-    // needs refactor
-    xit('fires undo event', function (done) {
-      app.once('apex-inbox', () => {
+    describe('undo', function () {
+      let undo
+      let undone
+      beforeEach(function () {
+        undone = merge({}, activityNormalized)
+        undo = {
+          '@context': 'https://www.w3.org/ns/activitystreams',
+          type: 'Undo',
+          id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d4',
+          to: ['https://localhost/u/test'],
+          actor: 'https://localhost/u/test',
+          object: undone.id
+        }
+      })
+      it('fires undo event', async function (done) {
+        await apex.store.saveActivity(undone)
+        app.once('apex-inbox', () => {
+          done()
+        })
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(undo)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
+      it('rejects undo with owner mismatch', async function (done) {
+        undone.actor = ['https://ignore.com/bob']
+        await apex.store.saveActivity(undone)
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(undo)
+          .expect(403, done)
+      })
+      it('removes undone activity', async function (done) {
+        await apex.store.saveActivity(undone)
+        await request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(undo)
+          .expect(200)
+        const result = await apex.store.getActivity(undone.id)
+        expect(result).toBeFalsy()
         done()
       })
-      const undo = {
-        '@context': 'https://www.w3.org/ns/activitystreams',
-        type: 'Undo',
-        id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d4',
-        to: ['https://localhost/u/test'],
-        actor: 'https://localhost/u/test',
-        object: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3'
-      }
-      request(app)
-        .post('/inbox/test')
-        .set('Content-Type', 'application/activity+json')
-        .send(undo)
-        .expect(200)
-        .end(err => { if (err) done(err) })
-    })
-    it('removes undone activity', async function (done) {
-      const undone = await apex
-        .buildActivity('fake', 'https://localhost/u/test', 'https://localhost/u/test')
-      undone.id = 'https://localhost/s/to-undo'
-      const undo = {
-        '@context': 'https://www.w3.org/ns/activitystreams',
-        type: 'Undo',
-        id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d4',
-        to: ['https://localhost/u/test'],
-        actor: ['https://localhost/u/test'],
-        object: ['https://localhost/s/to-undo']
-      }
-      const db = apex.store.db
-      const inserted = await db.collection('streams')
-        .insertOne(undone)
-      expect(inserted.insertedCount).toBe(1)
-      await request(app)
-        .post('/inbox/test')
-        .set('Content-Type', 'application/activity+json')
-        .send(undo)
-        .expect(200)
-      const result = await db.collection('streams')
-        .findOne({ id: 'https://localhost/s/to-undo' })
-      expect(result).toBeFalsy()
-      done()
+      it('publishes related collection updates')
     })
     it('fires other activity event', function (done) {
       const arriveAct = {
@@ -552,6 +554,31 @@ describe('inbox', function () {
         const follow = merge({}, activityNormalized)
         follow.type = 'Follow'
         follow.object = ['https://localhost/u/meanface']
+        await apex.store.saveActivity(follow)
+        const rejAct = {
+          '@context': 'https://www.w3.org/ns/activitystreams',
+          type: 'Reject',
+          id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-reject',
+          to: ['https://localhost/u/test'],
+          actor: 'https://localhost/u/test',
+          object: follow.id
+        }
+        return request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(rejAct)
+          .expect(200)
+          .then(async () => {
+            const target = await apex.store.getActivity(follow.id, true)
+            expect(target._meta).toBeTruthy()
+            expect(target._meta.collection).not.toContain(testUser.following[0])
+          })
+      })
+      it('undoes prior follow accept', async function () {
+        const follow = merge({}, activityNormalized)
+        follow.type = 'Follow'
+        follow.object = ['https://localhost/u/flipflopper']
+        follow._meta = { collection: testUser.following }
         await apex.store.saveActivity(follow)
         const rejAct = {
           '@context': 'https://www.w3.org/ns/activitystreams',

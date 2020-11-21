@@ -9,6 +9,7 @@ module.exports = {
   idToIRIFactory,
   isLocalIRI,
   nameToActorStreamsFactory,
+  removeMeta,
   toJSONLD,
   fromJSONLD,
   actorIdFromActivity,
@@ -27,6 +28,16 @@ function addMeta (obj, key, value) {
     obj._meta[key] = [value]
   } else {
     obj._meta[key].push(value)
+  }
+}
+
+function removeMeta (obj, key, value) {
+  if (!obj._meta || !Array.isArray(obj._meta[key])) {
+    return
+  }
+  const i = obj._meta[key].indexOf(value)
+  if (i !== -1) {
+    obj._meta[key].splice(i, 1)
   }
 }
 
