@@ -15,8 +15,7 @@ beforeAll(() => {
   // block federation attempts
   nock('https://ignore.com')
     .get(() => true)
-    // fake id to avoid unique contstraint errors when cached
-    .reply(200, { id: (Math.random() * 1000).toFixed(0), type: 'Object' })
+    .reply(200, uri => ({ id: `https://ignore.com${uri}`, type: 'Object' }))
     .persist()
     .post(() => true)
     .reply(200)

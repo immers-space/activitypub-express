@@ -1,28 +1,26 @@
 'use strict'
 
 module.exports = {
-  async save (req, res, next) {
-    if (!res.locals.apex.activity) {
+  save (req, res, next) {
+    if (!res.locals.apex.activity || !res.locals.apex.target) {
       return next()
     }
     const apex = req.app.locals.apex
-    try {
-      const saveResult = await apex.store.saveActivity(req.body)
-      res.locals.apex.isNewActivity = !!saveResult
+    const resLocal = res.locals.apex
+    apex.store.saveActivity(req.body).then(saveResult => {
+      resLocal.isNewActivity = !!saveResult
       if (!saveResult) {
-        // add additional target collection to activity
         const actorId = apex.actorIdFromActivity(req.body)
         const newTarget = req.body._meta.collection[0]
-        const updated = await apex.store
+        return apex.store
           .updateActivityMeta(req.body.id, actorId, 'collection', newTarget)
-        if (updated) {
-          res.locals.apex.isNewActivity = 'new collection'
-        }
+      }
+    }).then(updated => {
+      if (updated) {
+        resLocal.isNewActivity = 'new collection'
       }
       next()
-    } catch (err) {
-      next(err)
-    }
+    }).catch(next)
   },
   inboxSideEffects (req, res, next) {
     if (!(res.locals.apex.activity && res.locals.apex.actor)) {
@@ -34,6 +32,7 @@ module.exports = {
     const resLocal = res.locals.apex
     const recipient = resLocal.target
     const actor = resLocal.actor
+    const object = resLocal.object
     const actorId = actor.id
     resLocal.status = 200
     if (!res.locals.apex.isNewActivity) {
@@ -42,51 +41,39 @@ module.exports = {
     }
     // configure event hook to be triggered after response sent
     resLocal.eventName = 'apex-inbox'
-    resLocal.eventMessage = { actor, activity, recipient }
+    resLocal.eventMessage = { actor, activity, recipient, object }
     switch (activity.type.toLowerCase()) {
       case 'accept':
-        toDo.push(
-          apex.store.getActivity(apex.objectIdFromActivity(activity), true).then(targetActivity => {
-            resLocal.eventMessage.object = targetActivity
-            if (!targetActivity || targetActivity.type !== 'Follow') return
-            // Add orignal follow activity to following collection
-            apex.addMeta(targetActivity, 'collection', recipient.following[0])
-            return apex.store.updateActivity(targetActivity, true)
-          }).then(updated => {
-            // publish update to following count
-            resLocal.postWork.push(async () => {
-              const act = await apex.buildActivity(
-                'Update',
-                recipient.id,
-                recipient.followers[0],
-                { object: await apex.getFollowing(recipient), cc: actorId }
-              )
-              return apex.addToOutbox(recipient, act)
+        if (object.type.toLowerCase() === 'follow') {
+          // Add orignal follow activity to following collection
+          apex.addMeta(object, 'collection', recipient.following[0])
+          toDo.push(
+            apex.store.updateActivity(object, true).then(updated => {
+              // publish update to following count
+              resLocal.postWork.push(async () => {
+                const act = await apex.buildActivity(
+                  'Update',
+                  recipient.id,
+                  recipient.followers[0],
+                  { object: await apex.getFollowing(recipient), cc: actorId }
+                )
+                return apex.addToOutbox(recipient, act)
+              })
             })
-          })
-        )
+          )
+        }
         break
       case 'reject':
-        toDo.push((async () => {
-          const targetActivity = await apex.store.getActivity(apex.objectIdFromActivity(activity), true)
-          apex.addMeta(targetActivity, 'rejection', activity.id)
-          await apex.store.updateActivity(targetActivity, true)
-          resLocal.eventMessage.object = targetActivity
-        })())
-        break
-      case 'create':
-        toDo.push(apex.resolveObject(activity.object[0]).then(object => {
-          resLocal.eventMessage.object = object
-        }))
+        apex.addMeta(object, 'rejection', activity.id)
+        toDo.push(apex.store.updateActivity(object, true))
         break
       case 'undo':
         // TOOD: needs refactor
-        toDo.push(apex.undoActivity(activity.object[0], actorId))
+        toDo.push(apex.undoActivity(object, actorId))
         break
       case 'announce':
         toDo.push((async () => {
-          const targetActivity = await apex.resolveActivity(activity.object[0])
-          resLocal.eventMessage.object = targetActivity
+          const targetActivity = object
           // add to object shares collection, increment share count
           if (apex.isLocalIRI(targetActivity.id) && targetActivity.shares) {
             await apex.store
@@ -106,8 +93,7 @@ module.exports = {
         break
       case 'like':
         toDo.push((async () => {
-          const targetActivity = await apex.resolveActivity(activity.object[0])
-          resLocal.eventMessage.object = targetActivity
+          const targetActivity = object
           // add to object likes collection, incrementing like count
           if (apex.isLocalIRI(targetActivity.id) && targetActivity.likes) {
             await apex.store
@@ -126,17 +112,16 @@ module.exports = {
         })())
         break
       case 'update':
-        toDo.push((async () => {
-          await apex.store.updateObject(activity.object[0], actorId, true)
-          resLocal.eventMessage.object = activity.object[0]
-        })())
+        toDo.push(apex.store.updateObject(object, actorId, true))
         break
       case 'delete':
-        toDo.push((async () => {
-          const tombstone = await apex.buildTombstone(activity.object[0])
-          await apex.store.updateObject(tombstone, actorId, true)
-          resLocal.eventMessage.object = activity.object[0]
-        })())
+        // if we don't have the object, no action needed
+        if (object) {
+          toDo.push(
+            apex.buildTombstone(object)
+              .then(tombstone => apex.store.updateObject(tombstone, actorId, true))
+          )
+        }
         break
       default:
         // follow included here because it's the Accept that causes the side-effect

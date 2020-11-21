@@ -15,7 +15,8 @@ module.exports = {
   objectIdFromActivity,
   validateActivity,
   validateObject,
-  validateOwner
+  validateOwner,
+  validateTarget
 }
 
 function addMeta (obj, key, value) {
@@ -158,6 +159,20 @@ function validateOwner (object, ownerId) {
   if (object.id === ownerId) return true
   if (Array.isArray(object.actor) && object.actor[0] === ownerId) return true
   if (Array.isArray(object.attributedTo) && object.attributedTo[0] === ownerId) {
+    return true
+  }
+  return false
+}
+
+// Can be used to check activity.target instead of activity.object by specifying prop
+function validateTarget (object, targetId, prop = 'object') {
+  if (Array.isArray(object)) {
+    object = object[0]
+  }
+  if (!validateObject(object) || !Array.isArray(object[prop]) || !object[prop][0]) {
+    return false
+  }
+  if (object[prop][0] === targetId || object[prop][0].id === targetId) {
     return true
   }
   return false

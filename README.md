@@ -108,6 +108,7 @@ client.connect({ useNewUrlParser: true })
       * [ ] Misc collections
       * [ ] Pagination
     * [ ] Relay requests for remote objects
+    * [ ] Response code 410 for Tombstones
   * [ ] Security
     * [ ] Permission-based filtering
 * [ ] Server-to-server
@@ -127,6 +128,7 @@ client.connect({ useNewUrlParser: true })
       * [x] Other acivity types
     * [x] Security
       * [x] Signature validation
+      * [ ] Honor recipient blocklist
     * [ ] Recursive resolution of related objects
     * [ ] Forwarding from inbox
   * [ ] Shared inbox POST

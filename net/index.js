@@ -43,6 +43,7 @@ module.exports = {
       validators.targetActorWithMeta,
       security.verifySignature,
       validators.actor,
+      validators.activityObject,
       validators.inboxActivity,
       activity.save,
       activity.inboxSideEffects,
