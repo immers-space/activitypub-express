@@ -48,16 +48,10 @@ module.exports = {
           // Add orignal follow activity to following collection
           apex.addMeta(object, 'collection', recipient.following[0])
           toDo.push(
-            apex.store.updateActivity(object, true).then(updated => {
+            apex.store.updateActivity(object, true).then(() => {
               // publish update to following count
               resLocal.postWork.push(async () => {
-                const act = await apex.buildActivity(
-                  'Update',
-                  recipient.id,
-                  recipient.followers[0],
-                  { object: await apex.getFollowing(recipient), cc: actorId }
-                )
-                return apex.addToOutbox(recipient, act)
+                return apex.publishUpdate(recipient, await apex.getFollowing(recipient), actorId)
               })
             })
           )
@@ -80,13 +74,7 @@ module.exports = {
               .updateActivityMeta(activity.id, actorId, 'collection', targetActivity.shares[0])
             // publish update to shares count
             resLocal.postWork.push(async () => {
-              const act = await apex.buildActivity(
-                'Update',
-                recipient.id,
-                recipient.followers[0],
-                { object: await apex.getShares(targetActivity), cc: actorId }
-              )
-              return apex.addToOutbox(recipient, act)
+              return apex.publishUpdate(recipient, await apex.getShares(targetActivity), actorId)
             })
           }
         })())
@@ -100,13 +88,7 @@ module.exports = {
               .updateActivityMeta(activity.id, actorId, 'collection', targetActivity.likes[0])
             // publish update to shares count
             resLocal.postWork.push(async () => {
-              const act = await apex.buildActivity(
-                'Update',
-                recipient.id,
-                recipient.followers[0],
-                { object: await apex.getLikes(targetActivity), cc: actorId }
-              )
-              return apex.addToOutbox(recipient, act)
+              return apex.publishUpdate(recipient, await apex.getLikes(targetActivity), actorId)
             })
           }
         })())

@@ -7,6 +7,7 @@ module.exports = {
   addToOutbox,
   buildActivity,
   buildTombstone,
+  publishUpdate,
   resolveActivity,
   undoActivity
 }
@@ -100,6 +101,16 @@ async function acceptFollow (actor, targetActivity) {
     )
     return this.addToOutbox(actor, act)
   }
+}
+
+async function publishUpdate (actor, object, cc) {
+  const act = await this.buildActivity(
+    'Update',
+    actor.id,
+    actor.followers[0],
+    { object, cc }
+  )
+  return this.addToOutbox(actor, act)
 }
 
 async function resolveActivity (id) {
