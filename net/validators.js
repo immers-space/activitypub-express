@@ -1,13 +1,13 @@
 'use strict'
 
-const assert = require('assert')
-
 module.exports = {
   activityObject,
   actor,
   inboxActivity,
   jsonld,
   outboxActivity,
+  outboxActivityObject,
+  outboxCreate,
   targetActivity,
   targetActor,
   targetActorWithMeta,
@@ -30,9 +30,9 @@ function activityObject (req, res, next) {
   if (!apex.validateActivity(activity)) return next()
 
   const type = req.body.type.toLowerCase()
-  if (needsResolveObject.includes(type)) {
+  if (needsResolveObject.includes(type) && activity.object) {
     object = apex.resolveObject(activity.object[0])
-  } else if (needsResolveActivity.includes(type)) {
+  } else if (needsResolveActivity.includes(type) && activity.object) {
     object = apex.resolveActivity(activity.object[0])
   } else if (needsLocalActivity.includes(type)) {
     object = apex.store.getActivity(apex.objectIdFromActivity(activity), true)
@@ -221,8 +221,17 @@ async function targetObject (req, res, next) {
   next()
 }
 
-async function outboxActivity (req, res, next) {
-  assert(res.locals.apex.target)
+const obxNeedsResolveObject = ['follow']
+const obxNeedsLocalObject = ['update']
+const obxNeedsLocalActivity = ['accept', 'reject']
+const obxNeedsInlineObject = ['create']
+const obxRequiresObject = ['create']
+const obxRequiresActivityObject = ['accept', 'reject']
+
+function outboxCreate (req, res, next) {
+  if (!res.locals.apex.target) {
+    return next()
+  }
   const apex = req.app.locals.apex
   const actorIRI = res.locals.apex.target.id
   const activityIRI = apex.utils.activityIdToIRI()
@@ -234,7 +243,7 @@ async function outboxActivity (req, res, next) {
     object = activity
     object.id = apex.utils.objectIdToIRI()
     if (!apex.validateObject(object)) {
-      return res.status(400).send('Invalid activity')
+      return next()
     }
     object.attributedTo = [actorIRI]
     const extras = { object }
@@ -243,15 +252,81 @@ async function outboxActivity (req, res, next) {
         extras[t] = object[t]
       }
     })
-    activity = await apex
-      .buildActivity('Create', actorIRI, object.to, extras)
-    req.body = activity
-  } else if (activity.type === 'Create') {
-    // validate content of created objects
+    activity = apex.buildActivity('Create', actorIRI, object.to, extras)
+  } else if (activity.type.toLowerCase() === 'create' && activity.object) {
+    activity.object[0].id = apex.utils.objectIdToIRI()
+  }
+  Promise.resolve(activity).then(actResolved => {
+    req.body = actResolved
+    next()
+  })
+}
+
+function outboxActivityObject (req, res, next) {
+  const apex = req.app.locals.apex
+  const resLocal = res.locals.apex
+  const activity = req.body
+  if (!resLocal.target || !apex.validateActivity(activity)) {
+    return next()
+  }
+  const type = activity.type.toLowerCase()
+  let object
+  if (obxNeedsResolveObject.includes(type) && activity.object) {
+    object = apex.resolveObject(activity.object[0])
+  } else if (obxNeedsLocalActivity.includes(type)) {
+    object = apex.store.getActivity(apex.objectIdFromActivity(activity), true)
+  } else if (obxNeedsLocalObject.includes(type)) {
+    object = apex.store.getObject(apex.objectIdFromActivity(activity), true)
+  } else if (obxNeedsInlineObject.includes(type) && apex.validateObject(activity.object)) {
     object = activity.object[0]
     object.id = apex.utils.objectIdToIRI()
+  }
+  Promise.resolve(object).then(obj => {
+    resLocal.object = obj
+    next()
+  })
+}
+async function outboxActivity (req, res, next) {
+  if (!res.locals.apex.target) {
+    return next()
+  }
+  const apex = req.app.locals.apex
+  const resLocal = res.locals.apex
+  const actor = resLocal.target
+  const activity = req.body
+  const object = resLocal.object
+  if (!apex.validateActivity(activity)) {
+    resLocal.status = 400
+    resLocal.statusMessage = 'Invalid activity'
+    return next()
+  }
+  const type = activity.type.toLowerCase()
+  activity.id = apex.utils.activityIdToIRI()
+  if (obxRequiresActivityObject.includes(type) && !apex.validateActivity(object)) {
+    resLocal.status = 400
+    resLocal.statusMessage = `Activity type object requried for ${activity.type} activity`
+    return next()
+  }
+  if (obxRequiresObject.includes(type) && !apex.validateObject(object)) {
+    resLocal.statusMessage = 400
+    resLocal.statusMessage = `Object requried for ${activity.type} activity`
+    return next()
+  }
+  if (type === 'accept') {
+    // the activity being accepted was sent to the actor trying to accept it
+    if (!object.to.includes(actor.id)) {
+      resLocal.status = 403
+      return next()
+    }
+    // for follows, also confirm the follow object was the actor trying to accept it
+    const isFollow = object.type.toLowerCase() === 'follow'
+    if (isFollow && !apex.validateTarget(object, actor.id)) {
+      resLocal.status = 403
+      return next()
+    }
+  } else if (type === 'create') {
     // per spec, ensure attributedTo and audience fields in object are correct
-    object.attributedTo = [actorIRI]
+    object.attributedTo = [actor.id]
     ;['to', 'bto', 'cc', 'bcc', 'audience'].forEach(t => {
       if (t in activity) {
         object[t] = activity[t]
@@ -259,8 +334,16 @@ async function outboxActivity (req, res, next) {
         delete object[t]
       }
     })
+  } else if (type === 'update') {
+    if (!apex.validateOwner(object, actor.id)) {
+      resLocal.status = 403
+      return next()
+    }
+    // outbox updates can be partial, do merge
+    resLocal.object = apex.mergeJSONLD(object, activity.object[0])
+    activity.object = [resLocal.object]
   }
-  apex.addMeta(req.body, 'collection', res.locals.apex.target.outbox[0])
-  res.locals.apex.activity = true
+  apex.addMeta(req.body, 'collection', resLocal.target.outbox[0])
+  resLocal.activity = true
   next()
 }

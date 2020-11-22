@@ -1,5 +1,6 @@
 'use strict'
 const jsonld = require('jsonld')
+const merge = require('deepmerge')
 const { escape, unescape } = require('mongo-escape')
 
 module.exports = {
@@ -8,6 +9,7 @@ module.exports = {
   idToActivityCollectionsFactory,
   idToIRIFactory,
   isLocalIRI,
+  mergeJSONLD,
   nameToActorStreamsFactory,
   removeMeta,
   toJSONLD,
@@ -110,6 +112,14 @@ function idToIRIFactory (domain, route, param) {
 
 function isLocalIRI (id) {
   return id.startsWith(`https://${this.domain}`)
+}
+
+const overwriteArrays = {
+  arrayMerge: (destinationArray, sourceArray, options) => sourceArray
+}
+
+function mergeJSONLD (target, source) {
+  return merge(target, source, overwriteArrays)
 }
 
 function nameToActorStreamsFactory (domain, routes, actorParam) {

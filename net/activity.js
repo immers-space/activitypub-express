@@ -121,14 +121,15 @@ module.exports = {
     }).catch(next)
   },
   outboxSideEffects (req, res, next) {
-    if (!res.locals.apex.activity) {
+    if (!res.locals.apex.target || !res.locals.apex.activity) {
       return next()
     }
     const toDo = []
     const apex = req.app.locals.apex
-    const activity = req.body
-    const actor = res.locals.apex.target
     const resLocal = res.locals.apex
+    const activity = req.body
+    const actor = resLocal.target
+    const object = resLocal.object
     resLocal.status = 200
     if (!resLocal.isNewActivity) {
       // ignore duplicate deliveries
@@ -136,43 +137,30 @@ module.exports = {
     }
 
     // configure event hook to be triggered after response sent
-    resLocal.eventMessage = { actor, activity }
+    resLocal.eventMessage = { actor, activity, object }
     resLocal.eventName = 'apex-outbox'
 
     switch (activity.type.toLowerCase()) {
       case 'accept':
-        toDo.push(
-          apex.store.getActivity(apex.objectIdFromActivity(activity), true)
-            .then(targetActivity => {
-              resLocal.eventMessage.object = targetActivity
-              if (!targetActivity || targetActivity.type !== 'Follow') return
-              return apex.acceptFollow(actor, targetActivity)
-            })
-            .then(postTask => resLocal.postWork.push(postTask))
-            .catch(err => next(err))
-        )
+        if (object.type.toLowerCase() === 'follow') {
+          toDo.push(
+            apex.acceptFollow(actor, object)
+              .then(postTask => resLocal.postWork.push(postTask))
+          )
+        }
         break
       case 'create':
-        // save created object
-        toDo.push(apex.resolveObject(activity.object[0]).then(object => {
-          resLocal.eventMessage.object = object
-        }))
+        toDo.push(apex.store.saveObject(object))
         break
       case 'update':
-        toDo.push(apex.store.updateObject(activity.object[0], actor.id).then(updated => {
-          if (!updated) {
-            throw new Error('Update target object not found or not authorized')
-          }
-          activity.object[0] = updated // send full replacement object when federating
-          resLocal.eventMessage.object = updated
-        }))
+        toDo.push(apex.store.updateObject(object, actor.id, true))
         break
       default:
         // follow included here because it's the Accept that causes the side-effect
         break
     }
-    resLocal.postWork.push(() => apex.addToOutbox(actor, activity))
     Promise.all(toDo).then(() => {
+      resLocal.postWork.push(() => apex.addToOutbox(actor, activity))
       next()
     }).catch(next)
   }

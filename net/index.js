@@ -87,6 +87,8 @@ module.exports = {
     post: [
       validators.jsonld,
       validators.targetActorWithMeta,
+      validators.outboxCreate,
+      validators.outboxActivityObject,
       validators.outboxActivity,
       activity.save,
       activity.outboxSideEffects,
