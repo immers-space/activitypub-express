@@ -222,10 +222,10 @@ async function targetObject (req, res, next) {
 }
 
 const obxNeedsResolveObject = ['follow']
-const obxNeedsLocalObject = ['update']
+const obxNeedsLocalObject = ['update', 'delete']
 const obxNeedsLocalActivity = ['accept', 'reject']
 const obxNeedsInlineObject = ['create']
-const obxRequiresObject = ['create']
+const obxRequiresObject = ['create', 'delete']
 const obxRequiresActivityObject = ['accept', 'reject']
 
 function outboxCreate (req, res, next) {
@@ -334,6 +334,16 @@ async function outboxActivity (req, res, next) {
         delete object[t]
       }
     })
+  } else if (type === 'delete') {
+    if (apex.validateActivity(object)) {
+      resLocal.status = 400
+      resLocal.statusMessage = 'Activities cannot be deleted, use Undo'
+      return next()
+    }
+    if (!apex.validateOwner(object, actor.id)) {
+      resLocal.status = 403
+      return next()
+    }
   } else if (type === 'update') {
     if (!apex.validateOwner(object, actor.id)) {
       resLocal.status = 403

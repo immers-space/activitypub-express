@@ -112,9 +112,6 @@ module.exports = {
           )
         }
         break
-      default:
-        // follow included here because it's the Accept that causes the side-effect
-        break
     }
     Promise.all(toDo).then(() => {
       next()
@@ -155,8 +152,11 @@ module.exports = {
       case 'update':
         toDo.push(apex.store.updateObject(object, actor.id, true))
         break
-      default:
-        // follow included here because it's the Accept that causes the side-effect
+      case 'delete':
+        toDo.push(
+          apex.buildTombstone(object)
+            .then(tombstone => apex.store.updateObject(tombstone, actor.id, true))
+        )
         break
     }
     Promise.all(toDo).then(() => {

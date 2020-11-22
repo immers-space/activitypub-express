@@ -385,6 +385,96 @@ describe('outbox', function () {
           .end(err => { if (err) done(err) })
       })
     })
+    describe('delete', function () {
+      let toDelete
+      let deleteAct
+      beforeEach(function () {
+        toDelete = merge({}, activityNormalized.object[0])
+        toDelete.id = 'https://localhost/o/2349-ssdfds-34tdgf'
+        deleteAct = merge({}, activity)
+        deleteAct.type = 'Delete'
+        deleteAct.object = 'https://localhost/o/2349-ssdfds-34tdgf'
+      })
+      it('fires delete event', async function (done) {
+        await apex.store.saveObject(toDelete)
+        app.once('apex-outbox', function (msg) {
+          expect(msg.actor).toEqual(testUser)
+          delete msg.activity.id
+          expect(msg.activity).toEqual({
+            _meta: { collection: ['https://localhost/outbox/test'] },
+            type: 'Delete',
+            actor: ['https://localhost/u/test'],
+            object: ['https://localhost/o/2349-ssdfds-34tdgf'],
+            to: [
+              'https://ignore.com/u/ignored'
+            ]
+          })
+          expect(msg.object).toEqual(toDelete)
+          done()
+        })
+        request(app)
+          .post('/outbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(deleteAct)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
+      it('rejects if actor not owner', async function (done) {
+        toDelete.attributedTo = ['https://localhost/u/sally']
+        await apex.store.saveObject(toDelete)
+        request(app)
+          .post('/outbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(deleteAct)
+          .expect(403, done)
+      })
+      it('replaces object in store with tombstone', async function (done) {
+        await apex.store.saveObject(toDelete)
+        app.once('apex-outbox', async function () {
+          const tomb = await apex.store.getObject(toDelete.id)
+          expect(new Date(tomb.deleted).toString()).not.toBe('Invalid Date')
+          delete tomb.deleted
+          delete tomb.published
+          delete tomb.updated
+          expect(tomb).toEqual({
+            id: toDelete.id,
+            type: 'Tombstone'
+          })
+          done()
+        })
+        request(app)
+          .post('/outbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(deleteAct)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
+      it('replaces object in streams with tombstone', async function (done) {
+        await apex.store.saveObject(toDelete)
+        const original = merge({}, activityNormalized)
+        original.id = apex.utils.activityIdToIRI()
+        original.object[0].id = toDelete.id
+        await apex.store.saveActivity(original)
+        app.once('apex-outbox', async () => {
+          const tomb = (await apex.store.getActivity(original.id)).object[0]
+          expect(new Date(tomb.deleted).toString()).not.toBe('Invalid Date')
+          delete tomb.deleted
+          delete tomb.updated
+          delete tomb.published
+          expect(tomb).toEqual({
+            id: toDelete.id,
+            type: 'Tombstone'
+          })
+          done()
+        })
+        request(app)
+          .post('/outbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(deleteAct)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
+    })
     it('fires other activity event', function (done) {
       const arriveAct = {
         '@context': 'https://www.w3.org/ns/activitystreams',

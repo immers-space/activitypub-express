@@ -146,7 +146,7 @@ client.connect({ useNewUrlParser: true })
       * [x] Create
       * [x] Update
         * [ ] Add prior recipients of updated object to federation audience
-      * [ ] Delete
+      * [x] Delete
       * [x] Follow
       * [x] Accept
       * [ ] Add
