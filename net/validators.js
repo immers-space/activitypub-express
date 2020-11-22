@@ -20,7 +20,7 @@ const needsLocalActivity = ['accept', 'reject', 'undo']
 const needsLocalObject = ['delete']
 const needsInlineObject = ['update']
 const requiresObject = ['update']
-const requiresActivityObject = ['accept', 'reject', 'announce', 'like']
+const requiresActivityObject = ['accept', 'announce', 'like', 'reject']
 
 function activityObject (req, res, next) {
   const apex = req.app.locals.apex
@@ -222,7 +222,7 @@ async function targetObject (req, res, next) {
 }
 
 const obxNeedsResolveObject = ['follow']
-const obxNeedsLocalObject = ['update', 'delete']
+const obxNeedsLocalObject = ['delete', 'update']
 const obxNeedsLocalActivity = ['accept', 'reject']
 const obxNeedsInlineObject = ['create']
 const obxRequiresObject = ['create', 'delete']

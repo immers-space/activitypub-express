@@ -57,21 +57,6 @@ module.exports = {
           )
         }
         break
-      case 'reject':
-        apex.addMeta(object, 'rejection', activity.id)
-        // reject is also the undo of a follow accept
-        if (object.type.toLowerCase() === 'follow') {
-          apex.removeMeta(object, 'collection', recipient.following[0])
-        }
-        toDo.push(apex.store.updateActivity(object, true))
-        break
-      case 'undo':
-        if (object) {
-          // deleting the activity also removes it from all collections
-          toDo.push(apex.undoActivity(object, actorId))
-          // TODO: publish appropriate collection updates (after #8)
-        }
-        break
       case 'announce':
         toDo.push((async () => {
           const targetActivity = object
@@ -85,6 +70,15 @@ module.exports = {
             })
           }
         })())
+        break
+      case 'delete':
+        // if we don't have the object, no action needed
+        if (object) {
+          toDo.push(
+            apex.buildTombstone(object)
+              .then(tombstone => apex.store.updateObject(tombstone, actorId, true))
+          )
+        }
         break
       case 'like':
         toDo.push((async () => {
@@ -100,17 +94,23 @@ module.exports = {
           }
         })())
         break
+      case 'reject':
+        apex.addMeta(object, 'rejection', activity.id)
+        // reject is also the undo of a follow accept
+        if (object.type.toLowerCase() === 'follow') {
+          apex.removeMeta(object, 'collection', recipient.following[0])
+        }
+        toDo.push(apex.store.updateActivity(object, true))
+        break
+      case 'undo':
+        if (object) {
+          // deleting the activity also removes it from all collections
+          toDo.push(apex.undoActivity(object, actorId))
+          // TODO: publish appropriate collection updates (after #8)
+        }
+        break
       case 'update':
         toDo.push(apex.store.updateObject(object, actorId, true))
-        break
-      case 'delete':
-        // if we don't have the object, no action needed
-        if (object) {
-          toDo.push(
-            apex.buildTombstone(object)
-              .then(tombstone => apex.store.updateObject(tombstone, actorId, true))
-          )
-        }
         break
     }
     Promise.all(toDo).then(() => {
@@ -149,14 +149,14 @@ module.exports = {
       case 'create':
         toDo.push(apex.store.saveObject(object))
         break
-      case 'update':
-        toDo.push(apex.store.updateObject(object, actor.id, true))
-        break
       case 'delete':
         toDo.push(
           apex.buildTombstone(object)
             .then(tombstone => apex.store.updateObject(tombstone, actor.id, true))
         )
+        break
+      case 'update':
+        toDo.push(apex.store.updateObject(object, actor.id, true))
         break
     }
     Promise.all(toDo).then(() => {
