@@ -21,6 +21,9 @@ module.exports = {
   actor: {
     get: [validators.jsonld, validators.targetActor, responders.target]
   },
+  collections: {
+    get: [validators.jsonld, validators.targetActor, collection.added, responders.result]
+  },
   followers: {
     get: [
       validators.jsonld,

@@ -8,6 +8,7 @@ module.exports = {
   collectionIRIToActorName,
   idToActivityCollectionsFactory,
   idToIRIFactory,
+  userAndIdToIRIFactory,
   isLocalIRI,
   mergeJSONLD,
   nameToActorStreamsFactory,
@@ -107,6 +108,17 @@ function idToIRIFactory (domain, route, param) {
       id = this.store.generateId()
     }
     return `https://${domain}${route.replace(colonParam, id)}`.toLowerCase()
+  }
+}
+
+function userAndIdToIRIFactory (domain, route, userParam, param) {
+  param = `:${param}`
+  userParam = `:${userParam}`
+  return (user, id) => {
+    if (!id) {
+      id = this.store.generateId()
+    }
+    return `https://${domain}${route.replace(param, id).replace(userParam, user)}`.toLowerCase()
   }
 }
 

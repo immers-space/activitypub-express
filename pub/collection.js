@@ -8,7 +8,8 @@ module.exports = {
   getFollowing,
   getLiked,
   getShares,
-  getLikes
+  getLikes,
+  getAdded
 }
 
 async function getCollection (collectionId, remapper) {
@@ -50,6 +51,11 @@ function getShares (object) {
 
 function getLikes (object) {
   return this.getCollection(object.likes[0], idRemapper)
+}
+
+function getAdded (actor, colId) {
+  const collectionIRI = this.utils.userCollectionIdToIRI(actor.preferredUsername, colId)
+  return this.getCollection(collectionIRI, this.objectIdFromActivity)
 }
 
 // non-exported utils

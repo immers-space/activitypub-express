@@ -105,7 +105,7 @@ client.connect({ useNewUrlParser: true })
         * [x] Liked
         * [x] Likes
         * [x] Shares
-      * [ ] Misc collections
+      * [x] Misc collections
       * [ ] Pagination
     * [ ] Relay requests for remote objects
     * [ ] Response code 410 for Tombstones
@@ -204,7 +204,6 @@ Option | Description
 domain | String. Hostname for your app
 actorParam | String. Express route parameter used for actor name
 objectParam | String. Express route parameter used for object id
-activityParam | String. Express route parameter used for activity id
 routes | Object. The routes your app uses for ActivityPub endpoints (including parameter). Details below
 routes.actor | Actor profile route & IRI pattern
 routes.object | Object retrieval route & IRI pattern
@@ -214,7 +213,12 @@ routes.outbox | Actor outbox route
 routes.following | Actor following collection route
 routes.followers | Actor followers collection route
 routes.liked | Actor liked collection route
+routes.shares | Activity shares collection route
+routes.likes | Activity likes collection route
+routes.collections | Actors' miscellaneous collections route (must include `actorParam` and `collectionParam`)
 **Optional** |
+activityParam | String. Express route parameter used for activity id (defaults to `objectParam`)
+collectionParam | String. Express route parameter used for collection id (defaults to `objectParam`)
 context | String, Array. JSON-LD context for your app. Defaults to AcivityStreams + Security vocabs
 store | Replace the default storage model & database backend with your own (see `store/interface.js` for API)
 

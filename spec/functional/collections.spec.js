@@ -25,7 +25,8 @@ const apex = ActivitypubExpress({
     following: '/following/:actor',
     liked: '/liked/:actor',
     shares: '/s/:id/shares',
-    likes: '/s/:id/likes'
+    likes: '/s/:id/likes',
+    collections: '/u/:actor/c/:id'
   }
 })
 const client = new MongoClient('mongodb://localhost:27017', { useUnifiedTopology: true, useNewUrlParser: true })
@@ -36,8 +37,9 @@ app.get('/following/:actor', apex.net.following.get)
 app.get('/liked/:actor', apex.net.liked.get)
 app.get('/s/:id/shares', apex.net.shares.get)
 app.get('/s/:id/likes', apex.net.likes.get)
+app.get('/u/:actor/c/:id', apex.net.collections.get)
 app.use(function (err, req, res, next) {
-  console.log(err)
+  console.error(err)
   next(err)
 })
 
@@ -234,6 +236,35 @@ describe('collections', function () {
             done(err)
           })
       })
+    })
+  })
+  describe('misc collections', function () {
+    it('gets collection items', async function (done) {
+      const col = `${testUser.id}/c/cool-stuff`
+      const add = await apex.buildActivity('Add', testUser.id, testUser.followers, {
+        object: {
+          id: 'https://localhost/o/cool-doc',
+          type: 'Document',
+          name: 'Cool document'
+        }
+      })
+      apex.addMeta(add, 'collection', col)
+      await apex.store.saveActivity(add)
+      request(app)
+        .get(col.replace('https://localhost', ''))
+        .set('Accept', 'application/activity+json')
+        .expect(200)
+        .end(function (err, res) {
+          const standard = {
+            '@context': ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1'],
+            id: col,
+            type: 'OrderedCollection',
+            totalItems: 1,
+            orderedItems: ['https://localhost/o/cool-doc']
+          }
+          expect(res.body).toEqual(standard)
+          done(err)
+        })
     })
   })
 })
