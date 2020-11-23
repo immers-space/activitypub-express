@@ -155,6 +155,17 @@ module.exports = {
             .then(tombstone => apex.store.updateObject(tombstone, actor.id, true))
         )
         break
+      case 'like':
+        toDo.push((async () => {
+          // add to object liked collection
+          await apex.store
+            .updateActivityMeta(activity.id, actor.id, 'collection', actor.liked[0])
+          // publish update to shares count
+          resLocal.postWork.push(async () => {
+            return apex.publishUpdate(actor, await apex.getLiked(actor))
+          })
+        })())
+        break
       case 'update':
         toDo.push(apex.store.updateObject(object, actor.id, true))
         break

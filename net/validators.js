@@ -223,10 +223,10 @@ async function targetObject (req, res, next) {
 
 const obxNeedsResolveObject = ['follow']
 const obxNeedsLocalObject = ['delete', 'update']
-const obxNeedsLocalActivity = ['accept', 'reject']
+const obxNeedsLocalActivity = ['accept', 'like', 'reject']
 const obxNeedsInlineObject = ['create']
 const obxRequiresObject = ['create', 'delete']
-const obxRequiresActivityObject = ['accept', 'reject']
+const obxRequiresActivityObject = ['accept', 'like', 'reject']
 
 function outboxCreate (req, res, next) {
   if (!res.locals.apex.target) {

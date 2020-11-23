@@ -475,6 +475,54 @@ describe('outbox', function () {
           .end(err => { if (err) done(err) })
       })
     })
+    describe('like', function () {
+      let likeable
+      let like
+      beforeEach(function () {
+        likeable = merge({}, activityNormalized)
+        likeable.id = apex.utils.activityIdToIRI()
+        like = merge({}, activity)
+        like.type = 'Like'
+        like.object = likeable.id
+      })
+      it('fires like event', async function (done) {
+        await apex.store.saveActivity(likeable)
+        app.once('apex-outbox', function (msg) {
+          expect(msg.actor).toEqual(testUser)
+          delete msg.activity.id
+          expect(msg.activity).toEqual({
+            _meta: { collection: ['https://localhost/outbox/test'] },
+            type: 'Like',
+            actor: ['https://localhost/u/test'],
+            object: [likeable.id],
+            to: ['https://ignore.com/u/ignored']
+          })
+          expect(msg.object).toEqual(likeable)
+          done()
+        })
+        request(app)
+          .post('/outbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(like)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
+      it('adds to liked collection', async function (done) {
+        await apex.store.saveActivity(likeable)
+        app.once('apex-outbox', async function (msg) {
+          const likedActivity = await apex.store.db.collection('streams')
+            .findOne({ id: msg.activity.id })
+          expect(likedActivity._meta.collection).toContain(testUser.liked[0])
+          done()
+        })
+        request(app)
+          .post('/outbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(like)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
+    })
     it('fires other activity event', function (done) {
       const arriveAct = {
         '@context': 'https://www.w3.org/ns/activitystreams',

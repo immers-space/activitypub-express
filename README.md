@@ -125,6 +125,7 @@ client.connect({ useNewUrlParser: true })
       * [x] Like
       * [x] Announce
       * [x] Undo
+        * [ ] Publish affected collection update
       * [x] Other acivity types
     * [x] Security
       * [x] Signature validation
@@ -151,7 +152,7 @@ client.connect({ useNewUrlParser: true })
       * [x] Accept
       * [ ] Add
       * [ ] Remove
-      * [ ] Like
+      * [x] Like
       * [ ] Block
       * [ ] Undo
       * [x] Other acivity types
