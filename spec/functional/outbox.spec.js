@@ -1,4 +1,4 @@
-/* global describe, beforeAll, beforeEach, it, expect */
+/* global describe, beforeAll, beforeEach, it, expect, spyOn */
 const request = require('supertest')
 const express = require('express')
 const nock = require('nock')
@@ -515,6 +515,54 @@ describe('outbox', function () {
           expect(likedActivity._meta.collection).toContain(testUser.liked[0])
           done()
         })
+        request(app)
+          .post('/outbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(like)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
+      it('rejects if no object', function (done) {
+        delete like.object
+        request(app)
+          .post('/outbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(like)
+          .expect(400, done)
+      })
+      it('publishes collection update', async function (done) {
+        const mockedUser = 'https://mocked.com/user/mocked'
+        nock('https://mocked.com')
+          .post('/inbox/mocked').reply(200) // like activity delivery
+          .post('/inbox/mocked').reply(200)
+          .on('request', (req, interceptor, body) => {
+            // correctly formed activity sent
+            const sentActivity = JSON.parse(body)
+            if (sentActivity.type === 'Like') return
+            expect(sentActivity.id).toContain('https://localhost')
+            delete sentActivity.id
+            delete sentActivity.likes
+            delete sentActivity.shares
+            expect(new Date(sentActivity.published).toString()).not.toBe('Invalid Date')
+            delete sentActivity.published
+            expect(sentActivity).toEqual({
+              '@context': apex.context,
+              type: 'Update',
+              actor: testUser.id,
+              to: testUser.followers[0],
+              object: {
+                id: testUser.liked[0],
+                type: 'OrderedCollection',
+                totalItems: 1,
+                orderedItems: [likeable.id]
+              }
+            })
+            done()
+          })
+        likeable.actor = [mockedUser]
+        like.to = mockedUser
+        spyOn(apex, 'address').and.callFake(async () => ['https://mocked.com/inbox/mocked'])
+        await apex.store.saveActivity(likeable)
         request(app)
           .post('/outbox/test')
           .set('Content-Type', 'application/activity+json')
