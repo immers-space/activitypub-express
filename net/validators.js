@@ -31,9 +31,9 @@ function activityObject (req, res, next) {
 
   const type = req.body.type.toLowerCase()
   if (needsResolveObject.includes(type) && activity.object) {
-    object = apex.resolveObject(activity.object[0])
+    object = apex.resolveObject(activity.object[0], true)
   } else if (needsResolveActivity.includes(type) && activity.object) {
-    object = apex.resolveActivity(activity.object[0])
+    object = apex.resolveActivity(activity.object[0], true)
   } else if (needsLocalActivity.includes(type)) {
     object = apex.store.getActivity(apex.objectIdFromActivity(activity), true)
   } else if (needsLocalObject.includes(type)) {
@@ -222,11 +222,12 @@ async function targetObject (req, res, next) {
 }
 
 const obxNeedsResolveObject = ['follow']
+const obxNeedsResolveActivity = ['accept', 'add', 'like', 'reject']
 const obxNeedsLocalObject = ['delete', 'update']
-const obxNeedsLocalActivity = ['accept', 'like', 'reject']
+const obxNeedsLocalActivity = []
 const obxNeedsInlineObject = ['create']
 const obxRequiresObject = ['create', 'delete']
-const obxRequiresActivityObject = ['accept', 'like', 'reject']
+const obxRequiresActivityObject = ['accept', 'add', 'like', 'reject']
 
 function outboxCreate (req, res, next) {
   if (!res.locals.apex.target) {
@@ -272,7 +273,9 @@ function outboxActivityObject (req, res, next) {
   const type = activity.type.toLowerCase()
   let object
   if (obxNeedsResolveObject.includes(type) && activity.object) {
-    object = apex.resolveObject(activity.object[0])
+    object = apex.resolveObject(activity.object[0], true)
+  } else if (obxNeedsResolveActivity.includes(type) && activity.object) {
+    object = apex.resolveActivity(activity.object[0], true)
   } else if (obxNeedsLocalActivity.includes(type)) {
     object = apex.store.getActivity(apex.objectIdFromActivity(activity), true)
   } else if (obxNeedsLocalObject.includes(type)) {

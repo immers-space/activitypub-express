@@ -93,13 +93,7 @@ async function acceptFollow (actor, targetActivity) {
   this.addMeta(targetActivity, 'collection', actor.followers[0])
   await this.store.updateActivity(targetActivity, true)
   return async () => {
-    const act = await this.buildActivity(
-      'Update',
-      actor.id,
-      actor.followers[0],
-      { object: await this.getFollowers(actor) }
-    )
-    return this.addToOutbox(actor, act)
+    return this.publishUpdate(actor, await this.getFollowers(actor))
   }
 }
 
@@ -113,13 +107,13 @@ async function publishUpdate (actor, object, cc) {
   return this.addToOutbox(actor, act)
 }
 
-async function resolveActivity (id) {
+async function resolveActivity (id, includeMeta) {
   let activity
   if (this.validateActivity(id)) {
     // already activity
     activity = id
   } else {
-    activity = await this.store.getActivity(id)
+    activity = await this.store.getActivity(id, includeMeta)
     if (activity) {
       return activity
     }

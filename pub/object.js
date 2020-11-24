@@ -4,13 +4,13 @@ module.exports = {
 }
 
 // find object in local DB or fetch from origin server
-async function resolveObject (id) {
+async function resolveObject (id, includeMeta) {
   let object
   if (this.validateObject(id)) {
     // already an object
     object = id
   } else {
-    object = await this.store.getObject(id)
+    object = await this.store.getObject(id, true)
     if (object) {
       return object
     }
