@@ -1,6 +1,6 @@
 # activitypub-express
 
-[![Build Status](https://travis-ci.org/wmurphyrd/activitypub-express.svg?branch=master)](https://travis-ci.org/wmurphyrd/activitypub-express)
+[![Build Status](https://travis-ci.com/immers-space/activitypub-express.svg?branch=master)](https://travis-ci.com/immers-space/activitypub-express)
 
 Modular implementation of the ActivityPub decentralized social networking protocol,
 written for NodeJS as ExpressJS middleware.
