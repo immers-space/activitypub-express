@@ -10,13 +10,13 @@ module.exports = {
     apex.store.saveActivity(req.body).then(saveResult => {
       resLocal.isNewActivity = !!saveResult
       if (!saveResult) {
-        const actorId = apex.actorIdFromActivity(req.body)
         const newTarget = req.body._meta.collection[0]
         return apex.store
-          .updateActivityMeta(req.body.id, actorId, 'collection', newTarget)
+          .updateActivityMeta(req.body, 'collection', newTarget)
       }
     }).then(updated => {
       if (updated) {
+        req.body = updated
         resLocal.isNewActivity = 'new collection'
       }
       next()
@@ -28,33 +28,28 @@ module.exports = {
     }
     const toDo = []
     const apex = req.app.locals.apex
-    const activity = req.body
     const resLocal = res.locals.apex
     const recipient = resLocal.target
     const actor = resLocal.actor
-    const object = resLocal.object
     const actorId = actor.id
+    let activity = req.body
+    let object = resLocal.object
     resLocal.status = 200
     if (!res.locals.apex.isNewActivity) {
       // ignore duplicate deliveries
       return next()
     }
-    // configure event hook to be triggered after response sent
-    resLocal.eventName = 'apex-inbox'
-    resLocal.eventMessage = { actor, activity, recipient, object }
     switch (activity.type.toLowerCase()) {
       case 'accept':
         if (object.type.toLowerCase() === 'follow') {
-          // Add orignal follow activity to following collection
-          apex.addMeta(object, 'collection', recipient.following[0])
-          toDo.push(
-            apex.store.updateActivity(object, true).then(() => {
-              // publish update to following count
-              resLocal.postWork.push(async () => {
-                return apex.publishUpdate(recipient, await apex.getFollowing(recipient), actorId)
-              })
+          toDo.push((async () => {
+            // Add orignal follow activity to following collection
+            object = await apex.store
+              .updateActivityMeta(object, 'collection', recipient.following[0])
+            resLocal.postWork.push(async () => {
+              return apex.publishUpdate(recipient, await apex.getFollowing(recipient), actorId)
             })
-          )
+          })())
         }
         break
       case 'announce':
@@ -62,8 +57,8 @@ module.exports = {
           const targetActivity = object
           // add to object shares collection, increment share count
           if (apex.isLocalIRI(targetActivity.id) && targetActivity.shares) {
-            await apex.store
-              .updateActivityMeta(activity.id, actorId, 'collection', targetActivity.shares[0])
+            activity = await apex.store
+              .updateActivityMeta(activity, 'collection', targetActivity.shares[0])
             // publish update to shares count
             resLocal.postWork.push(async () => {
               return apex.publishUpdate(recipient, await apex.getShares(targetActivity), actorId)
@@ -85,8 +80,8 @@ module.exports = {
           const targetActivity = object
           // add to object likes collection, incrementing like count
           if (apex.isLocalIRI(targetActivity.id) && targetActivity.likes) {
-            await apex.store
-              .updateActivityMeta(activity.id, actorId, 'collection', targetActivity.likes[0])
+            activity = await apex.store
+              .updateActivityMeta(activity, 'collection', targetActivity.likes[0])
             // publish update to shares count
             resLocal.postWork.push(async () => {
               return apex.publishUpdate(recipient, await apex.getLikes(targetActivity), actorId)
@@ -95,12 +90,15 @@ module.exports = {
         })())
         break
       case 'reject':
-        apex.addMeta(object, 'rejection', activity.id)
-        // reject is also the undo of a follow accept
-        if (object.type.toLowerCase() === 'follow') {
-          apex.removeMeta(object, 'collection', recipient.following[0])
-        }
-        toDo.push(apex.store.updateActivity(object, true))
+        toDo.push((async () => {
+          object = await apex.store
+            .updateActivityMeta(object, 'rejection', activity.id)
+          // reject is also the undo of a follow accept
+          if (object.type.toLowerCase() === 'follow') {
+            object = await apex.store
+              .updateActivityMeta(object, 'collection', recipient.following[0], true)
+          }
+        })())
         break
       case 'undo':
         if (object) {
@@ -114,6 +112,9 @@ module.exports = {
         break
     }
     Promise.all(toDo).then(() => {
+      // configure event hook to be triggered after response sent
+      resLocal.eventName = 'apex-inbox'
+      resLocal.eventMessage = { actor, activity, recipient, object }
       next()
     }).catch(next)
   },
@@ -124,25 +125,24 @@ module.exports = {
     const toDo = []
     const apex = req.app.locals.apex
     const resLocal = res.locals.apex
-    const activity = req.body
     const actor = resLocal.target
-    const object = resLocal.object
+    let activity = req.body
+    let object = resLocal.object
     resLocal.status = 200
     if (!resLocal.isNewActivity) {
       // ignore duplicate deliveries
       return next()
     }
 
-    // configure event hook to be triggered after response sent
-    resLocal.eventMessage = { actor, activity, object }
-    resLocal.eventName = 'apex-outbox'
-
     switch (activity.type.toLowerCase()) {
       case 'accept':
         if (object.type.toLowerCase() === 'follow') {
           toDo.push(
             apex.acceptFollow(actor, object)
-              .then(postTask => resLocal.postWork.push(postTask))
+              .then(({ postTask, updated }) => {
+                object = updated
+                resLocal.postWork.push(postTask)
+              })
           )
         }
         break
@@ -158,8 +158,8 @@ module.exports = {
       case 'like':
         toDo.push((async () => {
           // add to object liked collection
-          await apex.store
-            .updateActivityMeta(activity.id, actor.id, 'collection', actor.liked[0])
+          activity = await apex.store
+            .updateActivityMeta(activity, 'collection', actor.liked[0])
           // publish update to shares count
           resLocal.postWork.push(async () => {
             return apex.publishUpdate(actor, await apex.getLiked(actor))
@@ -171,6 +171,9 @@ module.exports = {
         break
     }
     Promise.all(toDo).then(() => {
+      // configure event hook to be triggered after response sent
+      resLocal.eventMessage = { actor, activity, object }
+      resLocal.eventName = 'apex-outbox'
       resLocal.postWork.push(() => apex.addToOutbox(actor, activity))
       next()
     }).catch(next)

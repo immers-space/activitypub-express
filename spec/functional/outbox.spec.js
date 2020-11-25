@@ -491,7 +491,7 @@ describe('outbox', function () {
           expect(msg.actor).toEqual(testUser)
           delete msg.activity.id
           expect(msg.activity).toEqual({
-            _meta: { collection: ['https://localhost/outbox/test'] },
+            _meta: { collection: [testUser.outbox[0], testUser.liked[0]] },
             type: 'Like',
             actor: ['https://localhost/u/test'],
             object: [likeable.id],
@@ -510,9 +510,8 @@ describe('outbox', function () {
       it('adds to liked collection', async function (done) {
         await apex.store.saveActivity(likeable)
         app.once('apex-outbox', async function (msg) {
-          const likedActivity = await apex.store.db.collection('streams')
-            .findOne({ id: msg.activity.id })
-          expect(likedActivity._meta.collection).toContain(testUser.liked[0])
+          const liked = await apex.getLiked(testUser)
+          expect(liked.orderedItems).toContain(likeable.id)
           done()
         })
         request(app)

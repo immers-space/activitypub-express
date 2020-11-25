@@ -90,11 +90,12 @@ async function addToOutbox (actor, activity) {
 
 // follow accept side effects: add to followers, publish updated followers
 async function acceptFollow (actor, targetActivity) {
-  this.addMeta(targetActivity, 'collection', actor.followers[0])
-  await this.store.updateActivity(targetActivity, true)
-  return async () => {
+  const updated = await this.store
+    .updateActivityMeta(targetActivity, 'collection', actor.followers[0])
+  const postTask = async () => {
     return this.publishUpdate(actor, await this.getFollowers(actor))
   }
+  return { postTask, updated }
 }
 
 async function publishUpdate (actor, object, cc) {

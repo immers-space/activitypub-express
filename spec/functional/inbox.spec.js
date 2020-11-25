@@ -237,6 +237,7 @@ describe('inbox', function () {
         await apex.store.saveActivity(follow)
         app.once('apex-inbox', msg => {
           expect(msg.object.id).toEqual(follow.id)
+          expect(msg.object._meta.collection).toContain(testUser.following[0])
           done()
         })
         request(app)
