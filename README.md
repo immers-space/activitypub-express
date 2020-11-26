@@ -105,7 +105,7 @@ client.connect({ useNewUrlParser: true })
         * [x] Liked
         * [x] Likes
         * [x] Shares
-      * [x] Misc collections
+      * [x] Misc collections (of activities)
       * [ ] Pagination
     * [ ] Relay requests for remote objects
     * [ ] Response code 410 for Tombstones
@@ -150,7 +150,7 @@ client.connect({ useNewUrlParser: true })
       * [x] Delete
       * [x] Follow
       * [x] Accept
-      * [ ] Add
+      * [x] Add
       * [ ] Remove
       * [x] Like
       * [ ] Block

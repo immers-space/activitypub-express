@@ -55,7 +55,7 @@ function getLikes (object) {
 
 function getAdded (actor, colId) {
   const collectionIRI = this.utils.userCollectionIdToIRI(actor.preferredUsername, colId)
-  return this.getCollection(collectionIRI, this.objectIdFromActivity)
+  return this.getCollection(collectionIRI)
 }
 
 // non-exported utils

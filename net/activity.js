@@ -169,6 +169,11 @@ module.exports = {
       case 'update':
         toDo.push(apex.store.updateObject(object, actor.id, true))
         break
+      case 'add':
+        toDo.push((async () => {
+          object = await apex.store
+            .updateActivityMeta(object, 'collection', activity.target[0])
+        })())
     }
     Promise.all(toDo).then(() => {
       // configure event hook to be triggered after response sent

@@ -28,7 +28,8 @@ const apex = ActivitypubExpress({
     following: '/following/:actor',
     liked: '/liked/:actor',
     shares: '/s/:id/shares',
-    likes: '/s/:id/likes'
+    likes: '/s/:id/likes',
+    collections: '/u/:actor/c/:id'
   }
 })
 const client = new MongoClient('mongodb://localhost:27017', { useUnifiedTopology: true, useNewUrlParser: true })
@@ -566,6 +567,77 @@ describe('outbox', function () {
           .post('/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(like)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
+    })
+    describe('add', function () {
+      let collection
+      let addable
+      let add
+      beforeEach(function () {
+        collection = `${testUser.id}/c/test`
+        addable = merge({}, activityNormalized)
+        addable.id = apex.utils.activityIdToIRI()
+        addable.object[0].id = apex.utils.objectIdToIRI()
+        add = merge({}, activity)
+        add.type = 'Add'
+        add.object = addable
+        add.target = collection
+      })
+      it('fires add event', async function (done) {
+        await apex.store.saveActivity(addable)
+        app.once('apex-outbox', function (msg) {
+          expect(msg.actor).toEqual(testUser)
+          delete msg.activity.id
+          expect(msg.activity).toEqual({
+            _meta: { collection: ['https://localhost/outbox/test'] },
+            type: 'Add',
+            actor: ['https://localhost/u/test'],
+            object: [addable],
+            target: [collection],
+            to: ['https://ignore.com/u/ignored']
+          })
+          addable._meta = { collection: [collection] }
+          expect(msg.object).toEqual(addable)
+          done()
+        })
+        request(app)
+          .post('/outbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(add)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
+      it('rejects missing target', async function (done) {
+        delete add.target
+        await apex.store.saveActivity(addable)
+        request(app)
+          .post('/outbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(add)
+          .expect(400, done)
+      })
+      it('rejects un-owned target', async function (done) {
+        add.target = 'https://localhost/u/bob/bobs-stuff'
+        await apex.store.saveActivity(addable)
+        request(app)
+          .post('/outbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(add)
+          .expect(403, done)
+      })
+      it('adds to collection', async function (done) {
+        await apex.store.saveActivity(addable)
+        app.once('apex-outbox', async function (msg) {
+          const added = await apex.getAdded(testUser, 'test')
+          expect(added.orderedItems[0]).toEqual(addable)
+          done()
+        })
+        request(app)
+          .post('/outbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(add)
           .expect(200)
           .end(err => { if (err) done(err) })
       })

@@ -227,7 +227,8 @@ const obxNeedsLocalObject = ['delete', 'update']
 const obxNeedsLocalActivity = []
 const obxNeedsInlineObject = ['create']
 const obxRequiresObject = ['create', 'delete']
-const obxRequiresActivityObject = ['accept', 'add', 'like', 'reject']
+const obxRequiresActivityObject = ['add', 'accept', 'like', 'reject']
+const obxRequiresTarget = ['add']
 
 function outboxCreate (req, res, next) {
   if (!res.locals.apex.target) {
@@ -311,8 +312,13 @@ async function outboxActivity (req, res, next) {
     return next()
   }
   if (obxRequiresObject.includes(type) && !apex.validateObject(object)) {
-    resLocal.statusMessage = 400
+    resLocal.status = 400
     resLocal.statusMessage = `Object requried for ${activity.type} activity`
+    return next()
+  }
+  if (obxRequiresTarget.includes(type) && !activity.target) {
+    resLocal.status = 400
+    resLocal.statusMessage = `Target required for ${activity.type} activity`
     return next()
   }
   if (type === 'accept') {
@@ -355,6 +361,11 @@ async function outboxActivity (req, res, next) {
     // outbox updates can be partial, do merge
     resLocal.object = apex.mergeJSONLD(object, activity.object[0])
     activity.object = [resLocal.object]
+  } else if (type === 'add') {
+    if (!apex.validateCollectionOwner(activity.target, actor.id)) {
+      resLocal.status = 403
+      return next()
+    }
   }
   apex.addMeta(req.body, 'collection', resLocal.target.outbox[0])
   resLocal.activity = true

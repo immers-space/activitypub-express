@@ -19,6 +19,7 @@ module.exports = {
   objectIdFromActivity,
   validateActivity,
   validateObject,
+  validateCollectionOwner,
   validateOwner,
   validateTarget
 }
@@ -56,10 +57,13 @@ function actorIdFromActivity (activity) {
 }
 
 function collectionIRIToActorName (id, collectionType) {
-  const pattern = this.settings.routes[collectionType]
-    .replace(`:${this.actorParam}`, '([^/]+)')
+  const pActor = `:${this.actorParam}`
+  const pCol = `:${this.collectionParam}`
+  let pattern = this.settings.routes[collectionType]
+  const isActorFirst = pattern.indexOf(pCol) === -1 || pattern.indexOf(pActor) < pattern.indexOf(pCol)
+  pattern = pattern.replace(pActor, '([^/]+)').replace(pCol, '([^/]+)')
   const result = new RegExp(`^https://${this.domain}${pattern}$`).exec(id)
-  return result && result[1]
+  return result && (isActorFirst ? result[1] : result[2])
 }
 
 function objectIdFromActivity (activity) {
@@ -182,6 +186,17 @@ function validateActivity (object) {
   if (validateObject(object) && Array.isArray(object.actor) && object.actor.length) {
     return true
   }
+}
+
+function validateCollectionOwner (collectionId, ownerId) {
+  if (Array.isArray(collectionId)) {
+    collectionId = collectionId[0]
+  }
+  if (Object.prototype.toString.call(collectionId) !== '[object String]') {
+    return false
+  }
+  const user = this.collectionIRIToActorName(collectionId, 'collections')
+  return !!user && this.utils.usernameToIRI(user) === ownerId
 }
 
 function validateOwner (object, ownerId) {

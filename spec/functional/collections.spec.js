@@ -241,15 +241,19 @@ describe('collections', function () {
   describe('misc collections', function () {
     it('gets collection items', async function (done) {
       const col = `${testUser.id}/c/cool-stuff`
-      const add = await apex.buildActivity('Add', testUser.id, testUser.followers, {
+      const act = await apex.buildActivity('Create', testUser.id, testUser.followers, {
         object: {
           id: 'https://localhost/o/cool-doc',
           type: 'Document',
           name: 'Cool document'
         }
       })
-      apex.addMeta(add, 'collection', col)
-      await apex.store.saveActivity(add)
+      // convert to output format for test standard
+      const actOut = await apex.toJSONLD(act)
+      delete actOut._meta
+      delete actOut['@context']
+      apex.addMeta(act, 'collection', col)
+      await apex.store.saveActivity(act)
       request(app)
         .get(col.replace('https://localhost', ''))
         .set('Accept', 'application/activity+json')
@@ -260,7 +264,7 @@ describe('collections', function () {
             id: col,
             type: 'OrderedCollection',
             totalItems: 1,
-            orderedItems: ['https://localhost/o/cool-doc']
+            orderedItems: [actOut]
           }
           expect(res.body).toEqual(standard)
           done(err)
