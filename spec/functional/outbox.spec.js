@@ -642,6 +642,80 @@ describe('outbox', function () {
           .end(err => { if (err) done(err) })
       })
     })
+    describe('remove', function () {
+      let collection
+      let added
+      let remove
+      beforeEach(function () {
+        collection = `${testUser.id}/c/test`
+        added = merge({}, activityNormalized)
+        added._meta = { collection: [collection] }
+        added.id = apex.utils.activityIdToIRI()
+        added.object[0].id = apex.utils.objectIdToIRI()
+        remove = merge({}, activity)
+        remove.type = 'Remove'
+        remove.object = added.id
+        remove.target = collection
+      })
+      it('fires remove event', async function (done) {
+        await apex.store.saveActivity(added)
+        app.once('apex-outbox', function (msg) {
+          expect(msg.actor).toEqual(testUser)
+          delete msg.activity.id
+          expect(msg.activity).toEqual({
+            _meta: { collection: ['https://localhost/outbox/test'] },
+            type: 'Remove',
+            actor: ['https://localhost/u/test'],
+            object: [added.id],
+            target: [collection],
+            to: ['https://ignore.com/u/ignored']
+          })
+          added._meta.collection = []
+          expect(msg.object).toEqual(added)
+          done()
+        })
+        request(app)
+          .post('/outbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(remove)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
+      it('rejects missing target', async function (done) {
+        delete remove.target
+        await apex.store.saveActivity(added)
+        request(app)
+          .post('/outbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(remove)
+          .expect(400, done)
+      })
+      it('rejects un-owned target', async function (done) {
+        remove.target = 'https://localhost/u/bob/bobs-stuff'
+        await apex.store.saveActivity(added)
+        request(app)
+          .post('/outbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(remove)
+          .expect(403, done)
+      })
+      it('removes from collection', async function (done) {
+        await apex.store.saveActivity(added)
+        const addedCol = await apex.getAdded(testUser, 'test')
+        expect(addedCol.totalItems).toEqual([1])
+        app.once('apex-outbox', async function (msg) {
+          const addedCol = await apex.getAdded(testUser, 'test')
+          expect(addedCol.orderedItems).toEqual([])
+          done()
+        })
+        request(app)
+          .post('/outbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(remove)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
+    })
     it('fires other activity event', function (done) {
       const arriveAct = {
         '@context': 'https://www.w3.org/ns/activitystreams',

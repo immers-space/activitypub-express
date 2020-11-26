@@ -222,13 +222,13 @@ async function targetObject (req, res, next) {
 }
 
 const obxNeedsResolveObject = ['follow']
-const obxNeedsResolveActivity = ['accept', 'add', 'like', 'reject']
+const obxNeedsResolveActivity = ['accept', 'add', 'like', 'reject', 'remove']
 const obxNeedsLocalObject = ['delete', 'update']
 const obxNeedsLocalActivity = []
 const obxNeedsInlineObject = ['create']
 const obxRequiresObject = ['create', 'delete']
-const obxRequiresActivityObject = ['add', 'accept', 'like', 'reject']
-const obxRequiresTarget = ['add']
+const obxRequiresActivityObject = ['add', 'accept', 'like', 'reject', 'remove']
+const obxRequiresTarget = ['add', 'remove']
 
 function outboxCreate (req, res, next) {
   if (!res.locals.apex.target) {
@@ -361,7 +361,7 @@ async function outboxActivity (req, res, next) {
     // outbox updates can be partial, do merge
     resLocal.object = apex.mergeJSONLD(object, activity.object[0])
     activity.object = [resLocal.object]
-  } else if (type === 'add') {
+  } else if (type === 'add' || type === 'remove') {
     if (!apex.validateCollectionOwner(activity.target, actor.id)) {
       resLocal.status = 403
       return next()

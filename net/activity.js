@@ -174,6 +174,13 @@ module.exports = {
           object = await apex.store
             .updateActivityMeta(object, 'collection', activity.target[0])
         })())
+        break
+      case 'remove':
+        toDo.push((async () => {
+          object = await apex.store
+            .updateActivityMeta(object, 'collection', activity.target[0], true)
+        })())
+        break
     }
     Promise.all(toDo).then(() => {
       // configure event hook to be triggered after response sent

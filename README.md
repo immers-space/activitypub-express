@@ -151,7 +151,7 @@ client.connect({ useNewUrlParser: true })
       * [x] Follow
       * [x] Accept
       * [x] Add
-      * [ ] Remove
+      * [x] Remove
       * [x] Like
       * [ ] Block
       * [ ] Undo
