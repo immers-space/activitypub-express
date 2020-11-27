@@ -717,6 +717,55 @@ describe('outbox', function () {
           .end(err => { if (err) done(err) })
       })
     })
+    describe('block', function () {
+      let block
+      beforeEach(function () {
+        block = merge({}, activity)
+        block.type = 'Block'
+        block.to = null
+        block.object = { id: 'https://ignore.com/bob', type: 'Actor' }
+      })
+      it('fires block event', async function (done) {
+        app.once('apex-outbox', function (msg) {
+          expect(msg.actor).toEqual(testUser)
+          delete msg.activity.id
+          expect(msg.activity).toEqual({
+            _meta: { collection: [testUser._meta.blocked] },
+            type: 'Block',
+            actor: [testUser.id],
+            object: [block.object]
+          })
+          expect(msg.object).toEqual(block.object)
+          done()
+        })
+        request(app)
+          .post('/outbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(block)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
+      it('adds to blocklist', async function (done) {
+        app.once('apex-outbox', async function (msg) {
+          const blockList = await apex.getBlocked(testUser)
+          expect(blockList).toEqual({
+            id: testUser._meta.blocked,
+            type: 'OrderedCollection',
+            totalItems: [1],
+            orderedItems: [block.object.id]
+          })
+          done()
+        })
+        request(app)
+          .post('/outbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(block)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
+      it('removes blockee from follow collections')
+      it('does not deliver to blockee')
+    })
     it('fires other activity event', function (done) {
       const arriveAct = {
         '@context': 'https://www.w3.org/ns/activitystreams',

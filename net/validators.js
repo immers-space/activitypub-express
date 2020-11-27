@@ -47,19 +47,25 @@ function activityObject (req, res, next) {
   }).catch(next)
 }
 
-// confirm activity actor is sender
+// confirm activity actor is sender and not blocked
 // TODO: alternative authorization via JSON-LD signatures for forwarding
-async function actor (req, res, next) {
-  if (!res.locals.apex.sender) return next()
+function actor (req, res, next) {
+  if (!res.locals.apex.sender || !res.locals.apex.target) return next()
   const apex = req.app.locals.apex
   const resLocal = res.locals.apex
-  let actor
   if (req.body.actor) {
     const actorId = apex.actorIdFromActivity(req.body)
-    actor = await apex.resolveObject(actorId)
-  }
-  if (actor.id === resLocal.sender.id) {
-    resLocal.actor = actor
+    if (resLocal.blockList.includes(actorId)) {
+      // skip processing, but don't inform blockee
+      resLocal.status = 200
+      return next()
+    }
+    return apex.resolveObject(actorId).then(actor => {
+      if (actor.id === resLocal.sender.id) {
+        resLocal.actor = actor
+      }
+      next()
+    }).catch(next)
   }
   next()
 }
@@ -191,19 +197,25 @@ async function targetActor (req, res, next) {
 
 // help prevent accidental disclosure of actor private keys by only
 // including them when explicitly requested
-async function targetActorWithMeta (req, res, next) {
+function targetActorWithMeta (req, res, next) {
   const apex = req.app.locals.apex
+  const resLocal = res.locals.apex
   const actor = req.params[apex.actorParam]
   const actorIRI = apex.utils.usernameToIRI(actor)
-  let actorObj
-  try {
-    actorObj = await apex.store.getObject(actorIRI, true)
-  } catch (err) { return next(err) }
-  if (!actorObj) {
-    return res.status(404).send(`'${actor}' not found on this instance`)
-  }
-  res.locals.apex.target = actorObj
-  next()
+  apex.store.getObject(actorIRI, true).then(actorObj => {
+    if (!actorObj) {
+      resLocal.status = 404
+      resLocal.statusMessage = `'${actor}' not found on this instance`
+      return next()
+    }
+    resLocal.target = actorObj
+    return apex.getBlocked(actorObj)
+  }).then(blocked => {
+    if (blocked) {
+      resLocal.blockList = blocked.orderedItems
+    }
+    next()
+  }).catch(next)
 }
 
 async function targetObject (req, res, next) {

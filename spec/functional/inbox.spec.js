@@ -6,7 +6,6 @@ const nock = require('nock')
 const { MongoClient } = require('mongodb')
 
 const ActivitypubExpress = require('../../index')
-const { target } = require('../../net/responders')
 
 const app = express()
 const apex = ActivitypubExpress({
@@ -180,6 +179,26 @@ describe('inbox', function () {
           done()
         })
         .catch(done)
+    })
+    it('ignores blocked actors', async function (done) {
+      const block = merge({}, activityNormalized)
+      block.type = 'Block'
+      block.object = ['https://ignore.com/u/chud']
+      block._meta = { collection: [testUser._meta.blocked] }
+      await apex.store.saveActivity(block)
+      const act = merge({}, activity)
+      act.actor = ['https://ignore.com/u/chud']
+      request(app)
+        .post('/inbox/test')
+        .set('Content-Type', 'application/activity+json')
+        .send(act)
+        .expect(200)
+        .end(async (err) => {
+          if (err) return done(err)
+          const inbox = await apex.getInbox(testUser)
+          expect(inbox.orderedItems.length).toBe(0)
+          done()
+        })
     })
     // activity sideEffects
     it('fires create event', function (done) {
@@ -995,5 +1014,6 @@ describe('inbox', function () {
             })
         })
     })
+    it('filters blocked actors')
   })
 })
