@@ -9,7 +9,8 @@ module.exports = {
   getLiked,
   getShares,
   getLikes,
-  getAdded
+  getAdded,
+  getBlocked
 }
 
 async function getCollection (collectionId, remapper) {
@@ -56,6 +57,10 @@ function getLikes (object) {
 function getAdded (actor, colId) {
   const collectionIRI = this.utils.userCollectionIdToIRI(actor.preferredUsername, colId)
   return this.getCollection(collectionIRI)
+}
+
+function getBlocked (actor) {
+  return this.getCollection(actor._meta.blocked, this.objectIdFromActivity)
 }
 
 // non-exported utils

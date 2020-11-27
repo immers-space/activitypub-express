@@ -140,7 +140,7 @@ function mergeJSONLD (target, source) {
 
 function nameToActorStreamsFactory (domain, routes, actorParam) {
   const colonParam = `:${actorParam}`
-  const streamNames = ['inbox', 'outbox', 'following', 'followers', 'liked']
+  const streamNames = ['inbox', 'outbox', 'following', 'followers', 'liked', 'blocked']
   const streamTemplates = {}
   streamNames.forEach(s => {
     streamTemplates[s] = `https://${domain}${routes[s]}`

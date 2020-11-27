@@ -26,7 +26,8 @@ const apex = ActivitypubExpress({
     liked: '/liked/:actor',
     shares: '/s/:id/shares',
     likes: '/s/:id/likes',
-    collections: '/u/:actor/c/:id'
+    collections: '/u/:actor/c/:id',
+    blocked: '/u/:actor/blocked'
   }
 })
 const client = new MongoClient('mongodb://localhost:27017', { useUnifiedTopology: true, useNewUrlParser: true })
@@ -269,6 +270,28 @@ describe('collections', function () {
           expect(res.body).toEqual(standard)
           done(err)
         })
+    })
+  })
+  describe('blocklist', function () {
+    it('gets blocked actor ids', async function () {
+      const baddies = ['https://ignore.com/u/chud', 'https://ignore.com/u/reply-guy', 'https://ignore.com/u/terf']
+      let blocks = baddies.map(objId => {
+        return apex
+          .buildActivity('Block', testUser.id, null, { object: objId })
+      })
+      blocks = await Promise.all(blocks)
+      blocks.forEach(f => apex.addMeta(f, 'collection', testUser._meta.blocked))
+      for (const block of blocks) {
+        await apex.store.saveActivity(block)
+      }
+      const blockList = await apex.getBlocked(testUser)
+      const standard = {
+        id: 'https://localhost/u/test/blocked',
+        type: 'OrderedCollection',
+        totalItems: [3],
+        orderedItems: baddies.reverse()
+      }
+      expect(blockList).toEqual(standard)
     })
   })
 })

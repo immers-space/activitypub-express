@@ -35,6 +35,7 @@ const routes = {
   followers: '/followers/:actor',
   following: '/following/:actor',
   liked: '/liked/:actor',
+  blocked: '/blocked/:actor',
   shares: '/shares/:id',
   likes: '/likes/:id',
 }
@@ -213,6 +214,7 @@ routes.outbox | Actor outbox route
 routes.following | Actor following collection route
 routes.followers | Actor followers collection route
 routes.liked | Actor liked collection route
+routes.blocked | Actor's blocklist (required, but you dont have to expose this endpoint)
 routes.shares | Activity shares collection route
 routes.likes | Activity likes collection route
 routes.collections | Actors' miscellaneous collections route (must include `actorParam` and `collectionParam`)

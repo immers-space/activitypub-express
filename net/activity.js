@@ -9,7 +9,7 @@ module.exports = {
     const resLocal = res.locals.apex
     apex.store.saveActivity(req.body).then(saveResult => {
       resLocal.isNewActivity = !!saveResult
-      if (!saveResult) {
+      if (!saveResult && !resLocal.skipOutbox) {
         const newTarget = req.body._meta.collection[0]
         return apex.store
           .updateActivityMeta(req.body, 'collection', newTarget)
@@ -146,6 +146,11 @@ module.exports = {
           )
         }
         break
+      case 'block':
+        toDo.push((async () => {
+          activity = await apex.store.updateActivityMeta(activity, 'collection', actor._meta.blocked)
+        })())
+        break
       case 'create':
         toDo.push(apex.store.saveObject(object))
         break
@@ -186,7 +191,9 @@ module.exports = {
       // configure event hook to be triggered after response sent
       resLocal.eventMessage = { actor, activity, object }
       resLocal.eventName = 'apex-outbox'
-      resLocal.postWork.push(() => apex.addToOutbox(actor, activity))
+      if (!resLocal.skipOutbox) {
+        resLocal.postWork.push(() => apex.addToOutbox(actor, activity))
+      }
       next()
     }).catch(next)
   }

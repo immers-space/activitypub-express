@@ -221,12 +221,12 @@ async function targetObject (req, res, next) {
   next()
 }
 
-const obxNeedsResolveObject = ['follow']
+const obxNeedsResolveObject = ['block', 'follow']
 const obxNeedsResolveActivity = ['accept', 'add', 'like', 'reject', 'remove']
 const obxNeedsLocalObject = ['delete', 'update']
 const obxNeedsLocalActivity = []
 const obxNeedsInlineObject = ['create']
-const obxRequiresObject = ['create', 'delete']
+const obxRequiresObject = ['create', 'delete', 'follow']
 const obxRequiresActivityObject = ['add', 'accept', 'like', 'reject', 'remove']
 const obxRequiresTarget = ['add', 'remove']
 
@@ -287,6 +287,9 @@ function outboxActivityObject (req, res, next) {
   }
   Promise.resolve(object).then(obj => {
     resLocal.object = obj
+    next()
+  }).catch(err => {
+    console.error('Error resolving outbox activity object', err.message)
     next()
   })
 }
@@ -366,8 +369,21 @@ async function outboxActivity (req, res, next) {
       resLocal.status = 403
       return next()
     }
+  } else if (type === 'block') {
+    // block id even if could not resolve
+    if (!object) {
+      resLocal.object = apex.objectIdFromActivity(activity)
+    }
+    if (!resLocal.object) {
+      resLocal.status = 400
+      resLocal.statusMessage = 'Block requires object'
+      return next()
+    }
+    resLocal.skipOutbox = true
   }
-  apex.addMeta(req.body, 'collection', resLocal.target.outbox[0])
+  if (!resLocal.skipOutbox) {
+    apex.addMeta(req.body, 'collection', resLocal.target.outbox[0])
+  }
   resLocal.activity = true
   next()
 }
