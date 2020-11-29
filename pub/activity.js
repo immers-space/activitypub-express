@@ -8,8 +8,7 @@ module.exports = {
   buildActivity,
   buildTombstone,
   publishUpdate,
-  resolveActivity,
-  undoActivity
+  resolveActivity
 }
 
 function buildActivity (type, actorId, to, etc = {}) {
@@ -132,16 +131,4 @@ async function resolveActivity (id, includeMeta) {
   // cache
   await this.store.saveActivity(activity)
   return activity
-}
-
-function undoActivity (activity, undoActor) {
-  if (!this.validateActivity(activity)) {
-    if (!activity || Object.prototype.toString.call(activity) !== '[object String]') {
-      throw new Error('Invalid undo target')
-    }
-    activity = { id: activity }
-  }
-  // matches the target activity with the actor from the undo
-  // so actors can only undo their own activities
-  return this.store.removeActivity(activity, undoActor)
 }

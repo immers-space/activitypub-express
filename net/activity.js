@@ -102,8 +102,9 @@ module.exports = {
         break
       case 'undo':
         if (object) {
-          // deleting the activity also removes it from all collections
-          toDo.push(apex.undoActivity(object, actorId))
+          // deleting the activity also removes it from all collections,
+          // undoing follows, blocks, shares, and likes
+          toDo.push(apex.store.removeActivity(object, actorId))
           // TODO: publish appropriate collection updates (after #8)
         }
         break
@@ -186,6 +187,14 @@ module.exports = {
           object = await apex.store
             .updateActivityMeta(object, 'collection', activity.target[0], true)
         })())
+        break
+      case 'undo':
+        if (object) {
+          // deleting the activity also removes it from all collections,
+          // undoing follows, blocks, shares, and likes
+          toDo.push(apex.store.removeActivity(object, actor.id))
+          // TODO: publish appropriate collection updates (after #8)
+        }
         break
     }
     Promise.all(toDo).then(() => {

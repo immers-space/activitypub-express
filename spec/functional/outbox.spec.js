@@ -265,6 +265,54 @@ describe('outbox', function () {
         .expect(200)
         .end(err => { if (err) done(err) })
     })
+    describe('undo', function () {
+      let undo
+      let undone
+      beforeEach(function () {
+        undone = merge({}, activityNormalized)
+        undone.id = apex.utils.activityIdToIRI()
+        undo = {
+          '@context': 'https://www.w3.org/ns/activitystreams',
+          type: 'Undo',
+          to: ['https://localhost/u/test'],
+          actor: 'https://localhost/u/test',
+          object: undone.id
+        }
+      })
+      it('fires undo event', async function (done) {
+        await apex.store.saveActivity(undone)
+        app.once('apex-outbox', () => {
+          done()
+        })
+        request(app)
+          .post('/outbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(undo)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
+      it('rejects undo with owner mismatch', async function (done) {
+        undone.actor = ['https://ignore.com/bob']
+        await apex.store.saveActivity(undone)
+        request(app)
+          .post('/outbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(undo)
+          .expect(403, done)
+      })
+      it('removes undone activity', async function (done) {
+        await apex.store.saveActivity(undone)
+        await request(app)
+          .post('/outbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(undo)
+          .expect(200)
+        const result = await apex.store.getActivity(undone.id)
+        expect(result).toBeFalsy()
+        done()
+      })
+      it('publishes related collection updates')
+    })
     describe('update', function () {
       let sourceObj
       let updatedObj

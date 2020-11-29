@@ -21,6 +21,7 @@ const needsLocalObject = ['delete']
 const needsInlineObject = ['update']
 const requiresObject = ['update']
 const requiresActivityObject = ['accept', 'announce', 'like', 'reject']
+const requiresObjectOwnership = ['delete', 'undo', 'update']
 
 function activityObject (req, res, next) {
   const apex = req.app.locals.apex
@@ -95,26 +96,20 @@ function inboxActivity (req, res, next) {
     resLocal.statusMessage = `Object requried for ${activity.type} activity`
     return next()
   }
+  if (requiresObjectOwnership.includes(type) && !apex.validateOwner(object, actor.id)) {
+    resLocal.status = 403
+    return next()
+  }
   if (type === 'update') {
     if (apex.validateActivity(object)) {
       resLocal.status = 400
       resLocal.statusMessage = 'Updates to activities not supported'
       return next()
     }
-    if (!apex.validateOwner(object, actor.id)) {
-      resLocal.status = 403
-      resLocal.statusMessage = 'Objects can only be updated by attributedTo actor'
-      return next()
-    }
   } else if (type === 'delete' && object) {
     if (apex.validateActivity(object)) {
       resLocal.status = 400
       resLocal.statusMessage = 'Activities cannot be deleted, use Undo'
-      return next()
-    }
-    if (!apex.validateOwner(object, actor.id)) {
-      resLocal.status = 403
-      resLocal.statusMessage = 'Objects can only be deleted by attributedTo actor'
       return next()
     }
   } else if (type === 'accept') {
@@ -126,11 +121,6 @@ function inboxActivity (req, res, next) {
     // for follows, also confirm the follow object was the actor trying to accept it
     const isFollow = object.type.toLowerCase() === 'follow'
     if (isFollow && !apex.validateTarget(object, actor.id)) {
-      resLocal.status = 403
-      return next()
-    }
-  } else if (type === 'undo' && object) {
-    if (!apex.validateOwner(object, actor.id)) {
       resLocal.status = 403
       return next()
     }
@@ -238,10 +228,10 @@ async function targetObject (req, res, next) {
 const obxNeedsResolveObject = ['block', 'follow']
 const obxNeedsResolveActivity = ['accept', 'add', 'like', 'reject', 'remove']
 const obxNeedsLocalObject = ['delete', 'update']
-const obxNeedsLocalActivity = []
+const obxNeedsLocalActivity = ['undo']
 const obxNeedsInlineObject = ['create']
 const obxRequiresObject = ['create', 'delete', 'follow']
-const obxRequiresActivityObject = ['add', 'accept', 'like', 'reject', 'remove']
+const obxRequiresActivityObject = ['add', 'accept', 'like', 'reject', 'remove', 'undo']
 const obxRequiresTarget = ['add', 'remove']
 
 function outboxCreate (req, res, next) {
@@ -338,6 +328,10 @@ async function outboxActivity (req, res, next) {
     resLocal.statusMessage = `Target required for ${activity.type} activity`
     return next()
   }
+  if (requiresObjectOwnership.includes(type) && !apex.validateOwner(object, actor.id)) {
+    resLocal.status = 403
+    return next()
+  }
   if (type === 'accept') {
     // the activity being accepted was sent to the actor trying to accept it
     if (!object.to.includes(actor.id)) {
@@ -366,15 +360,7 @@ async function outboxActivity (req, res, next) {
       resLocal.statusMessage = 'Activities cannot be deleted, use Undo'
       return next()
     }
-    if (!apex.validateOwner(object, actor.id)) {
-      resLocal.status = 403
-      return next()
-    }
   } else if (type === 'update') {
-    if (!apex.validateOwner(object, actor.id)) {
-      resLocal.status = 403
-      return next()
-    }
     // outbox updates can be partial, do merge
     resLocal.object = apex.mergeJSONLD(object, activity.object[0])
     activity.object = [resLocal.object]

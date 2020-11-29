@@ -151,11 +151,12 @@ client.connect({ useNewUrlParser: true })
       * [x] Delete
       * [x] Follow
       * [x] Accept
+      * [ ] Reject
       * [x] Add
       * [x] Remove
       * [x] Like
       * [x] Block[*](#implementation-notes)
-      * [ ] Undo
+      * [x] Undo
       * [x] Other acivity types
 * [ ] Other
   * [x] Actor creation
