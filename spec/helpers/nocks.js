@@ -14,7 +14,10 @@ beforeAll(() => {
     .persist(true)
   // block federation attempts
   nock('https://ignore.com')
-    .get(() => true)
+    .get(uri => uri.startsWith('/s/'))
+    .reply(200, uri => ({ id: `https://ignore.com${uri}`, type: 'Activity', actor: 'https://ignore.com/u/bob' }))
+    .persist()
+    .get(uri => !uri.startsWith('/s/'))
     .reply(200, uri => ({ id: `https://ignore.com${uri}`, type: 'Object' }))
     .persist()
     .post(() => true)

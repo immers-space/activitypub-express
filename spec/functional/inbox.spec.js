@@ -458,13 +458,14 @@ describe('inbox', function () {
         .end(err => { if (err) done(err) })
     })
     it('fires Add event', function (done) {
+      const actId = 'https://ignore.com/s/abc123'
       const addAct = {
         '@context': 'https://www.w3.org/ns/activitystreams',
         type: 'Add',
         id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
         to: ['https://localhost/u/test'],
         actor: 'https://localhost/u/test',
-        object: activityNormalized.id,
+        object: actId,
         target: 'https://localhost/u/test/c/testCollection'
       }
       app.once('apex-inbox', msg => {
@@ -476,7 +477,7 @@ describe('inbox', function () {
           id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
           to: ['https://localhost/u/test'],
           actor: ['https://localhost/u/test'],
-          object: [activityNormalized.id],
+          object: [actId],
           target: ['https://localhost/u/test/c/testCollection']
         })
         done()
@@ -489,13 +490,14 @@ describe('inbox', function () {
         .end(err => { if (err) done(err) })
     })
     it('fires Remove event', function (done) {
+      const actId = 'https://ignore.com/s/abc123'
       const remAct = {
         '@context': 'https://www.w3.org/ns/activitystreams',
         type: 'Remove',
         id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
         to: ['https://localhost/u/test'],
         actor: 'https://localhost/u/test',
-        object: activityNormalized.id,
+        object: actId,
         target: 'https://localhost/u/test/c/testCollection'
       }
       app.once('apex-inbox', msg => {
@@ -507,7 +509,7 @@ describe('inbox', function () {
           id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
           to: ['https://localhost/u/test'],
           actor: ['https://localhost/u/test'],
-          object: [activityNormalized.id],
+          object: [actId],
           target: ['https://localhost/u/test/c/testCollection']
         })
         done()

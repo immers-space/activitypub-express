@@ -14,14 +14,17 @@ module.exports = {
   targetObject
 }
 
-const needsResolveObject = ['create']
-const needsResolveActivity = ['announce', 'like']
-const needsLocalActivity = ['accept', 'reject', 'undo']
+const needsResolveObject = ['block', 'create', 'follow']
+const needsResolveActivity = ['accept', 'add', 'announce', 'like', 'reject', 'remove']
+const needsLocalActivity = ['undo']
 const needsLocalObject = ['delete']
+const obxNeedsLocalObject = ['delete', 'update']
 const needsInlineObject = ['update']
-const requiresObject = ['update']
-const requiresActivityObject = ['accept', 'announce', 'like', 'reject']
+const obxNeedsInlineObject = ['create']
+const requiresObject = ['create', 'delete', 'follow', 'update']
+const requiresActivityObject = ['add', 'accept', 'announce', 'like', 'reject', 'remove', 'undo']
 const requiresObjectOwnership = ['delete', 'undo', 'update']
+const requiresTarget = ['add', 'remove']
 
 function activityObject (req, res, next) {
   const apex = req.app.locals.apex
@@ -225,15 +228,6 @@ async function targetObject (req, res, next) {
   next()
 }
 
-const obxNeedsResolveObject = ['block', 'follow']
-const obxNeedsResolveActivity = ['accept', 'add', 'like', 'reject', 'remove']
-const obxNeedsLocalObject = ['delete', 'update']
-const obxNeedsLocalActivity = ['undo']
-const obxNeedsInlineObject = ['create']
-const obxRequiresObject = ['create', 'delete', 'follow']
-const obxRequiresActivityObject = ['add', 'accept', 'like', 'reject', 'remove', 'undo']
-const obxRequiresTarget = ['add', 'remove']
-
 function outboxCreate (req, res, next) {
   if (!res.locals.apex.target) {
     return next()
@@ -277,11 +271,11 @@ function outboxActivityObject (req, res, next) {
   }
   const type = activity.type.toLowerCase()
   let object
-  if (obxNeedsResolveObject.includes(type) && activity.object) {
+  if (needsResolveObject.includes(type) && activity.object) {
     object = apex.resolveObject(activity.object[0], true)
-  } else if (obxNeedsResolveActivity.includes(type) && activity.object) {
+  } else if (needsResolveActivity.includes(type) && activity.object) {
     object = apex.resolveActivity(activity.object[0], true)
-  } else if (obxNeedsLocalActivity.includes(type)) {
+  } else if (needsLocalActivity.includes(type)) {
     object = apex.store.getActivity(apex.objectIdFromActivity(activity), true)
   } else if (obxNeedsLocalObject.includes(type)) {
     object = apex.store.getObject(apex.objectIdFromActivity(activity), true)
@@ -313,17 +307,17 @@ async function outboxActivity (req, res, next) {
   }
   const type = activity.type.toLowerCase()
   activity.id = apex.utils.activityIdToIRI()
-  if (obxRequiresActivityObject.includes(type) && !apex.validateActivity(object)) {
+  if (requiresActivityObject.includes(type) && !apex.validateActivity(object)) {
     resLocal.status = 400
     resLocal.statusMessage = `Activity type object requried for ${activity.type} activity`
     return next()
   }
-  if (obxRequiresObject.includes(type) && !apex.validateObject(object)) {
+  if (requiresObject.includes(type) && !apex.validateObject(object)) {
     resLocal.status = 400
     resLocal.statusMessage = `Object requried for ${activity.type} activity`
     return next()
   }
-  if (obxRequiresTarget.includes(type) && !activity.target) {
+  if (requiresTarget.includes(type) && !activity.target) {
     resLocal.status = 400
     resLocal.statusMessage = `Target required for ${activity.type} activity`
     return next()
