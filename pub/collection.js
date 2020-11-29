@@ -1,5 +1,7 @@
 'use strict'
 
+const overlaps = require('overlaps')
+
 module.exports = {
   getCollection,
   getInbox,
@@ -13,8 +15,11 @@ module.exports = {
   getBlocked
 }
 
-async function getCollection (collectionId, remapper) {
+async function getCollection (collectionId, remapper, blockList) {
   let stream = await this.store.getStream(collectionId)
+  if (blockList) {
+    stream = stream.filter(act => !overlaps(blockList, act.actor))
+  }
   if (remapper) {
     stream = stream.map(remapper)
   }
@@ -27,7 +32,7 @@ async function getCollection (collectionId, remapper) {
 }
 
 function getInbox (actor) {
-  return this.getCollection(actor.inbox[0])
+  return this.getCollection(actor.inbox[0], null, actor._local.blockList)
 }
 
 function getOutbox (actor) {
@@ -35,7 +40,7 @@ function getOutbox (actor) {
 }
 
 function getFollowers (actor) {
-  return this.getCollection(actor.followers[0], this.actorIdFromActivity)
+  return this.getCollection(actor.followers[0], this.actorIdFromActivity, actor._local.blockList)
 }
 
 function getFollowing (actor) {
@@ -60,7 +65,8 @@ function getAdded (actor, colId) {
 }
 
 function getBlocked (actor) {
-  return this.getCollection(actor._meta.blocked, this.objectIdFromActivity)
+  const blockedIRI = this.utils.nameToBlockedIRI(actor.preferredUsername)
+  return this.getCollection(blockedIRI, this.objectIdFromActivity)
 }
 
 // non-exported utils

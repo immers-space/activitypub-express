@@ -55,7 +55,7 @@ function actor (req, res, next) {
   const resLocal = res.locals.apex
   if (req.body.actor) {
     const actorId = apex.actorIdFromActivity(req.body)
-    if (resLocal.blockList.includes(actorId)) {
+    if (resLocal.target._local.blockList.includes(actorId)) {
       // skip processing, but don't inform blockee
       resLocal.status = 200
       return next()
@@ -208,11 +208,13 @@ function targetActorWithMeta (req, res, next) {
       resLocal.statusMessage = `'${actor}' not found on this instance`
       return next()
     }
+    // for temp in-memory storage
+    actorObj._local = {}
     resLocal.target = actorObj
     return apex.getBlocked(actorObj)
   }).then(blocked => {
     if (blocked) {
-      resLocal.blockList = blocked.orderedItems
+      resLocal.target._local.blockList = blocked.orderedItems
     }
     next()
   }).catch(next)

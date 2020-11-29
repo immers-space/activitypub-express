@@ -43,6 +43,6 @@ async function createActor (username, displayName, summary, icon, type = 'Person
     actor.icon = icon
   }
   actor = await this.fromJSONLD(actor)
-  actor._meta = { privateKey: pair.privateKey, blocked: routes.blocked }
+  actor._meta = { privateKey: pair.privateKey }
   return actor
 }

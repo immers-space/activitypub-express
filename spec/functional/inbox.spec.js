@@ -108,9 +108,13 @@ describe('inbox', function () {
     client.db('apexTestingTempDb').dropDatabase()
       .then(() => {
         apex.store.db = client.db('apexTestingTempDb')
+        delete testUser._local
         return apex.store.setup(testUser)
       })
-      .then(done)
+      .then(() => {
+        testUser._local = { blockList: [] }
+        done()
+      })
   })
   describe('post', function () {
     // validators jsonld
@@ -184,7 +188,7 @@ describe('inbox', function () {
       const block = merge({}, activityNormalized)
       block.type = 'Block'
       block.object = ['https://ignore.com/u/chud']
-      block._meta = { collection: [testUser._meta.blocked] }
+      block._meta = { collection: [apex.utils.nameToBlockedIRI(testUser.preferredUsername)] }
       await apex.store.saveActivity(block)
       const act = merge({}, activity)
       act.actor = ['https://ignore.com/u/chud']
@@ -976,7 +980,7 @@ describe('inbox', function () {
       const inbox = []
       const meta = { collection: ['https://localhost/inbox/test'] }
       ;[1, 2, 3].forEach(i => {
-        inbox.push(Object.assign({}, activity, { id: `${activity.id}${i}`, _meta: meta }))
+        inbox.push(merge.all([{}, activityNormalized, { id: `${activity.id}${i}`, _meta: meta }]))
       })
       apex.store.db
         .collection('streams')
@@ -1014,6 +1018,50 @@ describe('inbox', function () {
             })
         })
     })
-    it('filters blocked actors')
+    it('filters blocked actors', function (done) {
+      const inbox = []
+      const meta = { collection: ['https://localhost/inbox/test'] }
+      ;[1, 2, 3].forEach(i => {
+        inbox.push(merge.all([{}, activityNormalized, { id: `${activity.id}${i}`, _meta: meta }]))
+      })
+      inbox[1].actor = ['https://localhost/u/blocked']
+      spyOn(apex, 'getBlocked')
+        .and.returnValue({ orderedItems: ['https://localhost/u/blocked'] })
+      apex.store.db
+        .collection('streams')
+        .insertMany(inbox)
+        .then(inserted => {
+          const inboxCollection = {
+            '@context': ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1'],
+            id: 'https://localhost/inbox/test',
+            type: 'OrderedCollection',
+            totalItems: 2,
+            orderedItems: [3, 1].map(i => ({
+              type: 'Create',
+              id: `https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3${i}`,
+              to: 'https://localhost/u/test',
+              actor: 'https://localhost/u/test',
+              object: {
+                type: 'Note',
+                id: 'https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19',
+                attributedTo: 'https://localhost/u/test',
+                to: 'https://localhost/u/test',
+                content: 'Say, did you finish reading that book I lent you?'
+              },
+              shares: 'https://localhost/shares/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
+              likes: 'https://localhost/likes/a29a6843-9feb-4c74-a7f7-081b9c9201d3'
+            }))
+          }
+          expect(inserted.insertedCount).toBe(3)
+          request(app)
+            .get('/inbox/test')
+            .set('Accept', 'application/activity+json')
+            .expect(200)
+            .end((err, res) => {
+              expect(res.body).toEqual(inboxCollection)
+              done(err)
+            })
+        })
+    })
   })
 })

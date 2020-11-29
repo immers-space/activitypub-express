@@ -8,13 +8,13 @@ function onFinishedHandler (err, res) {
   if (err) return
   const apexLocal = res.locals.apex
   Promise.all(apexLocal.postWork.map(task => task.call(res)))
-    .catch(err => {
-      console.error('post-response error:', err.message)
-    })
     .then(() => {
       if (apexLocal.eventName) {
         res.app.emit(apexLocal.eventName, apexLocal.eventMessage)
       }
+    })
+    .catch(err => {
+      console.error('post-response error:', err.message)
     })
 }
 
@@ -52,6 +52,7 @@ module.exports = function (settings) {
     activityIdToIRI: apex.idToIRIFactory(apex.domain, settings.routes.activity, apex.activityParam),
     userCollectionIdToIRI: apex.userAndIdToIRIFactory(apex.domain, settings.routes.collections, apex.actorParam, apex.collectionParam),
     nameToActorStreams: apex.nameToActorStreamsFactory(apex.domain, settings.routes, apex.actorParam),
+    nameToBlockedIRI: apex.idToIRIFactory(apex.domain, settings.routes.blocked, apex.actorParam),
     idToActivityCollections: apex.idToActivityCollectionsFactory(apex.domain, settings.routes, apex.activityParam)
   }
 

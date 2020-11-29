@@ -130,7 +130,7 @@ client.connect({ useNewUrlParser: true })
       * [x] Other acivity types
     * [x] Security
       * [x] Signature validation
-      * [ ] Honor recipient blocklist
+      * [x] Honor recipient blocklist
     * [ ] Recursive resolution of related objects
     * [ ] Forwarding from inbox
   * [ ] Shared inbox POST
@@ -154,7 +154,7 @@ client.connect({ useNewUrlParser: true })
       * [x] Add
       * [x] Remove
       * [x] Like
-      * [ ] Block
+      * [x] Block[*](#implementation-notes)
       * [ ] Undo
       * [x] Other acivity types
 * [ ] Other
@@ -184,6 +184,10 @@ specific uses can be added in the implementation via the event handler.
 
 * Inbox Reject: rejected activities are tagged with the `rejection` meta property,
 containing an array of Reject activity ids.
+
+* Block: Per spec, future activities from blocked actors will be silently ignored.
+Additionally, past activitities will be filtered from display in the inbox and followers
+collections, but they are not permanetly deleted, so they would re-appear after undo of block.
 
 ## API
 

@@ -148,7 +148,8 @@ module.exports = {
         break
       case 'block':
         toDo.push((async () => {
-          activity = await apex.store.updateActivityMeta(activity, 'collection', actor._meta.blocked)
+          const blockedIRI = apex.utils.nameToBlockedIRI(actor.preferredUsername)
+          activity = await apex.store.updateActivityMeta(activity, 'collection', blockedIRI)
         })())
         break
       case 'create':

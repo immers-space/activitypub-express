@@ -27,7 +27,7 @@ module.exports = {
   followers: {
     get: [
       validators.jsonld,
-      validators.targetActor,
+      validators.targetActorWithMeta,
       collection.followers,
       responders.result
     ]
@@ -54,7 +54,7 @@ module.exports = {
     ],
     get: [
       validators.jsonld,
-      validators.targetActor,
+      validators.targetActorWithMeta,
       collection.inbox,
       responders.result
     ]

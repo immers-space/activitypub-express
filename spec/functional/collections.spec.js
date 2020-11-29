@@ -280,7 +280,7 @@ describe('collections', function () {
           .buildActivity('Block', testUser.id, null, { object: objId })
       })
       blocks = await Promise.all(blocks)
-      blocks.forEach(f => apex.addMeta(f, 'collection', testUser._meta.blocked))
+      blocks.forEach(f => apex.addMeta(f, 'collection', apex.utils.nameToBlockedIRI(testUser.preferredUsername)))
       for (const block of blocks) {
         await apex.store.saveActivity(block)
       }

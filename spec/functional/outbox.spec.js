@@ -98,9 +98,13 @@ describe('outbox', function () {
     client.db('apexTestingTempDb').dropDatabase()
       .then(() => {
         apex.store.db = client.db('apexTestingTempDb')
+        delete testUser._local
         return apex.store.setup(testUser)
       })
-      .then(done)
+      .then(() => {
+        testUser._local = { blockList: [] }
+        done()
+      })
   })
   describe('post', function () {
     // validators jsonld
@@ -211,6 +215,29 @@ describe('outbox', function () {
           expect(httpSignature.verifySignature(sigHead, testUser.publicKey[0].publicKeyPem[0])).toBeTruthy()
           done()
         })
+      request(app)
+        .post('/outbox/test')
+        .set('Content-Type', 'application/activity+json')
+        .send(act)
+        .expect(200)
+        .end(function (err) {
+          if (err) throw err
+        })
+    })
+    it('does not deliver to blocked actors', async function (done) {
+      const deliverSpy = spyOn(apex, 'deliver')
+      const act = merge({}, activity)
+      act.to = act.object.to = 'https://localhost/u/blocked'
+      const block = merge({}, activityNormalized)
+      block.type = 'Block'
+      block.object = ['https://localhost/u/blocked']
+      block._meta = { collection: [apex.utils.nameToBlockedIRI(testUser.preferredUsername)] }
+      await apex.store.saveActivity(block)
+      app.once('apex-outbox', msg => {
+        expect(deliverSpy).toHaveBeenCalledTimes(1)
+        expect(deliverSpy.calls.first().args[2]).not.toContain('https://localhost/u/blocked')
+        done()
+      })
       request(app)
         .post('/outbox/test')
         .set('Content-Type', 'application/activity+json')
@@ -730,7 +757,7 @@ describe('outbox', function () {
           expect(msg.actor).toEqual(testUser)
           delete msg.activity.id
           expect(msg.activity).toEqual({
-            _meta: { collection: [testUser._meta.blocked] },
+            _meta: { collection: [apex.utils.nameToBlockedIRI(testUser.preferredUsername)] },
             type: 'Block',
             actor: [testUser.id],
             object: [block.object]
@@ -749,7 +776,7 @@ describe('outbox', function () {
         app.once('apex-outbox', async function (msg) {
           const blockList = await apex.getBlocked(testUser)
           expect(blockList).toEqual({
-            id: testUser._meta.blocked,
+            id: apex.utils.nameToBlockedIRI(testUser.preferredUsername),
             type: 'OrderedCollection',
             totalItems: [1],
             orderedItems: [block.object.id]
@@ -763,8 +790,6 @@ describe('outbox', function () {
           .expect(200)
           .end(err => { if (err) done(err) })
       })
-      it('removes blockee from follow collections')
-      it('does not deliver to blockee')
     })
     it('fires other activity event', function (done) {
       const arriveAct = {
