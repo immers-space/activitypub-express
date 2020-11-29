@@ -12,7 +12,9 @@ module.exports = {
   getShares,
   getLikes,
   getAdded,
-  getBlocked
+  getBlocked,
+  getRejected,
+  getRejections
 }
 
 async function getCollection (collectionId, remapper, blockList) {
@@ -67,6 +69,16 @@ function getAdded (actor, colId) {
 function getBlocked (actor) {
   const blockedIRI = this.utils.nameToBlockedIRI(actor.preferredUsername)
   return this.getCollection(blockedIRI, this.objectIdFromActivity)
+}
+
+function getRejected (actor) {
+  const rejectedIRI = this.utils.nameToRejectedIRI(actor.preferredUsername)
+  return this.getCollection(rejectedIRI, idRemapper)
+}
+
+function getRejections (actor) {
+  const rejectionsIRI = this.utils.nameToRejectionsIRI(actor.preferredUsername)
+  return this.getCollection(rejectionsIRI, idRemapper)
 }
 
 // non-exported utils

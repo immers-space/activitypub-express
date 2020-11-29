@@ -30,7 +30,9 @@ const apex = ActivitypubExpress({
     shares: '/s/:id/shares',
     likes: '/s/:id/likes',
     collections: '/u/:actor/c/:id',
-    blocked: '/u/:actor/blocked'
+    blocked: '/u/:actor/blocked',
+    rejections: '/u/:actor/rejections',
+    rejected: '/u/:actor/rejected'
   }
 })
 const client = new MongoClient('mongodb://localhost:27017', { useUnifiedTopology: true, useNewUrlParser: true })
@@ -458,6 +460,88 @@ describe('outbox', function () {
           .post('/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(accept)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
+    })
+    describe('reject', function () {
+      let follow
+      let reject
+      let rejected
+      beforeEach(function () {
+        follow = merge({ _meta: { collection: [testUser.inbox[0], testUser.followers[0]] } }, activityNormalized)
+        follow.object = [testUser.id]
+        follow.type = 'Follow'
+        follow.actor = ['https://ignore.com/u/ignored']
+        follow.to = [testUser.id]
+        follow.id = apex.utils.activityIdToIRI()
+        reject = merge({}, activity)
+        reject.object = follow.id
+        reject.type = 'Reject'
+        rejected = apex.utils.nameToRejectedIRI(testUser.preferredUsername)
+      })
+      it('fires reject event', async function (done) {
+        await apex.store.saveActivity(follow)
+        app.once('apex-outbox', msg => {
+          expect(msg.actor).toEqual(testUser)
+          delete msg.activity.id
+          const exp = merge({ _meta: { collection: testUser.outbox } }, activityNormalized)
+          exp.type = 'Reject'
+          exp.object = [follow.id]
+          expect(msg.activity).toEqual(exp)
+          // removed from followers
+          follow._meta.collection = [testUser.inbox[0], rejected]
+          expect(msg.object).toEqual(follow)
+          done()
+        })
+        request(app)
+          .post('/outbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(reject)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
+      it('publishes collection update', async function (done) {
+        const mockedUser = 'https://mocked.com/user/mocked'
+        nock('https://mocked.com')
+          .get('/user/mocked')
+          .reply(200, { id: mockedUser, inbox: 'https://mocked.com/inbox/mocked' })
+        nock('https://mocked.com')
+          .post('/inbox/mocked').reply(200)
+          .on('request', (req, interceptor, body) => {
+            // correctly formed activity sent
+            const sentActivity = JSON.parse(body)
+            if (sentActivity.type === 'Reject') return
+            expect(sentActivity.id).toContain('https://localhost')
+            delete sentActivity.id
+            delete sentActivity.likes
+            delete sentActivity.shares
+            expect(new Date(sentActivity.published).toString()).not.toBe('Invalid Date')
+            delete sentActivity.published
+            expect(sentActivity).toEqual({
+              '@context': apex.context,
+              type: 'Update',
+              actor: testUser.id,
+              to: testUser.followers[0],
+              object: {
+                id: testUser.followers[0],
+                type: 'OrderedCollection',
+                totalItems: 1,
+                orderedItems: [mockedUser]
+              }
+            })
+            done()
+          })
+        await apex.store.saveActivity(follow)
+        // actor needs one follower remaining to deliver collection udpate
+        const otherFollow = merge({}, follow)
+        otherFollow.id = apex.utils.activityIdToIRI()
+        otherFollow.actor = [mockedUser]
+        await apex.store.saveActivity(otherFollow)
+        request(app)
+          .post('/outbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(reject)
           .expect(200)
           .end(err => { if (err) done(err) })
       })

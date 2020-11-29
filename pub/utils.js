@@ -6,6 +6,7 @@ const { escape, unescape } = require('mongo-escape')
 module.exports = {
   addMeta,
   collectionIRIToActorName,
+  hasMeta,
   idToActivityCollectionsFactory,
   idToIRIFactory,
   userAndIdToIRIFactory,
@@ -33,6 +34,13 @@ function addMeta (obj, key, value) {
   } else {
     obj._meta[key].push(value)
   }
+}
+
+function hasMeta (obj, key, value) {
+  if (!obj._meta || !Array.isArray(obj._meta[key])) {
+    return false
+  }
+  return obj._meta[key].includes(value)
 }
 
 function removeMeta (obj, key, value) {

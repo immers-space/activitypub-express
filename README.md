@@ -151,12 +151,13 @@ client.connect({ useNewUrlParser: true })
       * [x] Delete
       * [x] Follow
       * [x] Accept
-      * [ ] Reject
+      * [x] Reject
       * [x] Add
       * [x] Remove
       * [x] Like
       * [x] Block[*](#implementation-notes)
       * [x] Undo
+        * [ ] Publish affected collection update
       * [x] Other acivity types
 * [ ] Other
   * [x] Actor creation
@@ -219,7 +220,9 @@ routes.outbox | Actor outbox route
 routes.following | Actor following collection route
 routes.followers | Actor followers collection route
 routes.liked | Actor liked collection route
-routes.blocked | Actor's blocklist (required, but you dont have to expose this endpoint)
+routes.blocked | Actor's blocklist
+routes.rejected | Activities rejected by actor
+routes.rejections | Actor's activities that were rejected by recipient
 routes.shares | Activity shares collection route
 routes.likes | Activity likes collection route
 routes.collections | Actors' miscellaneous collections route (must include `actorParam` and `collectionParam`)
@@ -228,6 +231,10 @@ activityParam | String. Express route parameter used for activity id (defaults t
 collectionParam | String. Express route parameter used for collection id (defaults to `objectParam`)
 context | String, Array. JSON-LD context for your app. Defaults to AcivityStreams + Security vocabs
 store | Replace the default storage model & database backend with your own (see `store/interface.js` for API)
+
+Blocked, rejections, and rejected: these routes must be defined in order to track
+these items internally for each actor, but they do not need to be exposed endpoints
+(and probably should not be public even then)
 
 ## FAQ
 

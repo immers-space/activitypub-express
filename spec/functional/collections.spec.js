@@ -27,7 +27,9 @@ const apex = ActivitypubExpress({
     shares: '/s/:id/shares',
     likes: '/s/:id/likes',
     collections: '/u/:actor/c/:id',
-    blocked: '/u/:actor/blocked'
+    blocked: '/u/:actor/blocked',
+    rejections: '/u/:actor/rejections',
+    rejected: '/u/:actor/rejected'
   }
 })
 const client = new MongoClient('mongodb://localhost:27017', { useUnifiedTopology: true, useNewUrlParser: true })
@@ -272,8 +274,8 @@ describe('collections', function () {
         })
     })
   })
-  describe('blocklist', function () {
-    it('gets blocked actor ids', async function () {
+  describe('internal special collections', function () {
+    it('blocked gets blocked actor ids', async function () {
       const baddies = ['https://ignore.com/u/chud', 'https://ignore.com/u/reply-guy', 'https://ignore.com/u/terf']
       let blocks = baddies.map(objId => {
         return apex
@@ -292,6 +294,46 @@ describe('collections', function () {
         orderedItems: baddies.reverse()
       }
       expect(blockList).toEqual(standard)
+    })
+    it('rejections gets actors rejected activity ids', async function () {
+      const meanies = ['https://ignore.com/u/blue-check', 'https://ignore.com/u/celeb', 'https://ignore.com/u/leet']
+      let follows = meanies.map(objId => {
+        return apex
+          .buildActivity('Follow', testUser.id, null, { object: objId })
+      })
+      follows = await Promise.all(follows)
+      follows.forEach(f => apex.addMeta(f, 'collection', apex.utils.nameToRejectionsIRI(testUser.preferredUsername)))
+      for (const follow of follows) {
+        await apex.store.saveActivity(follow)
+      }
+      const rejections = await apex.getRejections(testUser)
+      const standard = {
+        id: 'https://localhost/u/test/rejections',
+        type: 'OrderedCollection',
+        totalItems: [3],
+        orderedItems: follows.map(f => f.id).reverse()
+      }
+      expect(rejections).toEqual(standard)
+    })
+    it('rejected gets ids for activities rejected by actor', async function () {
+      const baddies = ['https://ignore.com/u/chud', 'https://ignore.com/u/reply-guy', 'https://ignore.com/u/terf']
+      let follows = baddies.map(objId => {
+        return apex
+          .buildActivity('Follow', testUser.id, testUser.id, { object: testUser.id })
+      })
+      follows = await Promise.all(follows)
+      follows.forEach(f => apex.addMeta(f, 'collection', apex.utils.nameToRejectedIRI(testUser.preferredUsername)))
+      for (const follow of follows) {
+        await apex.store.saveActivity(follow)
+      }
+      const rejected = await apex.getRejected(testUser)
+      const standard = {
+        id: 'https://localhost/u/test/rejected',
+        type: 'OrderedCollection',
+        totalItems: [3],
+        orderedItems: follows.map(a => a.id).reverse()
+      }
+      expect(rejected).toEqual(standard)
     })
   })
 })

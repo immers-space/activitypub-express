@@ -29,7 +29,9 @@ const apex = ActivitypubExpress({
     shares: '/s/:id/shares',
     likes: '/s/:id/likes',
     collections: '/u/:actor/c/:id',
-    blocked: 'u/:actor/blocked'
+    blocked: '/u/:actor/blocked',
+    rejections: '/u/:actor/rejections',
+    rejected: '/u/:actor/rejected'
   }
 })
 const client = new MongoClient('mongodb://localhost:27017', { useUnifiedTopology: true, useNewUrlParser: true })
@@ -544,7 +546,7 @@ describe('inbox', function () {
             object: [activityNormalized.id]
           })
           const actRejected = merge(
-            { _meta: { rejection: ['https://localhost/s/a29a6843-9feb-4c74-a7f7-reject'] } },
+            { _meta: { collection: [apex.utils.nameToRejectionsIRI(testUser.preferredUsername)] } },
             activityNormalized
           )
           expect(msg.object).toEqual(actRejected)
@@ -575,7 +577,7 @@ describe('inbox', function () {
           .then(async () => {
             const target = await apex.store.getActivity(activityNormalized.id, true)
             expect(target._meta).toBeTruthy()
-            expect(target._meta.rejection).toEqual([rejAct.id])
+            expect(target._meta.collection).toContain(apex.utils.nameToRejectionsIRI(testUser.preferredUsername))
           })
       })
       it('does not add rejected follow to following', async function () {

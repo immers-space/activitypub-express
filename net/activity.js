@@ -91,12 +91,14 @@ module.exports = {
         break
       case 'reject':
         toDo.push((async () => {
+          const rejectionsIRI = apex.utils.nameToRejectionsIRI(actor.preferredUsername)
           object = await apex.store
-            .updateActivityMeta(object, 'rejection', activity.id)
+            .updateActivityMeta(object, 'collection', rejectionsIRI)
           // reject is also the undo of a follow accept
-          if (object.type.toLowerCase() === 'follow') {
+          if (apex.hasMeta(object, 'collection', recipient.following[0])) {
             object = await apex.store
               .updateActivityMeta(object, 'collection', recipient.following[0], true)
+            resLocal.postWork.push(async () => apex.publishUpdate(recipient, await apex.getFollowers(recipient)))
           }
         })())
         break
@@ -182,6 +184,19 @@ module.exports = {
             .updateActivityMeta(object, 'collection', activity.target[0])
         })())
         break
+      case 'reject':
+        toDo.push((async () => {
+          const rejectedIRI = apex.utils.nameToRejectedIRI(actor.preferredUsername)
+          object = await apex.store
+            .updateActivityMeta(object, 'collection', rejectedIRI)
+          // undo prior follow accept, if applicable
+          if (apex.hasMeta(object, 'collection', actor.followers[0])) {
+            object = await apex.store
+              .updateActivityMeta(object, 'collection', actor.followers[0], true)
+            resLocal.postWork.push(async () => apex.publishUpdate(actor, await apex.getFollowers(actor)))
+          }
+        })())
+        break
       case 'remove':
         toDo.push((async () => {
           object = await apex.store
@@ -202,7 +217,7 @@ module.exports = {
       resLocal.eventMessage = { actor, activity, object }
       resLocal.eventName = 'apex-outbox'
       if (!resLocal.skipOutbox) {
-        resLocal.postWork.push(() => apex.addToOutbox(actor, activity))
+        resLocal.postWork.unshift(() => apex.addToOutbox(actor, activity))
       }
       next()
     }).catch(next)
