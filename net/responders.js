@@ -14,7 +14,7 @@ async function result (req, res) {
   if (!resLocal.responseType || !result) {
     return res.sendStatus(404)
   }
-  const body = JSON.stringify(await apex.toJSONLD(result), skipMeta)
+  const body = apex.stringifyPublicJSONLD(await apex.toJSONLD(result))
   res.type(res.locals.apex.responseType)
   res.status(200).send(body)
 }
@@ -31,15 +31,7 @@ async function target (req, res) {
   if (!res.locals.apex.responseType || !target) {
     return res.sendStatus(404)
   }
-  const body = JSON.stringify(await apex.toJSONLD(target), skipMeta)
+  const body = apex.stringifyPublicJSONLD(await apex.toJSONLD(target))
   res.type(res.locals.apex.responseType)
   res.status(200).send(body)
-}
-
-// strip any _meta properties to keep jsonld valid and not leak private keys
-function skipMeta (key, value) {
-  if (key === '_meta' || key === '_id') {
-    return undefined
-  }
-  return value
 }

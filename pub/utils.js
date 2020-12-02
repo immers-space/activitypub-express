@@ -18,6 +18,7 @@ module.exports = {
   fromJSONLD,
   actorIdFromActivity,
   objectIdFromActivity,
+  stringifyPublicJSONLD,
   validateActivity,
   validateObject,
   validateCollectionOwner,
@@ -111,6 +112,10 @@ async function toJSONLD (obj) {
     // unbox arrays on federated objects, in case other apps aren't using real json-ld
     compactArrays: true
   }))
+}
+
+function stringifyPublicJSONLD (obj) {
+  return JSON.stringify(obj, skipPrivate)
 }
 
 function idToIRIFactory (domain, route, param) {
@@ -264,3 +269,13 @@ const customLoader = async (url, options) => {
 };
 jsonld.documentLoader = customLoader;
 */
+
+// non-exported utils
+// strip any _meta or private properties to keep jsonld valid and not leak private keys
+const privateActivityProps = ['bto', 'bcc']
+function skipPrivate (key, value) {
+  if (key.startsWith('_') || privateActivityProps.includes(key)) {
+    return undefined
+  }
+  return value
+}

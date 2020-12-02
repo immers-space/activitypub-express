@@ -16,18 +16,13 @@ function requestObject (id) {
 }
 
 function deliver (actor, activity, addresses) {
-  if (activity.bto) {
-    delete activity.bto
-  }
-  if (activity.bcc) {
-    delete activity.bcc
-  }
   const requests = addresses.map(addr => {
     return request({
       method: 'POST',
       url: addr,
       headers: {
-        'Content-Type': this.consts.jsonldOutgoingType
+        'Content-Type': this.consts.jsonldOutgoingType,
+        Accept: this.consts.jsonldTypes.join(', ')
       },
       httpSignature: {
         key: actor._meta.privateKey,
@@ -35,7 +30,6 @@ function deliver (actor, activity, addresses) {
         headers: ['(request-target)', 'host', 'date'],
         authorizationHeaderName: 'Signature'
       },
-      json: true,
       resolveWithFullResponse: true,
       simple: false,
       body: activity
