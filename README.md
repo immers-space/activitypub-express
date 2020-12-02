@@ -184,10 +184,12 @@ client.connect({ useNewUrlParser: true })
 (i.e. a remote actor being able to modify local collections);
 specific uses can be added in the implementation via the event handler.
 
-* Inbox Reject: rejected activities are tagged with the `rejection` meta property,
-containing an array of Reject activity ids.
+* Reject: Activity is added to the actor's rejected (outbox) or rejection (inbox) collection.
+If the object is a Follow that was previously accepted, this will also remove it from
+the followers (outbox) or following (inbox) collection.
 
-* Block: Per spec, future activities from blocked actors will be silently ignored.
+* Block: Activity is added to the actor's blcoked collection.
+Per spec, future activities from blocked actors will be silently ignored.
 Additionally, past activitities will be filtered from display in the inbox and followers
 collections, but they are not permanetly deleted, so they would re-appear after undo of block.
 
