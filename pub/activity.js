@@ -7,8 +7,8 @@ module.exports = {
   addToOutbox,
   buildActivity,
   buildTombstone,
-  resolveActivity,
-  undoActivity
+  publishUpdate,
+  resolveActivity
 }
 
 function buildActivity (type, actorId, to, etc = {}) {
@@ -41,8 +41,8 @@ async function buildTombstone (object) {
     updated: deleted
   }
 }
-
-async function address (activity) {
+// TODO: track errors during address resolution for redelivery attempts
+async function address (activity, sender) {
   let audience = []
   ;['to', 'bto', 'cc', 'bcc', 'audience'].forEach(t => {
     if (activity[t]) {
@@ -53,35 +53,43 @@ async function address (activity) {
     if (t === 'https://www.w3.org/ns/activitystreams#Public') {
       return null
     }
-    if (this.collectionIRIToActorName(t, 'followers')) {
-      return this.getCollection(t, this.actorIdFromActivity)
+    if (t === sender.followers[0]) {
+      return this.getFollowers(sender)
     }
     return this.resolveObject(t)
   })
-  audience = await Promise.all(audience).then(addresses => {
+  audience = await Promise.allSettled(audience).then(results => {
     // TODO: spec says only deliver to actor-owned collections
-    addresses = addresses.map(t => {
-      if (t && t.inbox) {
-        return t
-      }
-      if (t && t.items) {
-        return t.items.map(this.resolveObject)
-      }
-      if (t && t.orderedItems) {
-        return t.orderedItems.map(this.resolveObject)
-      }
-    })
+    const addresses = results
+      .filter(r => r.status === 'fulfilled')
+      .map(r => {
+        if (r.value && r.value.inbox) {
+          return r.value
+        }
+        if (r.value && r.value.items) {
+          return r.value.items.map(this.resolveObject)
+        }
+        if (r.value && r.value.orderedItems) {
+          return r.value.orderedItems.map(this.resolveObject)
+        }
+      })
     // flattens and resolves collections
-    return Promise.all([].concat(...addresses))
+    return Promise.allSettled(addresses.flat(2))
   })
-  audience = audience.filter(t => t && t.inbox)
-    .map(t => t.inbox[0])
+  audience = audience
+    .filter(result => {
+      if (result.status !== 'fulfilled' || !result.value) return false
+      if (sender._local.blockList.includes(result.value.id)) return false
+      if (!result.value.inbox) return false
+      return true
+    })
+    .map(r => r.value.inbox[0])
   // de-dupe
   return Array.from(new Set(audience))
 }
 
 async function addToOutbox (actor, activity) {
-  const tasks = [this.address(activity), this.toJSONLD(activity)]
+  const tasks = [this.address(activity, actor), this.toJSONLD(activity)]
   const [addresses, outgoingActivity] = await Promise.all(tasks)
   delete outgoingActivity._meta
   return this.deliver(actor, outgoingActivity, addresses)
@@ -89,26 +97,31 @@ async function addToOutbox (actor, activity) {
 
 // follow accept side effects: add to followers, publish updated followers
 async function acceptFollow (actor, targetActivity) {
-  this.addMeta(targetActivity, 'collection', actor.followers[0])
-  await this.store.updateActivity(targetActivity, true)
-  return async () => {
-    const act = await this.buildActivity(
-      'Update',
-      actor.id,
-      actor.followers[0],
-      { object: await this.getFollowers(actor) }
-    )
-    return this.addToOutbox(actor, act)
+  const updated = await this.store
+    .updateActivityMeta(targetActivity, 'collection', actor.followers[0])
+  const postTask = async () => {
+    return this.publishUpdate(actor, await this.getFollowers(actor))
   }
+  return { postTask, updated }
 }
 
-async function resolveActivity (id) {
+async function publishUpdate (actor, object, cc) {
+  const act = await this.buildActivity(
+    'Update',
+    actor.id,
+    actor.followers[0],
+    { object, cc }
+  )
+  return this.addToOutbox(actor, act)
+}
+
+async function resolveActivity (id, includeMeta) {
   let activity
   if (this.validateActivity(id)) {
     // already activity
     activity = id
   } else {
-    activity = await this.store.getActivity(id)
+    activity = await this.store.getActivity(id, includeMeta)
     if (activity) {
       return activity
     }
@@ -118,16 +131,4 @@ async function resolveActivity (id) {
   // cache
   await this.store.saveActivity(activity)
   return activity
-}
-
-function undoActivity (activity, undoActor) {
-  if (!this.validateActivity(activity)) {
-    if (!activity || Object.prototype.toString.call(activity) !== '[object String]') {
-      throw new Error('Invalid undo target')
-    }
-    activity = { id: activity }
-  }
-  // matches the target activity with the actor from the undo
-  // so actors can only undo their own activities
-  return this.store.removeActivity(activity, undoActor)
 }

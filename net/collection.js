@@ -1,4 +1,5 @@
 module.exports = {
+  added,
   inbox,
   outbox,
   followers,
@@ -67,6 +68,17 @@ function likes (req, res, next) {
   const apex = req.app.locals.apex
   apex.getLikes(res.locals.apex.target).then(col => {
     res.locals.apex.result = col
+    next()
+  })
+}
+
+function added (req, res, next) {
+  const apex = req.app.locals.apex
+  const resLocal = res.locals.apex
+  const colId = req.params[apex.collectionParam]
+  if (!resLocal.target || !colId) return next()
+  apex.getAdded(resLocal.target, colId).then(col => {
+    resLocal.result = col
     next()
   })
 }

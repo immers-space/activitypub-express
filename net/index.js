@@ -21,10 +21,13 @@ module.exports = {
   actor: {
     get: [validators.jsonld, validators.targetActor, responders.target]
   },
+  collections: {
+    get: [validators.jsonld, validators.targetActor, collection.added, responders.result]
+  },
   followers: {
     get: [
       validators.jsonld,
-      validators.targetActor,
+      validators.targetActorWithMeta,
       collection.followers,
       responders.result
     ]
@@ -43,6 +46,7 @@ module.exports = {
       validators.targetActorWithMeta,
       security.verifySignature,
       validators.actor,
+      validators.activityObject,
       validators.inboxActivity,
       activity.save,
       activity.inboxSideEffects,
@@ -50,7 +54,7 @@ module.exports = {
     ],
     get: [
       validators.jsonld,
-      validators.targetActor,
+      validators.targetActorWithMeta,
       collection.inbox,
       responders.result
     ]
@@ -86,6 +90,8 @@ module.exports = {
     post: [
       validators.jsonld,
       validators.targetActorWithMeta,
+      validators.outboxCreate,
+      validators.outboxActivityObject,
       validators.outboxActivity,
       activity.save,
       activity.outboxSideEffects,

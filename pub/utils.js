@@ -1,21 +1,28 @@
 'use strict'
 const jsonld = require('jsonld')
+const merge = require('deepmerge')
 const { escape, unescape } = require('mongo-escape')
 
 module.exports = {
   addMeta,
   collectionIRIToActorName,
+  hasMeta,
   idToActivityCollectionsFactory,
   idToIRIFactory,
+  userAndIdToIRIFactory,
   isLocalIRI,
+  mergeJSONLD,
   nameToActorStreamsFactory,
+  removeMeta,
   toJSONLD,
   fromJSONLD,
   actorIdFromActivity,
   objectIdFromActivity,
   validateActivity,
   validateObject,
-  validateOwner
+  validateCollectionOwner,
+  validateOwner,
+  validateTarget
 }
 
 function addMeta (obj, key, value) {
@@ -26,6 +33,23 @@ function addMeta (obj, key, value) {
     obj._meta[key] = [value]
   } else {
     obj._meta[key].push(value)
+  }
+}
+
+function hasMeta (obj, key, value) {
+  if (!obj._meta || !Array.isArray(obj._meta[key])) {
+    return false
+  }
+  return obj._meta[key].includes(value)
+}
+
+function removeMeta (obj, key, value) {
+  if (!obj._meta || !Array.isArray(obj._meta[key])) {
+    return
+  }
+  const i = obj._meta[key].indexOf(value)
+  if (i !== -1) {
+    obj._meta[key].splice(i, 1)
   }
 }
 
@@ -41,10 +65,13 @@ function actorIdFromActivity (activity) {
 }
 
 function collectionIRIToActorName (id, collectionType) {
-  const pattern = this.settings.routes[collectionType]
-    .replace(`:${this.actorParam}`, '([^/]+)')
+  const pActor = `:${this.actorParam}`
+  const pCol = `:${this.collectionParam}`
+  let pattern = this.settings.routes[collectionType]
+  const isActorFirst = pattern.indexOf(pCol) === -1 || pattern.indexOf(pActor) < pattern.indexOf(pCol)
+  pattern = pattern.replace(pActor, '([^/]+)').replace(pCol, '([^/]+)')
   const result = new RegExp(`^https://${this.domain}${pattern}$`).exec(id)
-  return result && result[1]
+  return result && (isActorFirst ? result[1] : result[2])
 }
 
 function objectIdFromActivity (activity) {
@@ -96,13 +123,32 @@ function idToIRIFactory (domain, route, param) {
   }
 }
 
+function userAndIdToIRIFactory (domain, route, userParam, param) {
+  param = `:${param}`
+  userParam = `:${userParam}`
+  return (user, id) => {
+    if (!id) {
+      id = this.store.generateId()
+    }
+    return `https://${domain}${route.replace(param, id).replace(userParam, user)}`.toLowerCase()
+  }
+}
+
 function isLocalIRI (id) {
   return id.startsWith(`https://${this.domain}`)
 }
 
+const overwriteArrays = {
+  arrayMerge: (destinationArray, sourceArray, options) => sourceArray
+}
+
+function mergeJSONLD (target, source) {
+  return merge(target, source, overwriteArrays)
+}
+
 function nameToActorStreamsFactory (domain, routes, actorParam) {
   const colonParam = `:${actorParam}`
-  const streamNames = ['inbox', 'outbox', 'following', 'followers', 'liked']
+  const streamNames = ['inbox', 'outbox', 'following', 'followers', 'liked', 'blocked']
   const streamTemplates = {}
   streamNames.forEach(s => {
     streamTemplates[s] = `https://${domain}${routes[s]}`
@@ -150,6 +196,17 @@ function validateActivity (object) {
   }
 }
 
+function validateCollectionOwner (collectionId, ownerId) {
+  if (Array.isArray(collectionId)) {
+    collectionId = collectionId[0]
+  }
+  if (Object.prototype.toString.call(collectionId) !== '[object String]') {
+    return false
+  }
+  const user = this.collectionIRIToActorName(collectionId, 'collections')
+  return !!user && this.utils.usernameToIRI(user) === ownerId
+}
+
 function validateOwner (object, ownerId) {
   if (Array.isArray(object)) {
     object = object[0]
@@ -158,6 +215,20 @@ function validateOwner (object, ownerId) {
   if (object.id === ownerId) return true
   if (Array.isArray(object.actor) && object.actor[0] === ownerId) return true
   if (Array.isArray(object.attributedTo) && object.attributedTo[0] === ownerId) {
+    return true
+  }
+  return false
+}
+
+// Can be used to check activity.target instead of activity.object by specifying prop
+function validateTarget (object, targetId, prop = 'object') {
+  if (Array.isArray(object)) {
+    object = object[0]
+  }
+  if (!validateObject(object) || !Array.isArray(object[prop]) || !object[prop][0]) {
+    return false
+  }
+  if (object[prop][0] === targetId || object[prop][0].id === targetId) {
     return true
   }
   return false

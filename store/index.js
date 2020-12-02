@@ -115,18 +115,20 @@ class ApexStore extends IApexStore {
     return result.modifiedCount
   }
 
-  async updateActivityMeta (activityId, actorId, key, value, remove) {
+  async updateActivityMeta (activity, key, value, remove) {
     const op = {}
     if (remove) {
       op.$pull = { [`_meta.${key}`]: value }
     } else {
       op.$addToSet = { [`_meta.${key}`]: value }
     }
-    // limit udpates to owners of objects
-    const q = { id: activityId, actor: actorId }
+    const q = { id: activity.id }
     const result = await this.db.collection('streams')
-      .updateOne(q, op)
-    return result.modifiedCount
+      .findOneAndUpdate(q, op, { projection: this.metaProj, returnOriginal: false })
+    if (!result.ok || !result.value) {
+      throw new Error('Error updating activity meta: not found')
+    }
+    return result.value
   }
 
   generateId () {

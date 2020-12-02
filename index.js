@@ -8,13 +8,13 @@ function onFinishedHandler (err, res) {
   if (err) return
   const apexLocal = res.locals.apex
   Promise.all(apexLocal.postWork.map(task => task.call(res)))
-    .catch(err => {
-      console.error('post-response error:', err.message)
-    })
     .then(() => {
       if (apexLocal.eventName) {
         res.app.emit(apexLocal.eventName, apexLocal.eventMessage)
       }
+    })
+    .catch(err => {
+      console.error('post-response error:', err.message)
     })
 }
 
@@ -44,13 +44,18 @@ module.exports = function (settings) {
   apex.store = settings.store || new ApexStore()
   apex.actorParam = settings.actorParam
   apex.objectParam = settings.objectParam
-  apex.activityParam = settings.activityParam
+  apex.activityParam = settings.activityParam || settings.objectParam
+  apex.collectionParam = settings.collectionParam || settings.objectParam
   apex.utils = {
-    usernameToIRI: apex.idToIRIFactory(settings.domain, settings.routes.actor, settings.actorParam),
-    objectIdToIRI: apex.idToIRIFactory(settings.domain, settings.routes.object, settings.objectParam),
-    activityIdToIRI: apex.idToIRIFactory(settings.domain, settings.routes.activity, settings.activityParam),
-    nameToActorStreams: apex.nameToActorStreamsFactory(settings.domain, settings.routes, settings.actorParam),
-    idToActivityCollections: apex.idToActivityCollectionsFactory(settings.domain, settings.routes, settings.activityParam)
+    usernameToIRI: apex.idToIRIFactory(apex.domain, settings.routes.actor, apex.actorParam),
+    objectIdToIRI: apex.idToIRIFactory(apex.domain, settings.routes.object, apex.objectParam),
+    activityIdToIRI: apex.idToIRIFactory(apex.domain, settings.routes.activity, apex.activityParam),
+    userCollectionIdToIRI: apex.userAndIdToIRIFactory(apex.domain, settings.routes.collections, apex.actorParam, apex.collectionParam),
+    nameToActorStreams: apex.nameToActorStreamsFactory(apex.domain, settings.routes, apex.actorParam),
+    nameToBlockedIRI: apex.idToIRIFactory(apex.domain, settings.routes.blocked, apex.actorParam),
+    nameToRejectedIRI: apex.idToIRIFactory(apex.domain, settings.routes.rejected, apex.actorParam),
+    nameToRejectionsIRI: apex.idToIRIFactory(apex.domain, settings.routes.rejections, apex.actorParam),
+    idToActivityCollections: apex.idToActivityCollectionsFactory(apex.domain, settings.routes, apex.activityParam)
   }
 
   return apex

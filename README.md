@@ -35,6 +35,7 @@ const routes = {
   followers: '/followers/:actor',
   following: '/following/:actor',
   liked: '/liked/:actor',
+  blocked: '/blocked/:actor',
   shares: '/shares/:id',
   likes: '/likes/:id',
 }
@@ -105,9 +106,10 @@ client.connect({ useNewUrlParser: true })
         * [x] Liked
         * [x] Likes
         * [x] Shares
-      * [ ] Misc collections
+      * [x] Misc collections (of activities)
       * [ ] Pagination
     * [ ] Relay requests for remote objects
+    * [ ] Response code 410 for Tombstones
   * [ ] Security
     * [ ] Permission-based filtering
 * [ ] Server-to-server
@@ -123,10 +125,12 @@ client.connect({ useNewUrlParser: true })
       * [x] Remove[*](#implementation-notes)
       * [x] Like
       * [x] Announce
-      * [ ] Undo
+      * [x] Undo
+        * [ ] Publish affected collection update
       * [x] Other acivity types
     * [x] Security
       * [x] Signature validation
+      * [x] Honor recipient blocklist
     * [ ] Recursive resolution of related objects
     * [ ] Forwarding from inbox
   * [ ] Shared inbox POST
@@ -144,14 +148,16 @@ client.connect({ useNewUrlParser: true })
       * [x] Create
       * [x] Update
         * [ ] Add prior recipients of updated object to federation audience
-      * [ ] Delete
+      * [x] Delete
       * [x] Follow
       * [x] Accept
-      * [ ] Add
-      * [ ] Remove
-      * [ ] Like
-      * [ ] Block
-      * [ ] Undo
+      * [x] Reject
+      * [x] Add
+      * [x] Remove
+      * [x] Like
+      * [x] Block[*](#implementation-notes)
+      * [x] Undo
+        * [ ] Publish affected collection update
       * [x] Other acivity types
 * [ ] Other
   * [x] Actor creation
@@ -181,6 +187,10 @@ specific uses can be added in the implementation via the event handler.
 * Inbox Reject: rejected activities are tagged with the `rejection` meta property,
 containing an array of Reject activity ids.
 
+* Block: Per spec, future activities from blocked actors will be silently ignored.
+Additionally, past activitities will be filtered from display in the inbox and followers
+collections, but they are not permanetly deleted, so they would re-appear after undo of block.
+
 ## API
 
 ### ActivitypubExpress initializer
@@ -201,7 +211,6 @@ Option | Description
 domain | String. Hostname for your app
 actorParam | String. Express route parameter used for actor name
 objectParam | String. Express route parameter used for object id
-activityParam | String. Express route parameter used for activity id
 routes | Object. The routes your app uses for ActivityPub endpoints (including parameter). Details below
 routes.actor | Actor profile route & IRI pattern
 routes.object | Object retrieval route & IRI pattern
@@ -211,9 +220,21 @@ routes.outbox | Actor outbox route
 routes.following | Actor following collection route
 routes.followers | Actor followers collection route
 routes.liked | Actor liked collection route
+routes.blocked | Actor's blocklist
+routes.rejected | Activities rejected by actor
+routes.rejections | Actor's activities that were rejected by recipient
+routes.shares | Activity shares collection route
+routes.likes | Activity likes collection route
+routes.collections | Actors' miscellaneous collections route (must include `actorParam` and `collectionParam`)
 **Optional** |
+activityParam | String. Express route parameter used for activity id (defaults to `objectParam`)
+collectionParam | String. Express route parameter used for collection id (defaults to `objectParam`)
 context | String, Array. JSON-LD context for your app. Defaults to AcivityStreams + Security vocabs
 store | Replace the default storage model & database backend with your own (see `store/interface.js` for API)
+
+Blocked, rejections, and rejected: these routes must be defined in order to track
+these items internally for each actor, but they do not need to be exposed endpoints
+(and probably should not be public even then)
 
 ## FAQ
 

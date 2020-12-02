@@ -6,7 +6,6 @@ const nock = require('nock')
 const { MongoClient } = require('mongodb')
 
 const ActivitypubExpress = require('../../index')
-const { target } = require('../../net/responders')
 
 const app = express()
 const apex = ActivitypubExpress({
@@ -28,7 +27,11 @@ const apex = ActivitypubExpress({
     following: '/following/:actor',
     liked: '/liked/:actor',
     shares: '/s/:id/shares',
-    likes: '/s/:id/likes'
+    likes: '/s/:id/likes',
+    collections: '/u/:actor/c/:id',
+    blocked: '/u/:actor/blocked',
+    rejections: '/u/:actor/rejections',
+    rejected: '/u/:actor/rejected'
   }
 })
 const client = new MongoClient('mongodb://localhost:27017', { useUnifiedTopology: true, useNewUrlParser: true })
@@ -107,9 +110,13 @@ describe('inbox', function () {
     client.db('apexTestingTempDb').dropDatabase()
       .then(() => {
         apex.store.db = client.db('apexTestingTempDb')
+        delete testUser._local
         return apex.store.setup(testUser)
       })
-      .then(done)
+      .then(() => {
+        testUser._local = { blockList: [] }
+        done()
+      })
   })
   describe('post', function () {
     // validators jsonld
@@ -179,6 +186,26 @@ describe('inbox', function () {
         })
         .catch(done)
     })
+    it('ignores blocked actors', async function (done) {
+      const block = merge({}, activityNormalized)
+      block.type = 'Block'
+      block.object = ['https://ignore.com/u/chud']
+      block._meta = { collection: [apex.utils.nameToBlockedIRI(testUser.preferredUsername)] }
+      await apex.store.saveActivity(block)
+      const act = merge({}, activity)
+      act.actor = ['https://ignore.com/u/chud']
+      request(app)
+        .post('/inbox/test')
+        .set('Content-Type', 'application/activity+json')
+        .send(act)
+        .expect(200)
+        .end(async (err) => {
+          if (err) return done(err)
+          const inbox = await apex.getInbox(testUser)
+          expect(inbox.orderedItems.length).toBe(0)
+          done()
+        })
+    })
     // activity sideEffects
     it('fires create event', function (done) {
       app.once('apex-inbox', msg => {
@@ -222,6 +249,7 @@ describe('inbox', function () {
         follow.type = 'Follow'
         follow.to = ['https://ignore.com/bob']
         follow.id = apex.utils.activityIdToIRI()
+        follow.object = ['https://ignore.com/bob']
         follow._meta = { collection: testUser.outbox }
         accept = {
           '@context': 'https://www.w3.org/ns/activitystreams',
@@ -236,6 +264,7 @@ describe('inbox', function () {
         await apex.store.saveActivity(follow)
         app.once('apex-inbox', msg => {
           expect(msg.object.id).toEqual(follow.id)
+          expect(msg.object._meta.collection).toContain(testUser.following[0])
           done()
         })
         request(app)
@@ -244,6 +273,32 @@ describe('inbox', function () {
           .send(accept)
           .expect(200)
           .end(err => { if (err) done(err) })
+      })
+      it('rejects accept from non-recipients of original activity', async function (done) {
+        follow.to = ['https://ignore.com/sally']
+        await apex.store.saveActivity(follow)
+        app.once('apex-inbox', msg => {
+          expect(msg.object.id).toEqual(follow.id)
+          done()
+        })
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(accept)
+          .expect(403, done)
+      })
+      it('rejects accept from non-target of original follow', async function (done) {
+        follow.object = ['https://ignore.com/sally']
+        await apex.store.saveActivity(follow)
+        app.once('apex-inbox', msg => {
+          expect(msg.object.id).toEqual(follow.id)
+          done()
+        })
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(accept)
+          .expect(403, done)
       })
       it('updates accepted activity', async function (done) {
         app.once('apex-inbox', async () => {
@@ -321,50 +376,53 @@ describe('inbox', function () {
         .expect(200)
         .end(err => { if (err) done(err) })
     })
-    it('fires undo event', function (done) {
-      app.once('apex-inbox', () => {
+    describe('undo', function () {
+      let undo
+      let undone
+      beforeEach(function () {
+        undone = merge({}, activityNormalized)
+        undo = {
+          '@context': 'https://www.w3.org/ns/activitystreams',
+          type: 'Undo',
+          id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d4',
+          to: ['https://localhost/u/test'],
+          actor: 'https://localhost/u/test',
+          object: undone.id
+        }
+      })
+      it('fires undo event', async function (done) {
+        await apex.store.saveActivity(undone)
+        app.once('apex-inbox', () => {
+          done()
+        })
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(undo)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
+      it('rejects undo with owner mismatch', async function (done) {
+        undone.actor = ['https://ignore.com/bob']
+        await apex.store.saveActivity(undone)
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(undo)
+          .expect(403, done)
+      })
+      it('removes undone activity', async function (done) {
+        await apex.store.saveActivity(undone)
+        await request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(undo)
+          .expect(200)
+        const result = await apex.store.getActivity(undone.id)
+        expect(result).toBeFalsy()
         done()
       })
-      const undo = {
-        '@context': 'https://www.w3.org/ns/activitystreams',
-        type: 'Undo',
-        id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d4',
-        to: ['https://localhost/u/test'],
-        actor: 'https://localhost/u/test',
-        object: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3'
-      }
-      request(app)
-        .post('/inbox/test')
-        .set('Content-Type', 'application/activity+json')
-        .send(undo)
-        .expect(200)
-        .end(err => { if (err) done(err) })
-    })
-    it('removes undone activity', async function (done) {
-      const undone = await apex
-        .buildActivity('fake', 'https://localhost/u/test', 'https://localhost/u/test')
-      undone.id = 'https://localhost/s/to-undo'
-      const undo = {
-        '@context': 'https://www.w3.org/ns/activitystreams',
-        type: 'Undo',
-        id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d4',
-        to: ['https://localhost/u/test'],
-        actor: ['https://localhost/u/test'],
-        object: ['https://localhost/s/to-undo']
-      }
-      const db = apex.store.db
-      const inserted = await db.collection('streams')
-        .insertOne(undone)
-      expect(inserted.insertedCount).toBe(1)
-      await request(app)
-        .post('/inbox/test')
-        .set('Content-Type', 'application/activity+json')
-        .send(undo)
-        .expect(200)
-      const result = await db.collection('streams')
-        .findOne({ id: 'https://localhost/s/to-undo' })
-      expect(result).toBeFalsy()
-      done()
+      it('publishes related collection updates')
     })
     it('fires other activity event', function (done) {
       const arriveAct = {
@@ -402,13 +460,14 @@ describe('inbox', function () {
         .end(err => { if (err) done(err) })
     })
     it('fires Add event', function (done) {
+      const actId = 'https://ignore.com/s/abc123'
       const addAct = {
         '@context': 'https://www.w3.org/ns/activitystreams',
         type: 'Add',
         id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
         to: ['https://localhost/u/test'],
         actor: 'https://localhost/u/test',
-        object: activityNormalized.id,
+        object: actId,
         target: 'https://localhost/u/test/c/testCollection'
       }
       app.once('apex-inbox', msg => {
@@ -420,7 +479,7 @@ describe('inbox', function () {
           id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
           to: ['https://localhost/u/test'],
           actor: ['https://localhost/u/test'],
-          object: [activityNormalized.id],
+          object: [actId],
           target: ['https://localhost/u/test/c/testCollection']
         })
         done()
@@ -433,13 +492,14 @@ describe('inbox', function () {
         .end(err => { if (err) done(err) })
     })
     it('fires Remove event', function (done) {
+      const actId = 'https://ignore.com/s/abc123'
       const remAct = {
         '@context': 'https://www.w3.org/ns/activitystreams',
         type: 'Remove',
         id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
         to: ['https://localhost/u/test'],
         actor: 'https://localhost/u/test',
-        object: activityNormalized.id,
+        object: actId,
         target: 'https://localhost/u/test/c/testCollection'
       }
       app.once('apex-inbox', msg => {
@@ -451,7 +511,7 @@ describe('inbox', function () {
           id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
           to: ['https://localhost/u/test'],
           actor: ['https://localhost/u/test'],
-          object: [activityNormalized.id],
+          object: [actId],
           target: ['https://localhost/u/test/c/testCollection']
         })
         done()
@@ -486,7 +546,7 @@ describe('inbox', function () {
             object: [activityNormalized.id]
           })
           const actRejected = merge(
-            { _meta: { rejection: ['https://localhost/s/a29a6843-9feb-4c74-a7f7-reject'] } },
+            { _meta: { collection: [apex.utils.nameToRejectionsIRI(testUser.preferredUsername)] } },
             activityNormalized
           )
           expect(msg.object).toEqual(actRejected)
@@ -517,13 +577,38 @@ describe('inbox', function () {
           .then(async () => {
             const target = await apex.store.getActivity(activityNormalized.id, true)
             expect(target._meta).toBeTruthy()
-            expect(target._meta.rejection).toEqual([rejAct.id])
+            expect(target._meta.collection).toContain(apex.utils.nameToRejectionsIRI(testUser.preferredUsername))
           })
       })
       it('does not add rejected follow to following', async function () {
         const follow = merge({}, activityNormalized)
         follow.type = 'Follow'
         follow.object = ['https://localhost/u/meanface']
+        await apex.store.saveActivity(follow)
+        const rejAct = {
+          '@context': 'https://www.w3.org/ns/activitystreams',
+          type: 'Reject',
+          id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-reject',
+          to: ['https://localhost/u/test'],
+          actor: 'https://localhost/u/test',
+          object: follow.id
+        }
+        return request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(rejAct)
+          .expect(200)
+          .then(async () => {
+            const target = await apex.store.getActivity(follow.id, true)
+            expect(target._meta).toBeTruthy()
+            expect(target._meta.collection).not.toContain(testUser.following[0])
+          })
+      })
+      it('undoes prior follow accept', async function () {
+        const follow = merge({}, activityNormalized)
+        follow.type = 'Follow'
+        follow.object = ['https://localhost/u/flipflopper']
+        follow._meta = { collection: testUser.following }
         await apex.store.saveActivity(follow)
         const rejAct = {
           '@context': 'https://www.w3.org/ns/activitystreams',
@@ -899,7 +984,7 @@ describe('inbox', function () {
       const inbox = []
       const meta = { collection: ['https://localhost/inbox/test'] }
       ;[1, 2, 3].forEach(i => {
-        inbox.push(Object.assign({}, activity, { id: `${activity.id}${i}`, _meta: meta }))
+        inbox.push(merge.all([{}, activityNormalized, { id: `${activity.id}${i}`, _meta: meta }]))
       })
       apex.store.db
         .collection('streams')
@@ -911,6 +996,51 @@ describe('inbox', function () {
             type: 'OrderedCollection',
             totalItems: 3,
             orderedItems: [3, 2, 1].map(i => ({
+              type: 'Create',
+              id: `https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3${i}`,
+              to: 'https://localhost/u/test',
+              actor: 'https://localhost/u/test',
+              object: {
+                type: 'Note',
+                id: 'https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19',
+                attributedTo: 'https://localhost/u/test',
+                to: 'https://localhost/u/test',
+                content: 'Say, did you finish reading that book I lent you?'
+              },
+              shares: 'https://localhost/shares/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
+              likes: 'https://localhost/likes/a29a6843-9feb-4c74-a7f7-081b9c9201d3'
+            }))
+          }
+          expect(inserted.insertedCount).toBe(3)
+          request(app)
+            .get('/inbox/test')
+            .set('Accept', 'application/activity+json')
+            .expect(200)
+            .end((err, res) => {
+              expect(res.body).toEqual(inboxCollection)
+              done(err)
+            })
+        })
+    })
+    it('filters blocked actors', function (done) {
+      const inbox = []
+      const meta = { collection: ['https://localhost/inbox/test'] }
+      ;[1, 2, 3].forEach(i => {
+        inbox.push(merge.all([{}, activityNormalized, { id: `${activity.id}${i}`, _meta: meta }]))
+      })
+      inbox[1].actor = ['https://localhost/u/blocked']
+      spyOn(apex, 'getBlocked')
+        .and.returnValue({ orderedItems: ['https://localhost/u/blocked'] })
+      apex.store.db
+        .collection('streams')
+        .insertMany(inbox)
+        .then(inserted => {
+          const inboxCollection = {
+            '@context': ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1'],
+            id: 'https://localhost/inbox/test',
+            type: 'OrderedCollection',
+            totalItems: 2,
+            orderedItems: [3, 1].map(i => ({
               type: 'Create',
               id: `https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3${i}`,
               to: 'https://localhost/u/test',

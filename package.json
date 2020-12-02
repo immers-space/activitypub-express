@@ -31,6 +31,7 @@
     "mongo-escape": "^2.0.6",
     "mongodb": "^3.3.2",
     "on-finished": "^2.3.0",
+    "overlaps": "^1.0.0",
     "request": "^2.88.0",
     "request-promise-native": "^1.0.7"
   },

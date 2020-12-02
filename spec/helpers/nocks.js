@@ -14,9 +14,11 @@ beforeAll(() => {
     .persist(true)
   // block federation attempts
   nock('https://ignore.com')
-    .get(() => true)
-    // fake id to avoid unique contstraint errors when cached
-    .reply(200, { id: (Math.random() * 1000).toFixed(0), type: 'Object' })
+    .get(uri => uri.startsWith('/s/'))
+    .reply(200, uri => ({ id: `https://ignore.com${uri}`, type: 'Activity', actor: 'https://ignore.com/u/bob' }))
+    .persist()
+    .get(uri => !uri.startsWith('/s/'))
+    .reply(200, uri => ({ id: `https://ignore.com${uri}`, type: 'Object' }))
     .persist()
     .post(() => true)
     .reply(200)
