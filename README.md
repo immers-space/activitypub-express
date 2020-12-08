@@ -191,7 +191,7 @@ specific uses can be added in the implementation via the event handler.
 If the object is a Follow that was previously accepted, this will also remove it from
 the followers (outbox) or following (inbox) collection.
 
-* Block: Activity is added to the actor's blcoked collection.
+* Block: Activity is added to the actor's blocked collection.
 Per spec, future activities from blocked actors will be silently ignored.
 Additionally, past activitities will be filtered from display in the inbox and followers
 collections, but they are not permanetly deleted, so they would re-appear after undo of block.
