@@ -386,6 +386,37 @@ describe('outbox', function () {
             if (err) throw err
           })
       })
+      it('does not leak private keys', async function (done) {
+        update.to = ['https://mocked.com/user/mocked']
+        update.object = [{
+          id: testUser.id,
+          name: 'New display name'
+        }]
+        nock('https://mocked.com')
+          .get('/user/mocked')
+          .reply(200, { id: 'https://mocked.com/user/mocked', inbox: 'https://mocked.com/inbox/mocked' })
+        nock('https://mocked.com').post('/inbox/mocked')
+          .reply(200)
+          .on('request', async (req, interceptor, body) => {
+            const sentActivity = JSON.parse(body)
+            const standard = await apex.toJSONLD(merge({}, testUser))
+            delete standard._meta
+            delete standard._local
+            delete standard._id
+            delete standard['@context']
+            standard.name = 'New display name'
+            expect(sentActivity.object).toEqual(standard)
+            done()
+          })
+        request(app)
+          .post('/outbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(update)
+          .expect(200)
+          .end(function (err) {
+            if (err) throw err
+          })
+      })
     })
     describe('accept', function () {
       let follow
