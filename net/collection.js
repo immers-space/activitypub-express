@@ -1,12 +1,24 @@
 module.exports = {
   added,
+  blocked,
   inbox,
   outbox,
   followers,
   following,
   liked,
+  likes,
   shares,
-  likes
+  rejected,
+  rejections
+}
+
+function blocked (req, res, next) {
+  if (!res.locals.apex.target) return next()
+  const apex = req.app.locals.apex
+  apex.getBlocked(res.locals.apex.target).then(col => {
+    res.locals.apex.result = col
+    next()
+  })
 }
 
 function inbox (req, res, next) {
@@ -79,6 +91,24 @@ function added (req, res, next) {
   if (!resLocal.target || !colId) return next()
   apex.getAdded(resLocal.target, colId).then(col => {
     resLocal.result = col
+    next()
+  })
+}
+
+function rejected (req, res, next) {
+  if (!res.locals.apex.target) return next()
+  const apex = req.app.locals.apex
+  apex.getRejected(res.locals.apex.target).then(col => {
+    res.locals.apex.result = col
+    next()
+  })
+}
+
+function rejections (req, res, next) {
+  if (!res.locals.apex.target) return next()
+  const apex = req.app.locals.apex
+  apex.getRejections(res.locals.apex.target).then(col => {
+    res.locals.apex.result = col
     next()
   })
 }

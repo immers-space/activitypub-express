@@ -21,6 +21,9 @@ module.exports = {
   actor: {
     get: [validators.jsonld, validators.targetActor, responders.target]
   },
+  blocked: {
+    get: [validators.jsonld, validators.targetActor, collection.blocked, responders.result]
+  },
   collections: {
     get: [validators.jsonld, validators.targetActor, collection.added, responders.result]
   },
@@ -103,6 +106,12 @@ module.exports = {
       collection.outbox,
       responders.result
     ]
+  },
+  rejected: {
+    get: [validators.jsonld, validators.targetActor, collection.rejected, responders.result]
+  },
+  rejections: {
+    get: [validators.jsonld, validators.targetActor, collection.rejections, responders.result]
   },
   webfinger: {
     get: [
