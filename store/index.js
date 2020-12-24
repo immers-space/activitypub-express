@@ -9,6 +9,34 @@ class ApexStore extends IApexStore {
     this.metaProj = { _id: 0 }
   }
 
+  async deliveryEnqueue (actorId, body, addresses, signingKey) {
+    if (!Array.isArray(addresses)) { addresses = [addresses] }
+    const docs = addresses.map(address => ({
+      address,
+      actorId,
+      signingKey,
+      body,
+      attempt: 0
+    }))
+    await this.db.collection('deliveryQueue')
+      .insertMany(docs, { ordered: false })
+    // TODO maybe catch errored docs and retry?
+    return true
+  }
+
+  async deliveryDequeue () {
+    const result = await this.db.collection('deliveryQueue')
+      .findOneAndDelete({}, { sort: { _id: 1 }, projection: { _id: 0 } })
+    return result.value
+  }
+
+  async deliveryRequeue (delivery) {
+    delivery.attempt++
+    const result = await this.db.collection('deliveryQueue')
+      .insertOne(delivery)
+    return result.insertedCount
+  }
+
   async setup (initialUser) {
     const db = this.db
     // inbox
@@ -178,6 +206,8 @@ class ApexStore extends IApexStore {
   }
 
   // for denormalized storage model, must update all activities with copy of updated object
+  /* TODO: if this is a profile update that includes a private key change, need to update
+     copies in delivery queue */
   updateObjectCopies (object) {
     return this.db.collection('streams')
       .updateMany({ 'object.0.id': object.id }, { $set: { object: [object] } })
