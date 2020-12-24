@@ -106,6 +106,8 @@ describe('inbox', function () {
       .then(done)
   })
   beforeEach(function (done) {
+    // don't let failed deliveries pollute later tests
+    spyOn(apex.store, 'deliveryRequeue')
     // reset db for each test
     client.db('apexTestingTempDb').dropDatabase()
       .then(() => {

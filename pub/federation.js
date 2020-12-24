@@ -6,7 +6,8 @@ module.exports = {
   deliver,
   queueForDelivery,
   requestObject,
-  runDelivery
+  runDelivery,
+  startDelivery
 }
 
 let isDelivering = false
@@ -19,29 +20,24 @@ function requestObject (id) {
   }).then(this.fromJSONLD)
 }
 
-function deliver (actor, activity, addresses) {
-  const requests = addresses.map(addr => {
-    return request({
-      method: 'POST',
-      url: addr,
-      headers: {
-        'Content-Type': this.consts.jsonldOutgoingType,
-        Accept: this.consts.jsonldTypes.join(', ')
-      },
-      httpSignature: {
-        key: actor._meta.privateKey,
-        keyId: actor.id,
-        headers: ['(request-target)', 'host', 'date'],
-        authorizationHeaderName: 'Signature'
-      },
-      resolveWithFullResponse: true,
-      simple: false,
-      body: activity
-    })
-      .then(result => console.log('delivery:', addr, result.statusCode))
-      .catch(err => console.log(err.message))
+function deliver (actorId, activity, address, signingKey) {
+  return request({
+    method: 'POST',
+    url: address,
+    headers: {
+      'Content-Type': this.consts.jsonldOutgoingType,
+      Accept: this.consts.jsonldTypes.join(', ')
+    },
+    httpSignature: {
+      key: signingKey,
+      keyId: actorId,
+      headers: ['(request-target)', 'host', 'date'],
+      authorizationHeaderName: 'Signature'
+    },
+    resolveWithFullResponse: true,
+    simple: false,
+    body: activity
   })
-  return Promise.all(requests)
 }
 
 async function queueForDelivery (actor, activity, addresses) {
@@ -49,11 +45,16 @@ async function queueForDelivery (actor, activity, addresses) {
   const outgoingBody = this.stringifyPublicJSONLD(activity)
   await this.store
     .deliveryEnqueue(actor.id, outgoingBody, addresses, actor._meta.privateKey)
-  this.runDelivery()
+  // returning promise makes first delivery complete during postWork (easier testing)
+  return this.startDelivery()
+}
+
+function startDelivery () {
+  if (isDelivering) return
+  return this.runDelivery()
 }
 
 async function runDelivery () {
-  if (isDelivering) return
   isDelivering = true
   const toDeliver = await this.store.deliveryDequeue()
   if (!toDeliver) {
@@ -62,7 +63,7 @@ async function runDelivery () {
   }
   try {
     const { actorId, body, address, signingKey } = toDeliver
-    const result = await deliver(actorId, body, address, signingKey)
+    const result = await this.deliver(actorId, body, address, signingKey)
     console.log('delivery:', address, result.statusCode)
     if (result.statusCode >= 500) {
       // 5xx errors will get requeued

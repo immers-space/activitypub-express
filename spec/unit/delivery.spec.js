@@ -87,4 +87,77 @@ describe('delivery', function () {
       }])
     })
   })
+  describe('background delivery process', function () {
+    let body
+    let bodyString
+    let addresses
+    beforeEach(async function () {
+      const act = await apex.buildActivity('Create', testUser.id, ['https://ignore.com/bob'], {
+        object: {
+          type: 'Note',
+          content: 'Hello'
+        }
+      })
+      body = await apex.toJSONLD(act)
+      bodyString = apex.stringifyPublicJSONLD(body)
+      addresses = ['https://mocked.com/bob/inbox', 'https://ignore.com/sally/inbox']
+    })
+    it('starts delivery process after queueing', async function () {
+      spyOn(apex, 'runDelivery')
+      await apex.queueForDelivery(testUser, body, addresses)
+      expect(apex.runDelivery).toHaveBeenCalled()
+    })
+    it('continues deliverying until queue is empty', async function (done) {
+      spyOn(apex, 'deliver').and.resolveTo({ statusCode: 200 })
+      await apex.queueForDelivery(testUser, body, addresses)
+      setTimeout(() => {
+        expect(apex.deliver).toHaveBeenCalledTimes(2)
+        expect(apex.deliver)
+          .toHaveBeenCalledWith(testUser.id, bodyString, addresses[0], testUser._meta.privateKey)
+        expect(apex.deliver)
+          .toHaveBeenCalledWith(testUser.id, bodyString, addresses[1], testUser._meta.privateKey)
+        done()
+      }, 100)
+    })
+    it('retries failed delivery', async function (done) {
+      spyOn(apex.store, 'deliveryRequeue').and.callThrough()
+      spyOn(apex, 'deliver').and.returnValues(
+        { statusCode: 500 },
+        { statusCode: 200 },
+        null,
+        { statusCode: 200 }
+      )
+      await apex.queueForDelivery(testUser, body, addresses)
+      setTimeout(() => {
+        expect(apex.store.deliveryRequeue).toHaveBeenCalledWith({
+          actorId: testUser.id,
+          body: bodyString,
+          address: addresses[0],
+          signingKey: testUser._meta.privateKey,
+          attempt: 2
+        })
+        expect(apex.deliver).toHaveBeenCalledTimes(4)
+        expect(apex.deliver.calls.argsFor(3))
+          .toEqual([testUser.id, bodyString, addresses[0], testUser._meta.privateKey])
+        done()
+      }, 100)
+    })
+    it('does not retry 4xx failed delivery', async function (done) {
+      spyOn(apex.store, 'deliveryRequeue').and.callThrough()
+      spyOn(apex, 'deliver').and.returnValues(
+        { statusCode: 400 },
+        { statusCode: 200 }
+      )
+      await apex.queueForDelivery(testUser, body, addresses)
+      setTimeout(() => {
+        expect(apex.store.deliveryRequeue).not.toHaveBeenCalled()
+        expect(apex.deliver).toHaveBeenCalledTimes(2)
+        expect(apex.deliver)
+          .toHaveBeenCalledWith(testUser.id, bodyString, addresses[0], testUser._meta.privateKey)
+        expect(apex.deliver)
+          .toHaveBeenCalledWith(testUser.id, bodyString, addresses[1], testUser._meta.privateKey)
+        done()
+      }, 100)
+    })
+  })
 })

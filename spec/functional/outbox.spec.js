@@ -96,6 +96,9 @@ describe('outbox', function () {
       .then(done)
   })
   beforeEach(function (done) {
+    // don't let failed deliveries pollute later tests
+    spyOn(apex.store, 'deliveryRequeue')
+
     // reset db for each test
     client.db('apexTestingTempDb').dropDatabase()
       .then(() => {
@@ -236,8 +239,7 @@ describe('outbox', function () {
       block._meta = { collection: [apex.utils.nameToBlockedIRI(testUser.preferredUsername)] }
       await apex.store.saveActivity(block)
       app.once('apex-outbox', msg => {
-        expect(deliverSpy).toHaveBeenCalledTimes(1)
-        expect(deliverSpy.calls.first().args[2]).not.toContain('https://localhost/u/blocked')
+        expect(deliverSpy).not.toHaveBeenCalled()
         done()
       })
       request(app)
@@ -276,7 +278,7 @@ describe('outbox', function () {
         undo = {
           '@context': 'https://www.w3.org/ns/activitystreams',
           type: 'Undo',
-          to: ['https://localhost/u/test'],
+          to: ['https://ignore.com/bob'],
           actor: 'https://localhost/u/test',
           object: undone.id
         }

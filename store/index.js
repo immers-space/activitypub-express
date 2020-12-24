@@ -10,6 +10,7 @@ class ApexStore extends IApexStore {
   }
 
   async deliveryEnqueue (actorId, body, addresses, signingKey) {
+    if (!addresses || !addresses.length) return
     if (!Array.isArray(addresses)) { addresses = [addresses] }
     const docs = addresses.map(address => ({
       address,
@@ -19,7 +20,7 @@ class ApexStore extends IApexStore {
       attempt: 0
     }))
     await this.db.collection('deliveryQueue')
-      .insertMany(docs, { ordered: false })
+      .insertMany(docs, { ordered: false, forceServerObjectId: true })
     // TODO maybe catch errored docs and retry?
     return true
   }
@@ -33,7 +34,7 @@ class ApexStore extends IApexStore {
   async deliveryRequeue (delivery) {
     delivery.attempt++
     const result = await this.db.collection('deliveryQueue')
-      .insertOne(delivery)
+      .insertOne(delivery, { forceServerObjectId: true })
     return result.insertedCount
   }
 

@@ -91,8 +91,9 @@ async function address (activity, sender) {
 async function addToOutbox (actor, activity) {
   const tasks = [this.address(activity, actor), this.toJSONLD(activity)]
   const [addresses, outgoingActivity] = await Promise.all(tasks)
-  // custom stringify strips meta props
-  return this.deliver(actor, this.stringifyPublicJSONLD(outgoingActivity), addresses)
+  if (addresses.length) {
+    return this.queueForDelivery(actor, outgoingActivity, addresses)
+  }
 }
 
 // follow accept side effects: add to followers, publish updated followers
