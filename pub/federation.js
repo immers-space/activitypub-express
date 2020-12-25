@@ -11,6 +11,7 @@ module.exports = {
 }
 
 let isDelivering = false
+let nextDelivery = null
 
 function requestObject (id) {
   return request({
@@ -61,6 +62,16 @@ async function runDelivery () {
     isDelivering = false
     return
   }
+  // only future-dated items left, resume then
+  if (toDeliver.waitUntil) {
+    const wait = toDeliver.waitUntil.getTime() - Date.now()
+    nextDelivery = setTimeout(() => this.startDelivery(), wait)
+    isDelivering = false
+    return
+  }
+  // if new delivery run starts while another is pending,
+  // it will add another timer when it finishes
+  clearTimeout(nextDelivery)
   try {
     const { actorId, body, address, signingKey } = toDeliver
     const result = await this.deliver(actorId, body, address, signingKey)
@@ -71,10 +82,13 @@ async function runDelivery () {
     }
   } catch (err) {
     console.log(`Delivery error ${err.message}, requeuing`)
-    // TODO check max retries, update list of deceased nodes
-    await this.store.deliveryRequeue(toDeliver).catch(err => {
-      console.error('Failed to requeue delivery', err.message)
-    })
+    // 11 tries over ~5 months
+    if (toDeliver.attempt < 11) {
+      await this.store.deliveryRequeue(toDeliver).catch(err => {
+        console.error('Failed to requeue delivery', err.message)
+      })
+    }
+    // TODO: consider tracking unreachable servers, removing followers
   }
-  process.nextTick(() => this.runDelivery())
+  setTimeout(() => this.runDelivery(), 0)
 }

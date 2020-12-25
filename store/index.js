@@ -17,7 +17,8 @@ class ApexStore extends IApexStore {
       actorId,
       signingKey,
       body,
-      attempt: 0
+      attempt: 0,
+      after: new Date()
     }))
     await this.db.collection('deliveryQueue')
       .insertMany(docs, { ordered: false, forceServerObjectId: true })
@@ -26,13 +27,24 @@ class ApexStore extends IApexStore {
   }
 
   async deliveryDequeue () {
+    const queryOptions = {
+      sort: { after: 1, _id: 1 },
+      projection: { _id: 0 }
+    }
     const result = await this.db.collection('deliveryQueue')
-      .findOneAndDelete({}, { sort: { _id: 1 }, projection: { _id: 0 } })
-    return result.value
+      .findOneAndDelete({ after: { $lte: new Date() } }, queryOptions)
+    if (result.value) {
+      return result.value
+    }
+    // if no deliveries available now, check for scheduled deliveries
+    const next = await this.db.collection('deliveryQueue')
+      .findOne({}, { sort: { after: 1 }, projection: { after: 1 } })
+    return next ? { waitUntil: next.after } : null
   }
 
   async deliveryRequeue (delivery) {
-    delivery.attempt++
+    const nextTime = delivery.after.getTime() + Math.pow(10, delivery.attempt++)
+    delivery.after = new Date(nextTime)
     const result = await this.db.collection('deliveryQueue')
       .insertOne(delivery, { forceServerObjectId: true })
     return result.insertedCount
@@ -54,7 +66,10 @@ class ApexStore extends IApexStore {
       name: 'collections'
     })
     // object lookup
-    await db.collection('objects').createIndex({ id: 1 }, { unique: true, name: 'objects-primary' })
+    await db.collection('objects')
+      .createIndex({ id: 1 }, { unique: true, name: 'objects-primary' })
+    await db.collection('deliveryQueue')
+      .createIndex({ after: 1, _id: 1 }, { name: 'delivery-dequeue' })
     if (initialUser) {
       return db.collection('objects').findOneAndReplace(
         { id: initialUser.id },

@@ -143,7 +143,7 @@ client.connect({ useNewUrlParser: true })
     * [x] Addressing
       * [ ] Shared inbox optmization
       * [ ] Direct delivery to local inboxes
-    * [ ] Redelivery attempts
+    * [x] Redelivery attempts
 * [ ] Client-to-server
   * [x] Outbox POST
     * [x] Auto-Create for bare objects
