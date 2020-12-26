@@ -162,6 +162,7 @@ client.connect({ useNewUrlParser: true })
       * [x] Undo
         * [ ] Publish affected collection update
       * [x] Other acivity types
+  * [ ] Media upload
 * [ ] Other
   * [x] Actor creation
     * [x] Key generation
