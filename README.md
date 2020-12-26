@@ -143,7 +143,7 @@ client.connect({ useNewUrlParser: true })
     * [x] Addressing
       * [ ] Shared inbox optmization
       * [ ] Direct delivery to local inboxes
-    * [ ] Redelivery attempts
+    * [x] Redelivery attempts
 * [ ] Client-to-server
   * [x] Outbox POST
     * [x] Auto-Create for bare objects
@@ -162,6 +162,7 @@ client.connect({ useNewUrlParser: true })
       * [x] Undo
         * [ ] Publish affected collection update
       * [x] Other acivity types
+  * [ ] Media upload
 * [ ] Other
   * [x] Actor creation
     * [x] Key generation

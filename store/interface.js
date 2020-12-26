@@ -46,4 +46,16 @@ module.exports = class IApexStore {
   updateObject (obj, actorId, fullReplace) {
     throw new Error('Not implemented')
   }
+
+  deliveryDequeue () {
+    throw new Error('Not implemented')
+  }
+
+  deliveryEnqueue (actorId, body, addresses, signingKey) {
+    throw new Error('Not implemented')
+  }
+
+  deliveryRequeue (delivery) {
+    throw new Error('Not implemented')
+  }
 }
