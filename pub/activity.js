@@ -54,12 +54,15 @@ async function address (activity, sender) {
       return null
     }
     if (t === sender.followers[0]) {
-      return this.getFollowers(sender)
+      return this.getFollowers(sender, Infinity)
     }
     return this.resolveObject(t)
   })
+  /* TODO: better collection resolution
+   * - filter out collections not owned by actor
+   * - resolve collections other than just followers to actual addresses
+   */
   audience = await Promise.allSettled(audience).then(results => {
-    // TODO: spec says only deliver to actor-owned collections
     const addresses = results
       .filter(r => r.status === 'fulfilled')
       .map(r => {

@@ -4,6 +4,7 @@ const merge = require('deepmerge')
 const { escape, unescape } = require('mongo-escape')
 
 module.exports = {
+  addPageToIRI,
   addMeta,
   collectionIRIToActorName,
   hasMeta,
@@ -24,6 +25,14 @@ module.exports = {
   validateCollectionOwner,
   validateOwner,
   validateTarget
+}
+
+function addPageToIRI (id, pageId) {
+  const url = new URL(id)
+  const query = new URLSearchParams(url.search)
+  query.set(this.pageParam, pageId)
+  url.search = query.toString()
+  return url.toString()
 }
 
 function addMeta (obj, key, value) {

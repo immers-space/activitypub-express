@@ -204,7 +204,7 @@ function targetActorWithMeta (req, res, next) {
     // for temp in-memory storage
     actorObj._local = {}
     resLocal.target = actorObj
-    return apex.getBlocked(actorObj)
+    return apex.getBlocked(actorObj, Infinity)
   }).then(blocked => {
     if (blocked) {
       resLocal.target._local.blockList = blocked.orderedItems

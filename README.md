@@ -110,7 +110,7 @@ client.connect({ useNewUrlParser: true })
         * [x] Likes
         * [x] Shares
       * [x] Misc collections (of activities)
-      * [ ] Pagination
+      * [x] Pagination
     * [ ] Relay requests for remote objects
     * [ ] Response code 410 for Tombstones
   * [ ] Security
@@ -235,6 +235,8 @@ routes.collections | Actors' miscellaneous collections route (must include `acto
 **Optional** |
 activityParam | String. Express route parameter used for activity id (defaults to `objectParam`)
 collectionParam | String. Express route parameter used for collection id (defaults to `objectParam`)
+pageParam | String. Query parameter used for collection page identifier (defaults to `page`)
+itemsPerPage | Number. Count of items in each collection page (default `20`)
 context | String, Array. JSON-LD context for your app. Defaults to AcivityStreams + Security vocabs
 store | Replace the default storage model & database backend with your own (see `store/interface.js` for API)
 

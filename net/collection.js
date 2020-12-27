@@ -15,7 +15,7 @@ module.exports = {
 function blocked (req, res, next) {
   if (!res.locals.apex.target) return next()
   const apex = req.app.locals.apex
-  apex.getBlocked(res.locals.apex.target).then(col => {
+  apex.getBlocked(res.locals.apex.target, req.query.page).then(col => {
     res.locals.apex.result = col
     next()
   })
@@ -24,7 +24,7 @@ function blocked (req, res, next) {
 function inbox (req, res, next) {
   if (!res.locals.apex.target) return next()
   const apex = req.app.locals.apex
-  apex.getInbox(res.locals.apex.target).then(col => {
+  apex.getInbox(res.locals.apex.target, req.query.page).then(col => {
     res.locals.apex.result = col
     next()
   })
@@ -33,7 +33,7 @@ function inbox (req, res, next) {
 function outbox (req, res, next) {
   if (!res.locals.apex.target) return next()
   const apex = req.app.locals.apex
-  apex.getOutbox(res.locals.apex.target).then(col => {
+  apex.getOutbox(res.locals.apex.target, req.query.page).then(col => {
     res.locals.apex.result = col
     next()
   })
@@ -42,7 +42,7 @@ function outbox (req, res, next) {
 function followers (req, res, next) {
   if (!res.locals.apex.target) return next()
   const apex = req.app.locals.apex
-  apex.getFollowers(res.locals.apex.target).then(col => {
+  apex.getFollowers(res.locals.apex.target, req.query.page).then(col => {
     res.locals.apex.result = col
     next()
   })
@@ -51,7 +51,7 @@ function followers (req, res, next) {
 function following (req, res, next) {
   if (!res.locals.apex.target) return next()
   const apex = req.app.locals.apex
-  apex.getFollowing(res.locals.apex.target).then(col => {
+  apex.getFollowing(res.locals.apex.target, req.query.page).then(col => {
     res.locals.apex.result = col
     next()
   })
@@ -60,7 +60,7 @@ function following (req, res, next) {
 function liked (req, res, next) {
   if (!res.locals.apex.target) return next()
   const apex = req.app.locals.apex
-  apex.getLiked(res.locals.apex.target).then(col => {
+  apex.getLiked(res.locals.apex.target, req.query.page).then(col => {
     res.locals.apex.result = col
     next()
   })
@@ -69,7 +69,7 @@ function liked (req, res, next) {
 function shares (req, res, next) {
   if (!res.locals.apex.target) return next()
   const apex = req.app.locals.apex
-  apex.getShares(res.locals.apex.target).then(col => {
+  apex.getShares(res.locals.apex.target, req.query.page).then(col => {
     res.locals.apex.result = col
     next()
   })
@@ -78,7 +78,7 @@ function shares (req, res, next) {
 function likes (req, res, next) {
   if (!res.locals.apex.target) return next()
   const apex = req.app.locals.apex
-  apex.getLikes(res.locals.apex.target).then(col => {
+  apex.getLikes(res.locals.apex.target, req.query.page).then(col => {
     res.locals.apex.result = col
     next()
   })
@@ -89,7 +89,7 @@ function added (req, res, next) {
   const resLocal = res.locals.apex
   const colId = req.params[apex.collectionParam]
   if (!resLocal.target || !colId) return next()
-  apex.getAdded(resLocal.target, colId).then(col => {
+  apex.getAdded(resLocal.target, colId, req.query.page).then(col => {
     resLocal.result = col
     next()
   })
@@ -98,7 +98,7 @@ function added (req, res, next) {
 function rejected (req, res, next) {
   if (!res.locals.apex.target) return next()
   const apex = req.app.locals.apex
-  apex.getRejected(res.locals.apex.target).then(col => {
+  apex.getRejected(res.locals.apex.target, req.query.page).then(col => {
     res.locals.apex.result = col
     next()
   })
@@ -107,7 +107,7 @@ function rejected (req, res, next) {
 function rejections (req, res, next) {
   if (!res.locals.apex.target) return next()
   const apex = req.app.locals.apex
-  apex.getRejections(res.locals.apex.target).then(col => {
+  apex.getRejections(res.locals.apex.target, req.query.page).then(col => {
     res.locals.apex.result = col
     next()
   })
