@@ -75,9 +75,7 @@ describe('collections', function () {
             .buildActivity('Follow', followerId, testUser.id, { object: testUser.id })
         })
       followers = await Promise.all(followers)
-      followers.forEach(f => {
-        apex.addMeta(f, 'collection', testUser.inbox[0])
-      })
+      followers.forEach(f => apex.addMeta(f, 'collection', testUser.inbox[0]))
       apex.addMeta(followers[0], 'collection', testUser.followers[0])
       apex.addMeta(followers[2], 'collection', testUser.followers[0])
       for (const follower of followers) {
