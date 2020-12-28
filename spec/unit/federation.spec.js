@@ -1,6 +1,8 @@
 /* global describe, beforeAll, beforeEach, afterEach, jasmine, it, expect, spyOn */
+const nock = require('nock')
+const httpSignature = require('http-signature')
 
-describe('delivery', function () {
+describe('federation', function () {
   let testUser
   let app
   let apex
@@ -18,7 +20,7 @@ describe('delivery', function () {
   beforeEach(function () {
     return global.resetDb(apex, client, testUser)
   })
-  describe('queueing', function () {
+  describe('delivery queueing', function () {
     let body
     let addresses
     beforeEach(async function () {
@@ -220,6 +222,29 @@ describe('delivery', function () {
           .toHaveBeenCalledWith(testUser.id, bodyString, addresses[1], testUser._meta.privateKey)
         done()
       }, 100)
+    })
+  })
+  describe('requestObject', function () {
+    let su
+    beforeEach(async function () {
+      su = await apex.createActor('su', 'System user', '', null, 'Service')
+      await apex.store.saveObject(su)
+      apex.systemUser = su
+    })
+    afterEach(function () {
+      apex.systemUser = undefined
+    })
+    it('signs requests with systemUser', function (done) {
+      nock('https://mocked.com').get('/o/mocked')
+        .reply(200, {})
+        .on('request', req => {
+          // valid signature
+          req.originalUrl = req.path
+          const sigHead = httpSignature.parse(req)
+          expect(httpSignature.verifySignature(sigHead, su.publicKey[0].publicKeyPem[0])).toBeTruthy()
+          done()
+        })
+      apex.requestObject('https://mocked.com/o/mocked')
     })
   })
 })

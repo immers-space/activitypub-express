@@ -1,5 +1,6 @@
 'use strict'
 const request = require('request-promise-native')
+const crypto = require('crypto')
 
 // federation communication utilities
 module.exports = {
@@ -14,25 +15,38 @@ let isDelivering = false
 let nextDelivery = null
 
 function requestObject (id) {
-  return request({
+  const req = {
     url: id,
     headers: { Accept: 'application/activity+json' },
     json: true
-  }).then(this.fromJSONLD)
+  }
+  if (this.systemUser) {
+    req.httpSignature = {
+      key: this.systemUser._meta.privateKey,
+      keyId: this.systemUser.id,
+      headers: ['(request-target)', 'host', 'date'],
+      authorizationHeaderName: 'Signature'
+    }
+  }
+  return request(req).then(this.fromJSONLD)
 }
 
 function deliver (actorId, activity, address, signingKey) {
+  // digest header added for Mastodon 3.2.1 compatibility
+  const digest = crypto.createHash('sha256')
+    .update(activity)
+    .digest('base64')
   return request({
     method: 'POST',
     url: address,
     headers: {
       'Content-Type': this.consts.jsonldOutgoingType,
-      Accept: this.consts.jsonldTypes.join(', ')
+      Digest: `SHA-256=${digest}`
     },
     httpSignature: {
       key: signingKey,
       keyId: actorId,
-      headers: ['(request-target)', 'host', 'date'],
+      headers: ['(request-target)', 'host', 'date', 'digest'],
       authorizationHeaderName: 'Signature'
     },
     resolveWithFullResponse: true,

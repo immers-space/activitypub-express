@@ -217,6 +217,8 @@ describe('outbox', function () {
           // valid signature
           req.originalUrl = req.path
           const sigHead = httpSignature.parse(req)
+          // mastodon 3.2.1 requirement
+          expect(sigHead.params.headers).toContain('digest')
           expect(httpSignature.verifySignature(sigHead, testUser.publicKey[0].publicKeyPem[0])).toBeTruthy()
           done()
         })
