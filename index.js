@@ -46,6 +46,7 @@ module.exports = function (settings) {
   apex.objectParam = settings.objectParam
   apex.activityParam = settings.activityParam || settings.objectParam
   apex.collectionParam = settings.collectionParam || settings.objectParam
+  apex.threadDepth = settings.threadDepth || 10
   apex.systemUser = settings.systemUser
   apex.utils = {
     usernameToIRI: apex.idToIRIFactory(apex.domain, settings.routes.actor, apex.actorParam),

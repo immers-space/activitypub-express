@@ -7,6 +7,7 @@ module.exports = {
   deliver,
   queueForDelivery,
   requestObject,
+  resolveReferences,
   runDelivery,
   startDelivery
 }
@@ -29,6 +30,26 @@ function requestObject (id) {
     }
   }
   return request(req).then(this.fromJSONLD)
+}
+
+const refProps = ['inReplyTo', 'object', 'target', 'tag']
+async function resolveReferences (object, depth = 0) {
+  const objectPromises = refProps.map(prop => object[prop])
+    .flat() // may have multiple tags to resolve
+    .map(o => this.resolveUnknown(o))
+    .filter(p => p)
+  const objects = (await Promise.allSettled(objectPromises))
+    .filter(r => r.status === 'fulfilled' && r.value)
+    .map(r => r.value)
+  if (!objects.length || depth >= this.threadDepth) {
+    return objects
+  }
+  const nextLevel = objects
+    .map(o => this.resolveReferences(o, depth + 1))
+  const nextLevelResolved = (await Promise.allSettled(nextLevel))
+    .filter(r => r.status === 'fulfilled' && r.value)
+    .map(r => r.value)
+  return objects.concat(nextLevelResolved.flat())
 }
 
 function deliver (actorId, activity, address, signingKey) {

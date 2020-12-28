@@ -134,7 +134,7 @@ client.connect({ useNewUrlParser: true })
     * [x] Security
       * [x] Signature validation
       * [x] Honor recipient blocklist
-    * [ ] Recursive resolution of related objects
+    * [x] Recursive resolution of related objects
     * [ ] Forwarding from inbox
   * [ ] Shared inbox POST
     * [ ] Delivery to targeted local inboxes
@@ -171,6 +171,7 @@ client.connect({ useNewUrlParser: true })
     * [ ] Rate limits
     * [ ] localhost block
     * [ ] Content sanitization
+    * [x] Recursive object resolution depth limit
   * [ ] Related standards
     * [x] http-signature
     * [x] webfinger
@@ -237,6 +238,7 @@ activityParam | String. Express route parameter used for activity id (defaults t
 collectionParam | String. Express route parameter used for collection id (defaults to `objectParam`)
 context | String, Array. JSON-LD context for your app. Defaults to AcivityStreams + Security vocabs
 store | Replace the default storage model & database backend with your own (see `store/interface.js` for API)
+threadDepth | Controls how far up apex will follow links in incoming activities in order to display the conversation thread & check for inbox forwarding needs  (default 10)
 systemUser | Actor object representing system and used for signing GETs (see below)
 
 Blocked, rejections, and rejected: these routes must be defined in order to track
