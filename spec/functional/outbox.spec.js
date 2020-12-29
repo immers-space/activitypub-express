@@ -97,7 +97,7 @@ describe('outbox', function () {
   })
   beforeEach(function (done) {
     // don't let failed deliveries pollute later tests
-    spyOn(apex.store, 'deliveryRequeue')
+    spyOn(apex.store, 'deliveryRequeue').and.resolveTo(undefined)
 
     // reset db for each test
     client.db('apexTestingTempDb').dropDatabase()

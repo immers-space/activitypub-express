@@ -135,7 +135,8 @@ client.connect({ useNewUrlParser: true })
       * [x] Signature validation
       * [x] Honor recipient blocklist
     * [x] Recursive resolution of related objects
-    * [ ] Forwarding from inbox
+    * [x] Forwarding from inbox
+      * [ ] Validation of forwarded messages
   * [ ] Shared inbox POST
     * [ ] Delivery to targeted local inboxes
   * [x] Delivery

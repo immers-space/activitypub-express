@@ -54,6 +54,7 @@ module.exports = {
       activity.save,
       activity.resolveThread,
       activity.inboxSideEffects,
+      activity.forwardFromInbox,
       responders.status
     ],
     get: [
