@@ -56,6 +56,23 @@ async function address (activity, sender) {
     if (t === sender.followers[0]) {
       return this.getFollowers(sender, Infinity)
     }
+    /* Allow addressing to custom collections, e.g. a concept like a list
+     * of specific friends could be represented by a collection of Follow
+     * activities
+     */
+    if (this.collectionIRIToActorName(t, 'collections')) {
+      return this.getAdded(t, Infinity).then(col => {
+        col.orderedItems = col.orderedItems.reduce((actors, activity) => {
+          return actors.concat(
+            activity.actor,
+            // in some cases, e.g. outgoing follows, the object is the actor
+            // of interest
+            activity.object ? activity.object.filter(o => this.isString(o)) : []
+          )
+        }, [])
+        return col
+      })
+    }
     return this.resolveObject(t)
   })
   /* TODO: better collection resolution
@@ -64,16 +81,16 @@ async function address (activity, sender) {
    */
   audience = await Promise.allSettled(audience).then(results => {
     const addresses = results
-      .filter(r => r.status === 'fulfilled')
-      .map(r => {
-        if (r.value && r.value.inbox) {
-          return r.value
+      .filter(result => result.status === 'fulfilled' && result.value)
+      .map(result => {
+        if (result.value.inbox) {
+          return result.value
         }
-        if (r.value && r.value.items) {
-          return r.value.items.map(this.resolveObject)
+        if (result.value.items) {
+          return result.value.items.map(this.resolveObject)
         }
-        if (r.value && r.value.orderedItems) {
-          return r.value.orderedItems.map(this.resolveObject)
+        if (result.value.orderedItems) {
+          return result.value.orderedItems.map(this.resolveObject)
         }
       })
     // flattens and resolves collections
@@ -84,10 +101,12 @@ async function address (activity, sender) {
       if (result.status !== 'fulfilled' || !result.value) return false
       if (sender._local.blockList.includes(result.value.id)) return false
       if (!result.value.inbox) return false
+      // 7.1 exclude self
+      if (result.value.inbox[0] === sender.inbox[0]) return false
       return true
     })
-    .map(r => r.value.inbox[0])
-  // de-dupe
+    .map(result => result.value.inbox[0])
+  // 7.1 de-dupe
   return Array.from(new Set(audience))
 }
 
