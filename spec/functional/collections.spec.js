@@ -1,70 +1,26 @@
 /* global describe, beforeAll, beforeEach, it, expect */
 const request = require('supertest')
-const express = require('express')
-const { MongoClient } = require('mongodb')
-
-const ActivitypubExpress = require('../../index')
-
-const app = express()
-const apex = ActivitypubExpress({
-  domain: 'localhost',
-  context: [
-    'https://www.w3.org/ns/activitystreams',
-    'https://w3id.org/security/v1'
-  ],
-  actorParam: 'actor',
-  objectParam: 'id',
-  activityParam: 'id',
-  routes: {
-    actor: '/u/:actor',
-    object: '/o/:id',
-    activity: '/s/:id',
-    inbox: '/inbox/:actor',
-    outbox: '/outbox/:actor',
-    followers: '/followers/:actor',
-    following: '/following/:actor',
-    liked: '/liked/:actor',
-    shares: '/s/:id/shares',
-    likes: '/s/:id/likes',
-    collections: '/u/:actor/c/:id',
-    blocked: '/u/:actor/blocked',
-    rejections: '/u/:actor/rejections',
-    rejected: '/u/:actor/rejected'
-  }
-})
-const client = new MongoClient('mongodb://localhost:27017', { useUnifiedTopology: true, useNewUrlParser: true })
-
-app.use(apex)
-app.get('/followers/:actor', apex.net.followers.get)
-app.get('/following/:actor', apex.net.following.get)
-app.get('/liked/:actor', apex.net.liked.get)
-app.get('/s/:id/shares', apex.net.shares.get)
-app.get('/s/:id/likes', apex.net.likes.get)
-app.get('/u/:actor/c/:id', apex.net.collections.get)
-app.use(function (err, req, res, next) {
-  console.error(err)
-  next(err)
-})
 
 describe('collections', function () {
   let testUser
-  beforeAll(function (done) {
-    const actorName = 'test'
-    apex.createActor(actorName, actorName, 'test user')
-      .then(actor => {
-        testUser = actor
-        return client.connect({ useNewUrlParser: true })
-      })
-      .then(done)
+  let app
+  let apex
+  let client
+  beforeAll(async function () {
+    const init = await global.initApex()
+    testUser = init.testUser
+    app = init.app
+    apex = init.apex
+    client = init.client
+    app.get('/followers/:actor', apex.net.followers.get)
+    app.get('/following/:actor', apex.net.following.get)
+    app.get('/liked/:actor', apex.net.liked.get)
+    app.get('/s/:id/shares', apex.net.shares.get)
+    app.get('/s/:id/likes', apex.net.likes.get)
+    app.get('/u/:actor/c/:id', apex.net.collections.get)
   })
-  beforeEach(function (done) {
-    // reset db for each test
-    client.db('apexTestingTempDb').dropDatabase()
-      .then(() => {
-        apex.store.db = client.db('apexTestingTempDb')
-        return apex.store.setup(testUser)
-      })
-      .then(done)
+  beforeEach(function () {
+    return global.resetDb(apex, client, testUser)
   })
   describe('follows', function () {
     it('returns accepted followers', async function (done) {

@@ -23,6 +23,14 @@ module.exports = class IApexStore {
     throw new Error('Not implemented')
   }
 
+  getContext (documentUrl) {
+    throw new Error('Not implemented')
+  }
+
+  saveContext (context) {
+    throw new Error('Not implemented')
+  }
+
   saveActivity (activity) {
     throw new Error('Not implemented')
   }
