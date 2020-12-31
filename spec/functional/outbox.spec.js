@@ -61,7 +61,7 @@ describe('outbox', function () {
   })
   beforeEach(function () {
     // don't let failed deliveries pollute later tests
-    spyOn(apex.store, 'deliveryRequeue')
+    spyOn(apex.store, 'deliveryRequeue').and.resolveTo(undefined)
     return global.resetDb(apex, client, testUser)
   })
   describe('post', function () {
@@ -170,6 +170,8 @@ describe('outbox', function () {
           // valid signature
           req.originalUrl = req.path
           const sigHead = httpSignature.parse(req)
+          // mastodon 3.2.1 requirement
+          expect(sigHead.params.headers).toContain('digest')
           expect(httpSignature.verifySignature(sigHead, testUser.publicKey[0].publicKeyPem[0])).toBeTruthy()
           done()
         })

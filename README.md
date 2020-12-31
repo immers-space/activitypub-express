@@ -134,8 +134,9 @@ client.connect({ useNewUrlParser: true })
     * [x] Security
       * [x] Signature validation
       * [x] Honor recipient blocklist
-    * [ ] Recursive resolution of related objects
-    * [ ] Forwarding from inbox
+    * [x] Recursive resolution of related objects
+    * [x] Forwarding from inbox
+      * [ ] Validation of forwarded messages
   * [ ] Shared inbox POST
     * [ ] Delivery to targeted local inboxes
   * [x] Delivery
@@ -171,6 +172,7 @@ client.connect({ useNewUrlParser: true })
     * [ ] Rate limits
     * [ ] localhost block
     * [ ] Content sanitization
+    * [x] Recursive object resolution depth limit
   * [ ] Related standards
     * [x] http-signature
     * [x] webfinger
@@ -237,10 +239,34 @@ activityParam | String. Express route parameter used for activity id (defaults t
 collectionParam | String. Express route parameter used for collection id (defaults to `objectParam`)
 context | String, Array. JSON-LD context for your app. Defaults to AcivityStreams + Security vocabs
 store | Replace the default storage model & database backend with your own (see `store/interface.js` for API)
+threadDepth | Controls how far up apex will follow links in incoming activities in order to display the conversation thread & check for inbox forwarding needs  (default 10)
+systemUser | Actor object representing system and used for signing GETs (see below)
 
 Blocked, rejections, and rejected: these routes must be defined in order to track
 these items internally for each actor, but they do not need to be exposed endpoints
 (and probably should not be public even then)
+
+### System User / GET authentication
+
+Some federated apps may require http signature authentication on GET requests.
+To enable this functionality, set the `systemUser` property on your apex instance
+equal to an actor created with `createActor` (generally of type 'Service')
+and saved to your object store.
+Its keys will be used to sign all federated object retrieval requests.
+This property can be set after initializing your apex instance, as
+you will need access to the `createActor` method and a database connection.
+
+```
+const ActivitypubExpress = require('activitypub-express')
+const apex = ActivitypubExpress(options)
+// ... connect to db
+apex.createActor('system-user', 'System user', '', null, 'Service')
+  .then(async actor => {
+    await apex.store.saveObject(actor)
+    apex.systemUser = actor
+  })
+```
+
 
 ## FAQ
 
