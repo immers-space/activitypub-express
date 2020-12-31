@@ -170,7 +170,6 @@ client.connect({ useNewUrlParser: true })
   * [ ] Security
     * [x] Verification
     * [x] localhost block
-    * [ ] Content sanitization
     * [x] Recursive object resolution depth limit
   * [ ] Related standards
     * [x] http-signature
@@ -199,6 +198,10 @@ Additionally, past activitities will be filtered from display in the inbox and f
 collections, but they are not permanetly deleted, so they would re-appear after undo of block.
 
 * Rate limits: not included in `activitpub-express`; should be handled in the specific implementation
+
+* Content sanitization: the apex default store will sanitize for storage in MongoDB,
+but display sanitization is not included in `activitpub-express`.
+This should be handled in the specific implementation
 
 ## API
 
