@@ -11,7 +11,9 @@ module.exports = {
   idToActivityCollectionsFactory,
   idToIRIFactory,
   userAndIdToIRIFactory,
+  isLocalCollection,
   isLocalIRI,
+  isString,
   mergeJSONLD,
   nameToActorStreamsFactory,
   removeMeta,
@@ -148,8 +150,18 @@ function userAndIdToIRIFactory (domain, route, userParam, param) {
   }
 }
 
+function isLocalCollection (object) {
+  if (!object) return false
+  const isCollection = object.type === 'Collection' || object.type === 'OrderedCollection'
+  return isCollection && this.isLocalIRI(object.id)
+}
+
 function isLocalIRI (id) {
   return id.startsWith(`https://${this.domain}`)
+}
+
+function isString (obj) {
+  return (Object.prototype.toString.call(obj) === '[object String]')
 }
 
 const overwriteArrays = {

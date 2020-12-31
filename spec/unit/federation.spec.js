@@ -1,6 +1,8 @@
 /* global describe, beforeAll, beforeEach, afterEach, jasmine, it, expect, spyOn */
+const nock = require('nock')
+const httpSignature = require('http-signature')
 
-describe('delivery', function () {
+describe('federation', function () {
   let testUser
   let app
   let apex
@@ -18,7 +20,7 @@ describe('delivery', function () {
   beforeEach(function () {
     return global.resetDb(apex, client, testUser)
   })
-  describe('queueing', function () {
+  describe('delivery queueing', function () {
     let body
     let addresses
     beforeEach(async function () {
@@ -220,6 +222,96 @@ describe('delivery', function () {
           .toHaveBeenCalledWith(testUser.id, bodyString, addresses[1], testUser._meta.privateKey)
         done()
       }, 100)
+    })
+  })
+  describe('requestObject', function () {
+    let su
+    beforeEach(async function () {
+      su = await apex.createActor('su', 'System user', '', null, 'Service')
+      await apex.store.saveObject(su)
+      apex.systemUser = su
+    })
+    afterEach(function () {
+      apex.systemUser = undefined
+    })
+    it('signs requests with systemUser', function (done) {
+      nock('https://mocked.com').get('/o/mocked')
+        .reply(200, {})
+        .on('request', req => {
+          // valid signature
+          req.originalUrl = req.path
+          const sigHead = httpSignature.parse(req)
+          expect(httpSignature.verifySignature(sigHead, su.publicKey[0].publicKeyPem[0])).toBeTruthy()
+          done()
+        })
+      apex.requestObject('https://mocked.com/o/mocked')
+    })
+  })
+  describe('recursive object resolution', function () {
+    it('resolves linked objects', async function () {
+      const fakes = {
+        'https://mocked.com/s/inreplyto': {
+          id: 'https://mocked.com/s/inreplyto',
+          type: 'Create',
+          actor: ['https://mocked.com/u/tag1']
+        },
+        'https://mocked.com/o/object': {
+          id: 'https://mocked.com/o/object',
+          type: 'Note'
+        },
+        'https://mocked.com/u/tag1': {
+          id: 'https://mocked.com/u/tag1',
+          type: 'Person'
+        },
+        'https://mocked.com/u/tag2': {
+          id: 'https://mocked.com/u/tag2',
+          type: 'Person'
+        },
+        [testUser.followers[0]]: {
+          id: testUser.followers[0],
+          type: 'OrderedCollection'
+        }
+      }
+      spyOn(apex, 'requestObject').and.callFake(id => {
+        return fakes[id]
+      })
+      const out = await apex.resolveReferences({
+        inReplyTo: ['https://mocked.com/s/inreplyto'],
+        object: ['https://mocked.com/o/object'],
+        target: [testUser.followers[0]],
+        tag: [
+          { href: ['https://mocked.com/u/tag1'] },
+          { href: ['https://mocked.com/u/tag2'] }
+        ]
+      })
+      expect(out.length).toBe(5)
+      Object.values(fakes).forEach(o => expect(out).toContain(o))
+      // does not create cached copies of local collections
+      expect(await apex.store.getObject(testUser.followers[0])).toBeFalsy()
+    })
+    it('limits recursion', async function () {
+      const fakes = {
+        'https://mocked.com/s/one': {
+          id: 'https://mocked.com/s/one',
+          type: 'Announce',
+          target: 'https://mocked.com/s/two',
+          actor: ['https://mocked.com/u/tag1']
+        },
+        'https://mocked.com/s/two': {
+          id: 'https://mocked.com/s/two',
+          type: 'Announce',
+          target: 'https://mocked.com/s/one',
+          actor: ['https://mocked.com/u/tag1']
+        }
+      }
+      spyOn(apex, 'requestObject').and.callFake(id => {
+        return fakes[id]
+      })
+      apex.threadDepth = 5
+      const out = await apex.resolveReferences({
+        target: ['https://mocked.com/s/one']
+      })
+      expect(out.length).toBe(6)
     })
   })
 })

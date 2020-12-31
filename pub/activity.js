@@ -42,13 +42,16 @@ async function buildTombstone (object) {
   }
 }
 // TODO: track errors during address resolution for redelivery attempts
-async function address (activity, sender) {
-  let audience = []
-  ;['to', 'bto', 'cc', 'bcc', 'audience'].forEach(t => {
-    if (activity[t]) {
-      audience = audience.concat(activity[t])
-    }
-  })
+async function address (activity, sender, audienceOverride) {
+  let audience
+  if (audienceOverride) {
+    audience = audienceOverride
+  } else {
+    audience = ['to', 'bto', 'cc', 'bcc', 'audience']
+      .reduce((acc, t) => {
+        return activity[t] ? acc.concat(activity[t]) : acc
+      }, [])
+  }
   audience = audience.map(t => {
     if (t === 'https://www.w3.org/ns/activitystreams#Public') {
       return null
@@ -90,9 +93,14 @@ async function address (activity, sender) {
   // de-dupe
   return Array.from(new Set(audience))
 }
-
-async function addToOutbox (actor, activity) {
-  const tasks = [this.address(activity, actor), this.toJSONLD(activity)]
+/* audienceOverride: array of IRIs, used in inbox forwarding to
+ * skip normall addressing and deliver to specific audience
+ */
+async function addToOutbox (actor, activity, audienceOverride) {
+  const tasks = [
+    this.address(activity, actor, audienceOverride),
+    this.toJSONLD(activity)
+  ]
   const [addresses, outgoingActivity] = await Promise.all(tasks)
   if (addresses.length) {
     return this.queueForDelivery(actor, outgoingActivity, addresses)

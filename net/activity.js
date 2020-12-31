@@ -22,6 +22,41 @@ module.exports = {
       next()
     }).catch(next)
   },
+  forwardFromInbox (req, res, next) {
+    const apex = req.app.locals.apex
+    const resLocal = res.locals.apex
+    const activity = req.body
+    if (!(resLocal.activity && resLocal.target)) {
+      return next()
+    }
+    // This is the first time the server has seen this Activity.
+    if (resLocal.isNewActivity !== true) {
+      return next()
+    }
+    // The values of inReplyTo, object, target and/or tag are objects owned by the server
+    if (!(resLocal.linked && resLocal.linked.some(obj => apex.isLocalIRI(obj.id)))) {
+      return next()
+    }
+    // The values of to, cc, and/or audience contain a Collection owned by the server
+    const audience = ['to', 'cc', 'audience']
+      .reduce((acc, prop) => {
+        return activity[prop] ? acc.concat(activity[prop]) : acc
+      }, [])
+      /* Spec says any collection, but really only Followers contains actors
+      * and is used in addressing. Perhaps also Added, depending on what it is
+      * populated with.
+      */
+      .filter(addr => {
+        const isFollow = apex.collectionIRIToActorName(addr, 'followers')
+        const isAdded = apex.collectionIRIToActorName(addr, 'collections')
+        return isFollow || isAdded
+      })
+    if (audience.length) {
+      resLocal.postWork
+        .push(() => apex.addToOutbox(resLocal.target, activity, audience))
+    }
+    next()
+  },
   inboxSideEffects (req, res, next) {
     if (!(res.locals.apex.activity && res.locals.apex.actor)) {
       return next()
@@ -219,6 +254,17 @@ module.exports = {
       if (!resLocal.skipOutbox) {
         resLocal.postWork.unshift(() => apex.addToOutbox(actor, activity))
       }
+      next()
+    }).catch(next)
+  },
+  resolveThread (req, res, next) {
+    const apex = req.app.locals.apex
+    const resLocal = res.locals.apex
+    if (!resLocal.activity) {
+      return next()
+    }
+    apex.resolveReferences(req.body).then(refs => {
+      resLocal.linked = refs
       next()
     }).catch(next)
   }
