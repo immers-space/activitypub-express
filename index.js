@@ -48,6 +48,8 @@ module.exports = function (settings) {
   apex.collectionParam = settings.collectionParam || settings.objectParam
   apex.pageParam = settings.pageParam || 'page'
   apex.itemsPerPage = settings.itemsPerPage || 20
+  apex.threadDepth = settings.threadDepth || 10
+  apex.systemUser = settings.systemUser
   apex.utils = {
     usernameToIRI: apex.idToIRIFactory(apex.domain, settings.routes.actor, apex.actorParam),
     objectIdToIRI: apex.idToIRIFactory(apex.domain, settings.routes.object, apex.objectParam),

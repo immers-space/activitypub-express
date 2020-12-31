@@ -52,7 +52,9 @@ module.exports = {
       validators.activityObject,
       validators.inboxActivity,
       activity.save,
+      activity.resolveThread,
       activity.inboxSideEffects,
+      activity.forwardFromInbox,
       responders.status
     ],
     get: [
