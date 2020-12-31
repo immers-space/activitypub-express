@@ -1,7 +1,7 @@
-/* global describe, beforeAll, beforeEach, afterEach, jasmine, it, expect, spyOn */
+/* global describe, beforeAll, beforeEach, it, expect, spyOn */
 const nock = require('nock')
 
-fdescribe('activity utils', function () {
+describe('activity utils', function () {
   let testUser
   let app
   let apex

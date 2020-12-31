@@ -59,11 +59,16 @@ async function address (activity, sender, audienceOverride) {
     if (t === sender.followers[0]) {
       return this.getFollowers(sender, Infinity)
     }
-    /* Allow addressing to custom collections, e.g. a concept like a list
+    /* Allow addressing to sender's custom collections, e.g. a concept like a list
      * of specific friends could be represented by a collection of Follow
      * activities
+     * 7.1.1 "the server MUST target and deliver to... Collections owned by the actor."
      */
-    if (this.collectionIRIToActorName(t, 'collections')) {
+    const miscColOwner = this.collectionIRIToActorName(t, 'collections')
+    if (miscColOwner) {
+      if (!sender.preferredUsername.includes(miscColOwner)) {
+        return null
+      }
       return this.getAdded(t, Infinity).then(col => {
         col.orderedItems = col.orderedItems.reduce((actors, activity) => {
           return actors.concat(
@@ -78,10 +83,6 @@ async function address (activity, sender, audienceOverride) {
     }
     return this.resolveObject(t)
   })
-  /* TODO: better collection resolution
-   * - filter out collections not owned by actor
-   * - resolve collections other than just followers to actual addresses
-   */
   audience = await Promise.allSettled(audience).then(results => {
     const addresses = results
       .filter(result => result.status === 'fulfilled' && result.value)
