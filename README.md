@@ -168,8 +168,7 @@ client.connect({ useNewUrlParser: true })
   * [x] Actor creation
     * [x] Key generation
   * [ ] Security
-    * [ ] Verification
-    * [ ] Rate limits
+    * [x] Verification
     * [ ] localhost block
     * [ ] Content sanitization
     * [x] Recursive object resolution depth limit
@@ -198,6 +197,8 @@ the followers (outbox) or following (inbox) collection.
 Per spec, future activities from blocked actors will be silently ignored.
 Additionally, past activitities will be filtered from display in the inbox and followers
 collections, but they are not permanetly deleted, so they would re-appear after undo of block.
+
+* Rate limits: not included in `activitpub-express`; should be handled in the specific implementation
 
 ## API
 
