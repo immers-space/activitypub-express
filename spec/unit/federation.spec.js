@@ -165,8 +165,8 @@ describe('federation', function () {
       )
       await apex.queueForDelivery(testUser, body, addresses)
       setTimeout(() => {
-        expect(apex.deliver).toHaveBeenCalledTimes(3)
-      }, 9)
+        expect(apex.deliver).toHaveBeenCalledTimes(4)
+      }, 25)
       setTimeout(() => {
         expect(apex.deliver).toHaveBeenCalledTimes(4)
       }, 99)
