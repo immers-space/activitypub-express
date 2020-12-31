@@ -169,7 +169,7 @@ client.connect({ useNewUrlParser: true })
     * [x] Key generation
   * [ ] Security
     * [x] Verification
-    * [ ] localhost block
+    * [x] localhost block
     * [ ] Content sanitization
     * [x] Recursive object resolution depth limit
   * [ ] Related standards

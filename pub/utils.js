@@ -12,6 +12,8 @@ module.exports = {
   userAndIdToIRIFactory,
   isLocalCollection,
   isLocalIRI,
+  isLocalhostIRI,
+  isProductionEnv,
   isString,
   mergeJSONLD,
   nameToActorStreamsFactory,
@@ -153,6 +155,24 @@ function isLocalIRI (id) {
 
 function isString (obj) {
   return (Object.prototype.toString.call(obj) === '[object String]')
+}
+
+/* just checking a subset of cases becuase others (like no protocol)
+ * would error anyway during request and we don't have to bog down
+ * federation with additional regex or url parsing
+ */
+const localhosts = [
+  'https://localhost',
+  'https://localhost',
+  'http://127.0.0.1',
+  'https://127.0.0.1'
+]
+function isLocalhostIRI (id) {
+  return localhosts.some(lh => id.startsWith(lh))
+}
+
+function isProductionEnv () {
+  return process.env.NODE_ENV === 'production'
 }
 
 const overwriteArrays = {
