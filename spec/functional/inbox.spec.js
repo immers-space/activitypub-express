@@ -107,7 +107,7 @@ describe('inbox', function () {
   })
   beforeEach(function (done) {
     // don't let failed deliveries pollute later tests
-    spyOn(apex.store, 'deliveryRequeue')
+    spyOn(apex.store, 'deliveryRequeue').and.resolveTo(undefined)
     // reset db for each test
     client.db('apexTestingTempDb').dropDatabase()
       .then(() => {
@@ -207,6 +207,34 @@ describe('inbox', function () {
           expect(inbox.orderedItems.length).toBe(0)
           done()
         })
+    })
+    it('forwards from inbox', async function (done) {
+      const mockedUser = 'https://mocked.com/u/mocked'
+      spyOn(apex, 'getFollowers').and
+        .resolveTo({ orderedItems: [mockedUser] })
+      await apex.store.saveActivity(activityNormalized)
+      const reply = await apex.buildActivity(
+        'Create',
+        'https://ignore.com/bob',
+        [testUser.id, testUser.followers[0]],
+        { object: { id: 'https://ignore.com/o/abc123', type: 'Note', inReplyTo: activityNormalized.id } }
+      )
+      reply.id = 'https://ignore.com/s/123abc'
+      nock('https://mocked.com')
+        .get('/u/mocked')
+        .reply(200, { id: mockedUser, inbox: 'https://mocked.com/inbox/mocked' })
+      nock('https://mocked.com').post('/inbox/mocked')
+        .reply(200)
+        .on('request', (req, interceptor, body) => {
+          expect(JSON.parse(body).id).toBe('https://ignore.com/s/123abc')
+          done()
+        })
+      request(app)
+        .post('/inbox/test')
+        .set('Content-Type', 'application/activity+json')
+        .send(await apex.toJSONLD(reply))
+        .expect(200)
+        .end(err => { if (err) done(err) })
     })
     // activity sideEffects
     it('fires create event', function (done) {
