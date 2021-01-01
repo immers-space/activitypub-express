@@ -22,8 +22,9 @@ describe('collections', function () {
   beforeEach(function () {
     return global.resetDb(apex, client, testUser)
   })
-  describe('follows', function () {
-    it('returns accepted followers', async function (done) {
+  describe('followers', function () {
+    let firstActivity
+    beforeEach(async function () {
       let followers = ['https://ignore.com/bob', 'https://ignore.com/mary', 'https://ignore.com/sue']
         .map(followerId => {
           return apex
@@ -36,6 +37,10 @@ describe('collections', function () {
       for (const follower of followers) {
         await apex.store.saveActivity(follower)
       }
+      firstActivity = await apex.store.db.collection('streams')
+        .findOne({}, { sort: { _id: 1 } })
+    })
+    it('returns followers collection', function (done) {
       request(app)
         .get('/followers/test')
         .set('Accept', 'application/activity+json')
@@ -46,13 +51,35 @@ describe('collections', function () {
             id: 'https://localhost/followers/test',
             type: 'OrderedCollection',
             totalItems: 2,
-            orderedItems: ['https://ignore.com/sue', 'https://ignore.com/bob']
+            first: 'https://localhost/followers/test?page=true'
           }
           expect(res.body).toEqual(standard)
           done(err)
         })
     })
-    it('returns accepted following', async function (done) {
+    it('page returns accepted followers', function (done) {
+      request(app)
+        .get('/followers/test?page=true')
+        .set('Accept', 'application/activity+json')
+        .expect(200)
+        .end(function (err, res) {
+          const standard = {
+            '@context': ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1'],
+            id: 'https://localhost/followers/test?page=true',
+            type: 'OrderedCollectionPage',
+            partOf: 'https://localhost/followers/test',
+            orderedItems: ['https://ignore.com/sue', 'https://ignore.com/bob'],
+            next: `https://localhost/followers/test?page=${firstActivity._id}`
+
+          }
+          expect(res.body).toEqual(standard)
+          done(err)
+        })
+    })
+  })
+  describe('following', function () {
+    let firstActivity
+    beforeEach(async function () {
       let follows = ['https://ignore.com/bob', 'https://ignore.com/mary', 'https://ignore.com/sue']
         .map(followerId => {
           return apex
@@ -65,6 +92,10 @@ describe('collections', function () {
       for (const follow of follows) {
         await apex.store.saveActivity(follow)
       }
+      firstActivity = await apex.store.db.collection('streams')
+        .findOne({}, { sort: { _id: 1 } })
+    })
+    it('returns following collection', async function (done) {
       request(app)
         .get('/following/test')
         .set('Accept', 'application/activity+json')
@@ -75,7 +106,25 @@ describe('collections', function () {
             id: 'https://localhost/following/test',
             type: 'OrderedCollection',
             totalItems: 2,
-            orderedItems: ['https://ignore.com/sue', 'https://ignore.com/bob']
+            first: 'https://localhost/following/test?page=true'
+          }
+          expect(res.body).toEqual(standard)
+          done(err)
+        })
+    })
+    it('page returns accepted following', async function (done) {
+      request(app)
+        .get('/following/test?page=true')
+        .set('Accept', 'application/activity+json')
+        .expect(200)
+        .end(function (err, res) {
+          const standard = {
+            '@context': ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1'],
+            id: 'https://localhost/following/test?page=true',
+            type: 'OrderedCollectionPage',
+            partOf: 'https://localhost/following/test',
+            orderedItems: ['https://ignore.com/sue', 'https://ignore.com/bob'],
+            next: `https://localhost/following/test?page=${firstActivity._id}`
           }
           expect(res.body).toEqual(standard)
           done(err)
@@ -83,7 +132,8 @@ describe('collections', function () {
     })
   })
   describe('liked collection', function () {
-    it('returns liked objects', async function (done) {
+    let firstActivity
+    beforeEach(async function () {
       let likes = ['https://ignore.com/s/1', 'https://ignore.com/s/2', 'https://ignore.com/s/3']
         .map(objId => {
           return apex
@@ -94,6 +144,10 @@ describe('collections', function () {
       for (const like of likes) {
         await apex.store.saveActivity(like)
       }
+      firstActivity = await apex.store.db.collection('streams')
+        .findOne({}, { sort: { _id: 1 } })
+    })
+    it('returns liked collection', async function (done) {
       request(app)
         .get('/liked/test')
         .set('Accept', 'application/activity+json')
@@ -104,6 +158,24 @@ describe('collections', function () {
             id: 'https://localhost/liked/test',
             type: 'OrderedCollection',
             totalItems: 3,
+            first: 'https://localhost/liked/test?page=true'
+          }
+          expect(res.body).toEqual(standard)
+          done(err)
+        })
+    })
+    it('page returns liked objects', async function (done) {
+      request(app)
+        .get('/liked/test?page=true')
+        .set('Accept', 'application/activity+json')
+        .expect(200)
+        .end(function (err, res) {
+          const standard = {
+            '@context': ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1'],
+            id: 'https://localhost/liked/test?page=true',
+            type: 'OrderedCollectionPage',
+            partOf: 'https://localhost/liked/test',
+            next: `https://localhost/liked/test?page=${firstActivity._id}`,
             orderedItems: ['https://ignore.com/s/3', 'https://ignore.com/s/2', 'https://ignore.com/s/1']
           }
           expect(res.body).toEqual(standard)
@@ -123,7 +195,7 @@ describe('collections', function () {
         })
         expect(act.shares).toEqual([`${act.id}/shares`])
       })
-      it('get returns announces for activity', async function (done) {
+      it('get page returns announces for activity', async function (done) {
         const act = await apex.buildActivity('Create', testUser.id, testUser.followers, {
           object: {
             id: apex.utils.objectIdToIRI(),
@@ -138,18 +210,11 @@ describe('collections', function () {
         await apex.store.saveActivity(act)
         await apex.store.saveActivity(announce)
         request(app)
-          .get(`${act.id}/shares`.replace('https://localhost', ''))
+          .get(`${act.id}/shares?page=true`.replace('https://localhost', ''))
           .set('Accept', 'application/activity+json')
           .expect(200)
           .end(function (err, res) {
-            const standard = {
-              '@context': ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1'],
-              id: `${act.id}/shares`,
-              type: 'OrderedCollection',
-              totalItems: 1,
-              orderedItems: [announce.id]
-            }
-            expect(res.body).toEqual(standard)
+            expect(res.body.orderedItems).toEqual([announce.id])
             done(err)
           })
       })
@@ -180,18 +245,11 @@ describe('collections', function () {
         await apex.store.saveActivity(act)
         await apex.store.saveActivity(like)
         request(app)
-          .get(`${act.id}/likes`.replace('https://localhost', ''))
+          .get(`${act.id}/likes?page=true`.replace('https://localhost', ''))
           .set('Accept', 'application/activity+json')
           .expect(200)
           .end(function (err, res) {
-            const standard = {
-              '@context': ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1'],
-              id: `${act.id}/likes`,
-              type: 'OrderedCollection',
-              totalItems: 1,
-              orderedItems: [like.id]
-            }
-            expect(res.body).toEqual(standard)
+            expect(res.body.orderedItems).toEqual([like.id])
             done(err)
           })
       })
@@ -214,18 +272,11 @@ describe('collections', function () {
       apex.addMeta(act, 'collection', col)
       await apex.store.saveActivity(act)
       request(app)
-        .get(col.replace('https://localhost', ''))
+        .get(`${col.replace('https://localhost', '')}?page=true`)
         .set('Accept', 'application/activity+json')
         .expect(200)
         .end(function (err, res) {
-          const standard = {
-            '@context': ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1'],
-            id: col,
-            type: 'OrderedCollection',
-            totalItems: 1,
-            orderedItems: [actOut]
-          }
-          expect(res.body).toEqual(standard)
+          expect(res.body.orderedItems).toEqual([actOut])
           done(err)
         })
     })
@@ -242,14 +293,8 @@ describe('collections', function () {
       for (const block of blocks) {
         await apex.store.saveActivity(block)
       }
-      const blockList = await apex.getBlocked(testUser)
-      const standard = {
-        id: 'https://localhost/u/test/blocked',
-        type: 'OrderedCollection',
-        totalItems: [3],
-        orderedItems: baddies.reverse()
-      }
-      expect(blockList).toEqual(standard)
+      const blockList = await apex.getBlocked(testUser, Infinity)
+      expect(blockList.orderedItems).toEqual(baddies.reverse())
     })
     it('rejections gets actors rejected activity ids', async function () {
       const meanies = ['https://ignore.com/u/blue-check', 'https://ignore.com/u/celeb', 'https://ignore.com/u/leet']
@@ -262,14 +307,8 @@ describe('collections', function () {
       for (const follow of follows) {
         await apex.store.saveActivity(follow)
       }
-      const rejections = await apex.getRejections(testUser)
-      const standard = {
-        id: 'https://localhost/u/test/rejections',
-        type: 'OrderedCollection',
-        totalItems: [3],
-        orderedItems: follows.map(f => f.id).reverse()
-      }
-      expect(rejections).toEqual(standard)
+      const rejections = await apex.getRejections(testUser, Infinity)
+      expect(rejections.orderedItems).toEqual(follows.map(f => f.id).reverse())
     })
     it('rejected gets ids for activities rejected by actor', async function () {
       const baddies = ['https://ignore.com/u/chud', 'https://ignore.com/u/reply-guy', 'https://ignore.com/u/terf']
@@ -282,14 +321,8 @@ describe('collections', function () {
       for (const follow of follows) {
         await apex.store.saveActivity(follow)
       }
-      const rejected = await apex.getRejected(testUser)
-      const standard = {
-        id: 'https://localhost/u/test/rejected',
-        type: 'OrderedCollection',
-        totalItems: [3],
-        orderedItems: follows.map(a => a.id).reverse()
-      }
-      expect(rejected).toEqual(standard)
+      const rejected = await apex.getRejected(testUser, Infinity)
+      expect(rejected.orderedItems).toEqual(follows.map(a => a.id).reverse())
     })
   })
 })
