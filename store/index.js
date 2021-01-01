@@ -119,7 +119,7 @@ class ApexStore extends IApexStore {
       // propogate update to all copies in streams
       await this.updateObjectCopies(updated)
     }
-    return updated
+    return unescape(updated)
   }
 
   getActivity (id, includeMeta) {
@@ -204,7 +204,7 @@ class ApexStore extends IApexStore {
     if (!result.ok || !result.value) {
       throw new Error('Error updating activity meta: not found')
     }
-    return result.value
+    return unescape(result.value)
   }
 
   generateId () {
