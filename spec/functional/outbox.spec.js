@@ -1,41 +1,9 @@
 /* global describe, beforeAll, beforeEach, it, expect, spyOn */
 const request = require('supertest')
-const express = require('express')
 const nock = require('nock')
 const httpSignature = require('http-signature')
-const { MongoClient } = require('mongodb')
 const merge = require('deepmerge')
 
-const ActivitypubExpress = require('../../index')
-
-const app = express()
-const apex = ActivitypubExpress({
-  domain: 'localhost',
-  context: [
-    'https://www.w3.org/ns/activitystreams',
-    'https://w3id.org/security/v1'
-  ],
-  actorParam: 'actor',
-  objectParam: 'id',
-  activityParam: 'id',
-  routes: {
-    actor: '/u/:actor',
-    object: '/o/:id',
-    activity: '/s/:id',
-    inbox: '/inbox/:actor',
-    outbox: '/outbox/:actor',
-    followers: '/followers/:actor',
-    following: '/following/:actor',
-    liked: '/liked/:actor',
-    shares: '/s/:id/shares',
-    likes: '/s/:id/likes',
-    collections: '/u/:actor/c/:id',
-    blocked: '/u/:actor/blocked',
-    rejections: '/u/:actor/rejections',
-    rejected: '/u/:actor/rejected'
-  }
-})
-const client = new MongoClient('mongodb://localhost:27017', { useUnifiedTopology: true, useNewUrlParser: true })
 const activity = {
   '@context': [
     'https://www.w3.org/ns/activitystreams',
@@ -75,41 +43,26 @@ const activityNormalized = {
     'https://ignore.com/u/ignored'
   ]
 }
-app.use(express.json({ type: apex.consts.jsonldTypes }), apex)
-app.route('/outbox/:actor')
-  .get(apex.net.outbox.get)
-  .post(apex.net.outbox.post)
-app.use(function (err, req, res, next) {
-  console.log(err)
-  next(err)
-})
 
 describe('outbox', function () {
   let testUser
-  beforeAll(function (done) {
-    const actorName = 'test'
-    apex.createActor(actorName, actorName, 'test user')
-      .then(actor => {
-        testUser = actor
-        return client.connect({ useNewUrlParser: true })
-      })
-      .then(done)
+  let app
+  let apex
+  let client
+  beforeAll(async function () {
+    const init = await global.initApex()
+    testUser = init.testUser
+    app = init.app
+    apex = init.apex
+    client = init.client
+    app.route('/outbox/:actor')
+      .get(apex.net.outbox.get)
+      .post(apex.net.outbox.post)
   })
-  beforeEach(function (done) {
+  beforeEach(function () {
     // don't let failed deliveries pollute later tests
     spyOn(apex.store, 'deliveryRequeue').and.resolveTo(undefined)
-
-    // reset db for each test
-    client.db('apexTestingTempDb').dropDatabase()
-      .then(() => {
-        apex.store.db = client.db('apexTestingTempDb')
-        delete testUser._local
-        return apex.store.setup(testUser)
-      })
-      .then(() => {
-        testUser._local = { blockList: [] }
-        done()
-      })
+    return global.resetDb(apex, client, testUser)
   })
   describe('post', function () {
     // validators jsonld
@@ -483,7 +436,7 @@ describe('outbox', function () {
                 id: testUser.followers[0],
                 type: 'OrderedCollection',
                 totalItems: 1,
-                orderedItems: [mockedUser]
+                first: 'https://localhost/followers/test?page=true'
               }
             })
             done()
@@ -562,7 +515,7 @@ describe('outbox', function () {
                 id: testUser.followers[0],
                 type: 'OrderedCollection',
                 totalItems: 1,
-                orderedItems: [mockedUser]
+                first: 'https://localhost/followers/test?page=true'
               }
             })
             done()
@@ -706,7 +659,7 @@ describe('outbox', function () {
       it('adds to liked collection', async function (done) {
         await apex.store.saveActivity(likeable)
         app.once('apex-outbox', async function (msg) {
-          const liked = await apex.getLiked(testUser)
+          const liked = await apex.getLiked(testUser, Infinity)
           expect(liked.orderedItems).toContain(likeable.id)
           done()
         })
@@ -749,7 +702,7 @@ describe('outbox', function () {
                 id: testUser.liked[0],
                 type: 'OrderedCollection',
                 totalItems: 1,
-                orderedItems: [likeable.id]
+                first: 'https://localhost/liked/test?page=true'
               }
             })
             done()
@@ -825,7 +778,8 @@ describe('outbox', function () {
       it('adds to collection', async function (done) {
         await apex.store.saveActivity(addable)
         app.once('apex-outbox', async function (msg) {
-          const added = await apex.getAdded(testUser, 'test')
+          const added = await apex.getAdded(testUser, 'test', Infinity)
+          delete added.orderedItems[0]._id
           expect(added.orderedItems[0]).toEqual(addable)
           done()
         })
@@ -899,7 +853,7 @@ describe('outbox', function () {
         const addedCol = await apex.getAdded(testUser, 'test')
         expect(addedCol.totalItems).toEqual([1])
         app.once('apex-outbox', async function (msg) {
-          const addedCol = await apex.getAdded(testUser, 'test')
+          const addedCol = await apex.getAdded(testUser, 'test', Infinity)
           expect(addedCol.orderedItems).toEqual([])
           done()
         })
@@ -941,13 +895,8 @@ describe('outbox', function () {
       })
       it('adds to blocklist', async function (done) {
         app.once('apex-outbox', async function (msg) {
-          const blockList = await apex.getBlocked(testUser)
-          expect(blockList).toEqual({
-            id: apex.utils.nameToBlockedIRI(testUser.preferredUsername),
-            type: 'OrderedCollection',
-            totalItems: [1],
-            orderedItems: [block.object.id]
-          })
+          const blockList = await apex.getBlocked(testUser, Infinity)
+          expect(blockList.orderedItems).toEqual([block.object.id])
           done()
         })
         request(app)
@@ -995,44 +944,92 @@ describe('outbox', function () {
   describe('get', function () {
     const fakeId = 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3'
     const fakeOId = 'https://localhost/o/a29a6843-9feb-4c74-a7f7-081b9c9201d3'
-    it('returns outbox as ordered collection', (done) => {
-      const outbox = [1, 2, 3].map(i => {
+    let outbox
+    beforeEach(async function () {
+      outbox = [1, 2, 3].map(i => {
         const a = Object.assign({}, activity, { id: `${fakeId}${i}`, _meta: { collection: ['https://localhost/outbox/test'] } })
         a.object = Object.assign({}, a.object, { id: `${fakeOId}${i}` })
         return a
       })
-      apex.store.db
+      await apex.store.db
         .collection('streams')
         .insertMany(outbox)
-        .then(inserted => {
-          const outboxCollection = {
-            '@context': ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1'],
-            id: 'https://localhost/outbox/test',
-            type: 'OrderedCollection',
-            totalItems: 3,
-            orderedItems: [3, 2, 1].map(i => ({
-              type: 'Create',
-              id: `${fakeId}${i}`,
-              to: 'https://ignore.com/u/ignored',
-              actor: 'https://localhost/u/test',
-              object: {
-                type: 'Note',
-                id: `${fakeOId}${i}`,
-                attributedTo: 'https://localhost/u/test',
-                to: 'https://ignore.com/u/ignored',
-                content: 'Say, did you finish reading that book I lent you?'
-              }
-            }))
+    })
+    it('returns outbox as ordered collection', (done) => {
+      const outboxCollection = {
+        '@context': ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1'],
+        id: 'https://localhost/outbox/test',
+        type: 'OrderedCollection',
+        totalItems: 3,
+        first: 'https://localhost/outbox/test?page=true'
+      }
+      request(app)
+        .get('/outbox/test')
+        .set('Accept', 'application/activity+json')
+        .expect(200)
+        .end((err, res) => {
+          expect(res.body).toEqual(outboxCollection)
+          done(err)
+        })
+    })
+    it('returns outbox page as ordered collection page', (done) => {
+      const outboxPage = {
+        '@context': ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1'],
+        id: 'https://localhost/outbox/test?page=true',
+        type: 'OrderedCollectionPage',
+        partOf: 'https://localhost/outbox/test',
+        orderedItems: [3, 2, 1].map(i => ({
+          type: 'Create',
+          id: `${fakeId}${i}`,
+          to: 'https://ignore.com/u/ignored',
+          actor: 'https://localhost/u/test',
+          object: {
+            type: 'Note',
+            id: `${fakeOId}${i}`,
+            attributedTo: 'https://localhost/u/test',
+            to: 'https://ignore.com/u/ignored',
+            content: 'Say, did you finish reading that book I lent you?'
           }
-          expect(inserted.insertedCount).toBe(3)
-          request(app)
-            .get('/outbox/test')
-            .set('Accept', 'application/activity+json')
-            .expect(200)
-            .end((err, res) => {
-              expect(res.body).toEqual(outboxCollection)
-              done(err)
-            })
+        })),
+        next: `https://localhost/outbox/test?page=${outbox[0]._id}`
+      }
+      request(app)
+        .get('/outbox/test?page=true')
+        .set('Accept', 'application/activity+json')
+        .expect(200)
+        .end((err, res) => {
+          expect(res.body).toEqual(outboxPage)
+          done(err)
+        })
+    })
+    it('starts page after previous item', (done) => {
+      const outboxPage = {
+        '@context': ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1'],
+        id: `https://localhost/outbox/test?page=${outbox[1]._id}`,
+        type: 'OrderedCollectionPage',
+        partOf: 'https://localhost/outbox/test',
+        orderedItems: [{
+          type: 'Create',
+          id: `${fakeId}${1}`,
+          to: 'https://ignore.com/u/ignored',
+          actor: 'https://localhost/u/test',
+          object: {
+            type: 'Note',
+            id: `${fakeOId}${1}`,
+            attributedTo: 'https://localhost/u/test',
+            to: 'https://ignore.com/u/ignored',
+            content: 'Say, did you finish reading that book I lent you?'
+          }
+        }],
+        next: `https://localhost/outbox/test?page=${outbox[0]._id}`
+      }
+      request(app)
+        .get(`/outbox/test?page=${outbox[1]._id}`)
+        .set('Accept', 'application/activity+json')
+        .expect(200)
+        .end((err, res) => {
+          expect(res.body).toEqual(outboxPage)
+          done(err)
         })
     })
   })

@@ -3,6 +3,7 @@ const jsonld = require('jsonld')
 const merge = require('deepmerge')
 
 module.exports = {
+  addPageToIRI,
   addMeta,
   collectionIRIToActorName,
   hasMeta,
@@ -19,6 +20,7 @@ module.exports = {
   removeMeta,
   toJSONLD,
   fromJSONLD,
+  jsonldContextLoader,
   actorIdFromActivity,
   objectIdFromActivity,
   stringifyPublicJSONLD,
@@ -27,6 +29,14 @@ module.exports = {
   validateCollectionOwner,
   validateOwner,
   validateTarget
+}
+
+function addPageToIRI (id, pageId) {
+  const url = new URL(id)
+  const query = new URLSearchParams(url.search)
+  query.set(this.pageParam, pageId)
+  url.search = query.toString()
+  return url.toString()
 }
 
 function addMeta (obj, key, value) {
@@ -97,7 +107,8 @@ function objectIdFromActivity (activity) {
 async function fromJSONLD (obj) {
   const opts = {
     // don't unbox arrays so that object structure will be predictable
-    compactArrays: false
+    compactArrays: false,
+    documentLoader: this.jsonldContextLoader
   }
   if (!('@context' in obj)) {
     // if context is missing, try filling in ours
@@ -113,7 +124,8 @@ function toJSONLD (obj) {
     // must supply initial context because it was stripped for easy handling
     expandContext: this.context,
     // unbox arrays on federated objects, in case other apps aren't using real json-ld
-    compactArrays: true
+    compactArrays: true,
+    documentLoader: this.jsonldContextLoader
   })
 }
 
@@ -270,36 +282,29 @@ function validateTarget (object, targetId, prop = 'object') {
   return false
 }
 
-// TODO: enable caching and/or local copies of contexts for json-ld processor
-/*
-// how to override the default document loader with a custom one -- for
-// example, one that uses pre-loaded contexts:
-
-// define a mapping of context URL => context doc
-const CONTEXTS = {
-  "http://example.com": {
-    "@context": ...
-  }, ...
-};
-
-// grab the built-in node.js doc loader
-const nodeDocumentLoader = jsonld.documentLoaders.node();
-// or grab the XHR one: jsonld.documentLoaders.xhr()
-
-// change the default document loader
-const customLoader = async (url, options) => {
-  if (url in CONTEXTS) {
-    return {
-      contextUrl: null, // this is for a context via a link header
-      document: CONTEXTS[url], // this is the actual document that was loaded
-      documentUrl: url // this is the actual context URL after redirects
-    };
+// cached JSONLD contexts to reduce requests an eliminate
+// failures caused when context servers are unavailable
+const nodeDocumentLoader = jsonld.documentLoaders.node()
+async function jsonldContextLoader (url, options) {
+  try {
+    const cached = await this.store.getContext(url)
+    if (cached) {
+      return cached
+    }
+  } catch (err) {
+    console.log('Error checking jsonld context cache', err.message)
+  }
+  const context = await nodeDocumentLoader(url)
+  if (context && context.document) {
+    try {
+      await this.store.saveContext(context)
+    } catch (err) {
+      console.log('Error saving jsonld contact cache', err.message)
+    }
   }
   // call the default documentLoader
-  return nodeDocumentLoader(url);
-};
-jsonld.documentLoader = customLoader;
-*/
+  return context
+}
 
 // non-exported utils
 // strip any _meta or private properties to keep jsonld valid and not leak private keys

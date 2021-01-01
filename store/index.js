@@ -131,14 +131,37 @@ class ApexStore extends IApexStore {
       .then(act => unescape(act))
   }
 
-  getStream (collectionId) {
+  getContext (documentUrl) {
+    return this.db.collection('contexts')
+      .findOne({ documentUrl }, { projection: { _id: 0 } })
+  }
+
+  saveContext (context) {
+    const { documentUrl } = context
+    return this.db.collection('contexts')
+      .replaceOne({ documentUrl }, context, { forceServerObjectId: true, upsert: true })
+  }
+
+  getStream (collectionId, limit, after) {
+    const filter = { '_meta.collection': collectionId }
+    if (after) {
+      filter._id = { $lt: new mongo.ObjectId(after) }
+    }
+    const query = this.db
+      .collection('streams')
+      .find(filter)
+      .sort({ _id: -1 })
+      .project({ _meta: 0, 'object._id': 0, 'object._meta': 0 })
+    if (limit) {
+      query.limit(limit)
+    }
+    return query.toArray().then(stream => unescape(stream))
+  }
+
+  getStreamCount (collectionId) {
     return this.db
       .collection('streams')
-      .find({ '_meta.collection': collectionId })
-      .sort({ _id: -1 })
-      .project({ _id: 0, _meta: 0, 'object._id': 0, 'object._meta': 0 })
-      .toArray()
-      .then(stream => unescape(stream))
+      .countDocuments({ '_meta.collection': collectionId })
   }
 
   async saveActivity (activity) {

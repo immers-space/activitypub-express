@@ -17,68 +17,95 @@ module.exports = {
   getRejections
 }
 
-async function getCollection (collectionId, remapper, blockList) {
-  let stream = await this.store.getStream(collectionId)
+/* page: MongoDB _id of item to begin querying after (i.e. last item of last page) or
+ *  one of two special values:
+ *    'true' - get first page
+ *    Infinity - get all items (internal use only)
+ */
+async function getCollection (collectionId, page, remapper, blockList) {
+  if (!page) {
+    // if page isn't specified, just collection description is served
+    return this.fromJSONLD({
+      id: collectionId,
+      type: 'OrderedCollection',
+      totalItems: await this.store.getStreamCount(collectionId),
+      first: this.addPageToIRI(collectionId, true)
+    })
+  }
+  let after = page
+  let limit = this.itemsPerPage
+  if (page === 'true') {
+    after = null
+  }
+  if (page === Infinity) {
+    after = null
+    limit = null
+  }
+  const pageObj = {
+    id: this.addPageToIRI(collectionId, page),
+    partOf: collectionId,
+    type: 'OrderedCollectionPage'
+  }
+  let stream = await this.store.getStream(collectionId, limit, after)
+  if (stream.length) {
+    pageObj.next = this.addPageToIRI(collectionId, stream[stream.length - 1]._id)
+  }
   if (blockList) {
     stream = stream.filter(act => !overlaps(blockList, act.actor))
   }
   if (remapper) {
     stream = stream.map(remapper)
   }
-  return this.fromJSONLD({
-    id: collectionId,
-    type: 'OrderedCollection',
-    totalItems: stream.length,
-    orderedItems: stream
-  })
+  pageObj.orderedItems = stream
+  return this.fromJSONLD(pageObj)
 }
 
-function getInbox (actor) {
-  return this.getCollection(actor.inbox[0], null, actor._local.blockList)
+function getInbox (actor, page) {
+  return this.getCollection(actor.inbox[0], page, null, actor._local.blockList)
 }
 
-function getOutbox (actor) {
-  return this.getCollection(actor.outbox[0])
+function getOutbox (actor, page) {
+  return this.getCollection(actor.outbox[0], page)
 }
 
-function getFollowers (actor) {
-  return this.getCollection(actor.followers[0], this.actorIdFromActivity, actor._local.blockList)
+function getFollowers (actor, page) {
+  return this.getCollection(actor.followers[0], page, this.actorIdFromActivity, actor._local.blockList)
 }
 
-function getFollowing (actor) {
-  return this.getCollection(actor.following[0], this.objectIdFromActivity)
+function getFollowing (actor, page) {
+  return this.getCollection(actor.following[0], page, this.objectIdFromActivity)
 }
 
-function getLiked (actor) {
-  return this.getCollection(actor.liked[0], this.objectIdFromActivity)
+function getLiked (actor, page) {
+  return this.getCollection(actor.liked[0], page, this.objectIdFromActivity)
 }
 
-function getShares (object) {
-  return this.getCollection(object.shares[0], idRemapper)
+function getShares (object, page) {
+  return this.getCollection(object.shares[0], page, idRemapper)
 }
 
-function getLikes (object) {
-  return this.getCollection(object.likes[0], idRemapper)
+function getLikes (object, page) {
+  return this.getCollection(object.likes[0], page, idRemapper)
 }
 
-function getAdded (actor, colId) {
+function getAdded (actor, colId, page) {
   const collectionIRI = this.utils.userCollectionIdToIRI(actor.preferredUsername, colId)
-  return this.getCollection(collectionIRI)
+  return this.getCollection(collectionIRI, page)
 }
 
-function getBlocked (actor) {
+function getBlocked (actor, page) {
   const blockedIRI = this.utils.nameToBlockedIRI(actor.preferredUsername)
-  return this.getCollection(blockedIRI, this.objectIdFromActivity)
+  return this.getCollection(blockedIRI, page, this.objectIdFromActivity)
 }
 
-function getRejected (actor) {
+function getRejected (actor, page) {
   const rejectedIRI = this.utils.nameToRejectedIRI(actor.preferredUsername)
-  return this.getCollection(rejectedIRI, idRemapper)
+  return this.getCollection(rejectedIRI, page, idRemapper)
 }
 
-function getRejections (actor) {
+function getRejections (actor, page) {
   const rejectionsIRI = this.utils.nameToRejectionsIRI(actor.preferredUsername)
-  return this.getCollection(rejectionsIRI, idRemapper)
+  return this.getCollection(rejectionsIRI, page, idRemapper)
 }
 
 // non-exported utils

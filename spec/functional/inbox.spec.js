@@ -1,40 +1,7 @@
 /* global describe, beforeAll, beforeEach, it, expect, spyOn */
 const request = require('supertest')
-const express = require('express')
 const merge = require('deepmerge')
 const nock = require('nock')
-const { MongoClient } = require('mongodb')
-
-const ActivitypubExpress = require('../../index')
-
-const app = express()
-const apex = ActivitypubExpress({
-  domain: 'localhost',
-  context: [
-    'https://www.w3.org/ns/activitystreams',
-    'https://w3id.org/security/v1'
-  ],
-  actorParam: 'actor',
-  objectParam: 'id',
-  activityParam: 'id',
-  routes: {
-    actor: '/u/:actor',
-    object: '/o/:id',
-    activity: '/s/:id',
-    inbox: '/inbox/:actor',
-    outbox: '/outbox/:actor',
-    followers: '/followers/:actor',
-    following: '/following/:actor',
-    liked: '/liked/:actor',
-    shares: '/s/:id/shares',
-    likes: '/s/:id/likes',
-    collections: '/u/:actor/c/:id',
-    blocked: '/u/:actor/blocked',
-    rejections: '/u/:actor/rejections',
-    rejected: '/u/:actor/rejected'
-  }
-})
-const client = new MongoClient('mongodb://localhost:27017', { useUnifiedTopology: true, useNewUrlParser: true })
 
 const activity = {
   '@context': 'https://www.w3.org/ns/activitystreams',
@@ -85,40 +52,25 @@ const activityNormalized = {
   ]
 }
 
-app.use(express.json({ type: apex.consts.jsonldTypes }), apex)
-app.route('/inbox/:actor')
-  .post(apex.net.inbox.post)
-  .get(apex.net.inbox.get)
-app.use(function (err, req, res, next) {
-  console.log(err)
-  next(err)
-})
-
 describe('inbox', function () {
   let testUser
-  beforeAll(function (done) {
-    const actorName = 'test'
-    apex.createActor(actorName, actorName, 'test user')
-      .then(actor => {
-        testUser = actor
-        return client.connect({ useNewUrlParser: true })
-      })
-      .then(done)
+  let app
+  let apex
+  let client
+  beforeAll(async function () {
+    const init = await global.initApex()
+    testUser = init.testUser
+    app = init.app
+    apex = init.apex
+    client = init.client
+    app.route('/inbox/:actor')
+      .post(apex.net.inbox.post)
+      .get(apex.net.inbox.get)
   })
-  beforeEach(function (done) {
+  beforeEach(function () {
     // don't let failed deliveries pollute later tests
     spyOn(apex.store, 'deliveryRequeue').and.resolveTo(undefined)
-    // reset db for each test
-    client.db('apexTestingTempDb').dropDatabase()
-      .then(() => {
-        apex.store.db = client.db('apexTestingTempDb')
-        delete testUser._local
-        return apex.store.setup(testUser)
-      })
-      .then(() => {
-        testUser._local = { blockList: [] }
-        done()
-      })
+    return global.resetDb(apex, client, testUser)
   })
   describe('post', function () {
     // validators jsonld
@@ -203,7 +155,7 @@ describe('inbox', function () {
         .expect(200)
         .end(async (err) => {
           if (err) return done(err)
-          const inbox = await apex.getInbox(testUser)
+          const inbox = await apex.getInbox(testUser, Infinity)
           expect(inbox.orderedItems.length).toBe(0)
           done()
         })
@@ -370,7 +322,7 @@ describe('inbox', function () {
                 id: testUser.following[0],
                 type: 'OrderedCollection',
                 totalItems: 1,
-                orderedItems: [mockedUser]
+                first: 'https://localhost/following/test?page=true'
               }
             })
             done()
@@ -742,7 +694,7 @@ describe('inbox', function () {
                 id: targetAct.shares[0],
                 type: 'OrderedCollection',
                 totalItems: 1,
-                orderedItems: ['https://localhost/s/a29a6843-9feb-4c74-a7f7-announce']
+                first: 'https://localhost/shares/a29a6843-9feb-4c74-a7f7-081b9c9201d3?page=true'
               }
             })
             done()
@@ -840,7 +792,7 @@ describe('inbox', function () {
                 id: targetAct.likes[0],
                 type: 'OrderedCollection',
                 totalItems: 1,
-                orderedItems: ['https://localhost/s/a29a6843-9feb-4c74-a7f7-like']
+                first: 'https://localhost/likes/a29a6843-9feb-4c74-a7f7-081b9c9201d3?page=true'
               }
             })
             done()
@@ -1010,91 +962,107 @@ describe('inbox', function () {
     })
   })
   describe('get', function () {
-    it('returns inbox as ordered collection', (done) => {
-      const inbox = []
+    let inbox
+    beforeEach(async function () {
+      inbox = []
       const meta = { collection: ['https://localhost/inbox/test'] }
       ;[1, 2, 3].forEach(i => {
         inbox.push(merge.all([{}, activityNormalized, { id: `${activity.id}${i}`, _meta: meta }]))
       })
-      apex.store.db
+      await apex.store.db
         .collection('streams')
         .insertMany(inbox)
-        .then(inserted => {
-          const inboxCollection = {
-            '@context': ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1'],
-            id: 'https://localhost/inbox/test',
-            type: 'OrderedCollection',
-            totalItems: 3,
-            orderedItems: [3, 2, 1].map(i => ({
-              type: 'Create',
-              id: `https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3${i}`,
-              to: 'https://localhost/u/test',
-              actor: 'https://localhost/u/test',
-              object: {
-                type: 'Note',
-                id: 'https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19',
-                attributedTo: 'https://localhost/u/test',
-                to: 'https://localhost/u/test',
-                content: 'Say, did you finish reading that book I lent you?'
-              },
-              shares: 'https://localhost/shares/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
-              likes: 'https://localhost/likes/a29a6843-9feb-4c74-a7f7-081b9c9201d3'
-            }))
-          }
-          expect(inserted.insertedCount).toBe(3)
-          request(app)
-            .get('/inbox/test')
-            .set('Accept', 'application/activity+json')
-            .expect(200)
-            .end((err, res) => {
-              expect(res.body).toEqual(inboxCollection)
-              done(err)
-            })
+    })
+    it('returns inbox as ordered collection', (done) => {
+      const inboxCollection = {
+        '@context': ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1'],
+        id: 'https://localhost/inbox/test',
+        type: 'OrderedCollection',
+        totalItems: 3,
+        first: 'https://localhost/inbox/test?page=true'
+      }
+      request(app)
+        .get('/inbox/test')
+        .set('Accept', 'application/activity+json')
+        .expect(200)
+        .end((err, res) => {
+          expect(res.body).toEqual(inboxCollection)
+          done(err)
         })
     })
-    it('filters blocked actors', function (done) {
-      const inbox = []
+    it('returns page as ordered collection page', (done) => {
+      const inboxCollectionPage = {
+        '@context': ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1'],
+        id: 'https://localhost/inbox/test?page=true',
+        type: 'OrderedCollectionPage',
+        partOf: 'https://localhost/inbox/test',
+        next: `https://localhost/inbox/test?page=${inbox[0]._id}`,
+        orderedItems: [3, 2, 1].map(i => ({
+          type: 'Create',
+          id: `https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3${i}`,
+          to: 'https://localhost/u/test',
+          actor: 'https://localhost/u/test',
+          object: {
+            type: 'Note',
+            id: 'https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19',
+            attributedTo: 'https://localhost/u/test',
+            to: 'https://localhost/u/test',
+            content: 'Say, did you finish reading that book I lent you?'
+          },
+          shares: 'https://localhost/shares/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
+          likes: 'https://localhost/likes/a29a6843-9feb-4c74-a7f7-081b9c9201d3'
+        }))
+      }
+      request(app)
+        .get('/inbox/test?page=true')
+        .set('Accept', 'application/activity+json')
+        .expect(200)
+        .end((err, res) => {
+          expect(res.body).toEqual(inboxCollectionPage)
+          done(err)
+        })
+    })
+    it('filters blocked actors', async function (done) {
       const meta = { collection: ['https://localhost/inbox/test'] }
-      ;[1, 2, 3].forEach(i => {
-        inbox.push(merge.all([{}, activityNormalized, { id: `${activity.id}${i}`, _meta: meta }]))
-      })
-      inbox[1].actor = ['https://localhost/u/blocked']
+      const blocked = merge.all([
+        {},
+        activityNormalized,
+        { id: `${activity.id}b`, _meta: meta, actor: ['https://localhost/u/blocked'] }
+      ])
+      await apex.store.db
+        .collection('streams')
+        .insertOne(blocked)
       spyOn(apex, 'getBlocked')
         .and.returnValue({ orderedItems: ['https://localhost/u/blocked'] })
-      apex.store.db
-        .collection('streams')
-        .insertMany(inbox)
-        .then(inserted => {
-          const inboxCollection = {
-            '@context': ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1'],
-            id: 'https://localhost/inbox/test',
-            type: 'OrderedCollection',
-            totalItems: 2,
-            orderedItems: [3, 1].map(i => ({
-              type: 'Create',
-              id: `https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3${i}`,
-              to: 'https://localhost/u/test',
-              actor: 'https://localhost/u/test',
-              object: {
-                type: 'Note',
-                id: 'https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19',
-                attributedTo: 'https://localhost/u/test',
-                to: 'https://localhost/u/test',
-                content: 'Say, did you finish reading that book I lent you?'
-              },
-              shares: 'https://localhost/shares/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
-              likes: 'https://localhost/likes/a29a6843-9feb-4c74-a7f7-081b9c9201d3'
-            }))
-          }
-          expect(inserted.insertedCount).toBe(3)
-          request(app)
-            .get('/inbox/test')
-            .set('Accept', 'application/activity+json')
-            .expect(200)
-            .end((err, res) => {
-              expect(res.body).toEqual(inboxCollection)
-              done(err)
-            })
+      const inboxCollection = {
+        '@context': ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1'],
+        id: 'https://localhost/inbox/test?page=true',
+        type: 'OrderedCollectionPage',
+        partOf: 'https://localhost/inbox/test',
+        next: `https://localhost/inbox/test?page=${inbox[0]._id}`,
+        orderedItems: [3, 2, 1].map(i => ({
+          type: 'Create',
+          id: `https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3${i}`,
+          to: 'https://localhost/u/test',
+          actor: 'https://localhost/u/test',
+          object: {
+            type: 'Note',
+            id: 'https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19',
+            attributedTo: 'https://localhost/u/test',
+            to: 'https://localhost/u/test',
+            content: 'Say, did you finish reading that book I lent you?'
+          },
+          shares: 'https://localhost/shares/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
+          likes: 'https://localhost/likes/a29a6843-9feb-4c74-a7f7-081b9c9201d3'
+        }))
+      }
+      request(app)
+        .get('/inbox/test?page=true')
+        .set('Accept', 'application/activity+json')
+        .expect(200)
+        .end((err, res) => {
+          expect(res.body).toEqual(inboxCollection)
+          done(err)
         })
     })
   })

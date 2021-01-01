@@ -41,14 +41,11 @@ app.use(function (err, req, res, next) {
 
 describe('resources', function () {
   let testUser
-  beforeAll(function (done) {
+  beforeAll(async function () {
     const actorName = 'test'
-    apex.createActor(actorName, actorName, 'test user')
-      .then(actor => {
-        testUser = actor
-        return client.connect({ useNewUrlParser: true })
-      })
-      .then(done)
+    await client.connect({ useNewUrlParser: true })
+    apex.store.db = client.db('apexTestingTempDb')
+    testUser = await apex.createActor(actorName, actorName, 'test user')
   })
   beforeEach(function (done) {
     // reset db for each test
