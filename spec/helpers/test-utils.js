@@ -40,20 +40,17 @@ global.initApex = async function initApex () {
 
   const client = new MongoClient('mongodb://localhost:27017', { useUnifiedTopology: true, useNewUrlParser: true })
   await client.connect({ useNewUrlParser: true })
+  apex.store.db = client.db('apexTestingTempDb')
   const testUser = await apex.createActor('test', 'test', 'test user')
 
   return { app, apex, client, testUser, routes }
 }
 
-global.resetDb = function (apex, client, testUser) {
+global.resetDb = async function (apex, client, testUser) {
   // reset db for each test
-  return client.db('apexTestingTempDb').dropDatabase()
-    .then(() => {
-      apex.store.db = client.db('apexTestingTempDb')
-      delete testUser._local
-      return apex.store.setup(testUser)
-    })
-    .then(() => {
-      testUser._local = { blockList: [] }
-    })
+  await client.db('apexTestingTempDb').dropDatabase()
+  apex.store.db = client.db('apexTestingTempDb')
+  delete testUser._local
+  await apex.store.setup(testUser)
+  testUser._local = { blockList: [] }
 }

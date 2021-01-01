@@ -123,6 +123,17 @@ class ApexStore extends IApexStore {
       .next()
   }
 
+  getContext (documentUrl) {
+    return this.db.collection('contexts')
+      .findOne({ documentUrl }, { projection: { _id: 0 } })
+  }
+
+  saveContext (context) {
+    const { documentUrl } = context
+    return this.db.collection('contexts')
+      .replaceOne({ documentUrl }, context, { forceServerObjectId: true, upsert: true })
+  }
+
   getStream (collectionId, limit, after) {
     const filter = { '_meta.collection': collectionId }
     if (after) {

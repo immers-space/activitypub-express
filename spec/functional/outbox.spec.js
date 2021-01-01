@@ -1,41 +1,9 @@
 /* global describe, beforeAll, beforeEach, it, expect, spyOn */
 const request = require('supertest')
-const express = require('express')
 const nock = require('nock')
 const httpSignature = require('http-signature')
-const { MongoClient } = require('mongodb')
 const merge = require('deepmerge')
 
-const ActivitypubExpress = require('../../index')
-
-const app = express()
-const apex = ActivitypubExpress({
-  domain: 'localhost',
-  context: [
-    'https://www.w3.org/ns/activitystreams',
-    'https://w3id.org/security/v1'
-  ],
-  actorParam: 'actor',
-  objectParam: 'id',
-  activityParam: 'id',
-  routes: {
-    actor: '/u/:actor',
-    object: '/o/:id',
-    activity: '/s/:id',
-    inbox: '/inbox/:actor',
-    outbox: '/outbox/:actor',
-    followers: '/followers/:actor',
-    following: '/following/:actor',
-    liked: '/liked/:actor',
-    shares: '/s/:id/shares',
-    likes: '/s/:id/likes',
-    collections: '/u/:actor/c/:id',
-    blocked: '/u/:actor/blocked',
-    rejections: '/u/:actor/rejections',
-    rejected: '/u/:actor/rejected'
-  }
-})
-const client = new MongoClient('mongodb://localhost:27017', { useUnifiedTopology: true, useNewUrlParser: true })
 const activity = {
   '@context': [
     'https://www.w3.org/ns/activitystreams',
@@ -75,41 +43,26 @@ const activityNormalized = {
     'https://ignore.com/u/ignored'
   ]
 }
-app.use(express.json({ type: apex.consts.jsonldTypes }), apex)
-app.route('/outbox/:actor')
-  .get(apex.net.outbox.get)
-  .post(apex.net.outbox.post)
-app.use(function (err, req, res, next) {
-  console.log(err)
-  next(err)
-})
 
 describe('outbox', function () {
   let testUser
-  beforeAll(function (done) {
-    const actorName = 'test'
-    apex.createActor(actorName, actorName, 'test user')
-      .then(actor => {
-        testUser = actor
-        return client.connect({ useNewUrlParser: true })
-      })
-      .then(done)
+  let app
+  let apex
+  let client
+  beforeAll(async function () {
+    const init = await global.initApex()
+    testUser = init.testUser
+    app = init.app
+    apex = init.apex
+    client = init.client
+    app.route('/outbox/:actor')
+      .get(apex.net.outbox.get)
+      .post(apex.net.outbox.post)
   })
-  beforeEach(function (done) {
+  beforeEach(function () {
     // don't let failed deliveries pollute later tests
     spyOn(apex.store, 'deliveryRequeue').and.resolveTo(undefined)
-
-    // reset db for each test
-    client.db('apexTestingTempDb').dropDatabase()
-      .then(() => {
-        apex.store.db = client.db('apexTestingTempDb')
-        delete testUser._local
-        return apex.store.setup(testUser)
-      })
-      .then(() => {
-        testUser._local = { blockList: [] }
-        done()
-      })
+    return global.resetDb(apex, client, testUser)
   })
   describe('post', function () {
     // validators jsonld

@@ -178,7 +178,7 @@ client.connect({ useNewUrlParser: true })
     * [x] webfinger
     * [ ] oauth
     * [x] json-ld
-      * [ ] Context cache
+      * [x] Context cache
     * [ ] Linked data signatures
   * [x] Storage model (denormalized MongoDB)
     * [ ] Index coverage for all queries
