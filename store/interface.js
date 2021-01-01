@@ -19,7 +19,11 @@ module.exports = class IApexStore {
     throw new Error('Not implemented')
   }
 
-  getStream (collectionId, filter) {
+  getStream (collectionId, limit, after) {
+    throw new Error('Not implemented')
+  }
+
+  getStreamCount (collectionId) {
     throw new Error('Not implemented')
   }
 
