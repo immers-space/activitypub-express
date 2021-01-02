@@ -192,11 +192,9 @@ describe('federation', function () {
       }, 20)
       setTimeout(() => {
         expect(apex.deliver).toHaveBeenCalledTimes(5)
-      }, 30)
+      }, 50)
       setTimeout(() => {
         expect(apex.deliver).toHaveBeenCalledTimes(6)
-        // const last = apex.deliver.calls.mostRecent().args
-        // delete last.after
         expect(apex.deliver.calls.mostRecent().args).toEqual([
           testUser.id,
           bodyString,
