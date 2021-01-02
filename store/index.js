@@ -75,6 +75,9 @@ class ApexStore extends IApexStore {
       .createIndex({ id: 1 }, { unique: true, name: 'objects-primary' })
     await db.collection('deliveryQueue')
       .createIndex({ after: 1, _id: 1 }, { name: 'delivery-dequeue' })
+    // TODO: index stream.object.id for updates
+    // also need partial index on stream.object.object.id for object updates when
+    // type is  'announce', 'like', 'add', 'reject' (denormalized collection types)
     if (initialUser) {
       return db.collection('objects').findOneAndReplace(
         { id: initialUser.id },
@@ -188,6 +191,9 @@ class ApexStore extends IApexStore {
     }
     const result = await this.db.collection('streams')
       .replaceOne({ id: activity.id }, escapeClone(activity))
+    if (result.modifiedCount) {
+      await this.updateObjectCopies(activity)
+    }
     return result.modifiedCount
   }
 
@@ -254,11 +260,27 @@ class ApexStore extends IApexStore {
   }
 
   // for denormalized storage model, must update all activities with copy of updated object
-  /* TODO: if this is a profile update that includes a private key change, need to update
-     copies in delivery queue */
-  updateObjectCopies (object) {
-    return this.db.collection('streams')
-      .updateMany({ 'object.0.id': object.id }, { $set: { object: [object] } })
+  async updateObjectCopies (object) {
+    await this.db.collection('streams').updateMany(
+      { 'object.id': object.id },
+      { $set: { 'object.$[element]': object } },
+      { arrayFilters: [{ 'element.id': object.id }] }
+    )
+    await this.db.collection('streams').updateMany(
+      {
+        type: { $in: ['Announce', 'Like', 'Add', 'Reject'] },
+        'object.object.id': object.id
+      },
+      { $set: { 'object.$[].object.$[element]': object } },
+      { arrayFilters: [{ 'element.id': object.id }] }
+    )
+    if (object._meta && object._meta.privateKey) {
+      // just in case actor keypairs are updated while deliveries are queued
+      await this.db.collection('deliveryQueue').updateMany(
+        { actorId: object.id },
+        { $set: { signingKey: object._meta.privateKey } }
+      )
+    }
   }
 }
 

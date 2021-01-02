@@ -1,5 +1,14 @@
 'use strict'
 
+// For collection display, store with objects resolved
+// updates also get their objects denormalized during validation
+const denormalizeObject = [
+  // object objects
+  'create', 'follow', 'block',
+  // activity objects
+  'announce', 'like', 'add', 'reject'
+]
+
 module.exports = {
   save (req, res, next) {
     if (!res.locals.apex.activity || !res.locals.apex.target) {
@@ -7,12 +16,18 @@ module.exports = {
     }
     const apex = req.app.locals.apex
     const resLocal = res.locals.apex
-    apex.store.saveActivity(req.body).then(saveResult => {
+    let activity = req.body
+    if (denormalizeObject.includes(activity.type.toLowerCase())) {
+      // save with resolved object for ease of rendering
+      activity = [{}, activity, { object: [resLocal.object] }]
+        .reduce(apex.mergeJSONLD)
+    }
+    apex.store.saveActivity(activity).then(saveResult => {
       resLocal.isNewActivity = !!saveResult
       if (!saveResult && !resLocal.skipOutbox) {
-        const newTarget = req.body._meta.collection[0]
+        const newTarget = activity._meta.collection[0]
         return apex.store
-          .updateActivityMeta(req.body, 'collection', newTarget)
+          .updateActivityMeta(activity, 'collection', newTarget)
       }
     }).then(updated => {
       if (updated) {
@@ -252,7 +267,9 @@ module.exports = {
       resLocal.eventMessage = { actor, activity, object }
       resLocal.eventName = 'apex-outbox'
       if (!resLocal.skipOutbox) {
-        resLocal.postWork.unshift(() => apex.addToOutbox(actor, activity))
+        // local activity object may have been updated (e.g. denormalized object);
+        // send original req.body to outbox
+        resLocal.postWork.unshift(() => apex.addToOutbox(actor, req.body))
       }
       next()
     }).catch(next)

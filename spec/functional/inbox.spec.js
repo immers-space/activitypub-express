@@ -709,6 +709,20 @@ describe('inbox', function () {
           .expect(200)
           .end(err => { if (err) done(err) })
       })
+      it('denormalizes announced activity object', async function (done) {
+        await apex.store.saveActivity(targetAct)
+        app.once('apex-inbox', async msg => {
+          const saved = await apex.store.getActivity(announce.id)
+          expect(saved.object).toEqual([targetAct])
+          done()
+        })
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(announce)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
     })
     describe('like', function () {
       let targetAct

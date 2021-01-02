@@ -624,6 +624,32 @@ describe('outbox', function () {
           .end(err => { if (err) done(err) })
       })
     })
+    describe('announce', function () {
+      let announceable
+      let announce
+      beforeEach(function () {
+        announceable = merge({}, activityNormalized)
+        announceable.id = apex.utils.activityIdToIRI()
+        announce = merge({}, activity)
+        announce.type = 'Announce'
+        announce.object = announceable.id
+      })
+      it('does not denormalize object in delivered activity', async function (done) {
+        await apex.store.saveActivity(announceable)
+        spyOn(apex, 'addToOutbox')
+        app.once('apex-outbox', function () {
+          expect(apex.addToOutbox.calls.argsFor(0)[1].object)
+            .toEqual([announceable.id])
+          done()
+        })
+        request(app)
+          .post('/outbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(announce)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
+    })
     describe('like', function () {
       let likeable
       let like
@@ -643,7 +669,7 @@ describe('outbox', function () {
             _meta: { collection: [testUser.outbox[0], testUser.liked[0]] },
             type: 'Like',
             actor: ['https://localhost/u/test'],
-            object: [likeable.id],
+            object: [likeable],
             to: ['https://ignore.com/u/ignored']
           })
           expect(msg.object).toEqual(likeable)
