@@ -150,7 +150,7 @@ async function jsonld (req, res, next) {
       req.body = obj
     } catch (err) {
       // potential fetch errors on context sources
-      console.error('jsonld validation', err)
+      apex.logger.error('jsonld validation', err.message)
       return res.status(500).send('Error processing request JSON-LD')
     }
     return next()
@@ -294,7 +294,7 @@ function outboxActivityObject (req, res, next) {
     resLocal.object = obj
     next()
   }).catch(err => {
-    console.error('Error resolving outbox activity object', err.message)
+    apex.logger.warn('Error resolving outbox activity object', err.message)
     next()
   })
 }

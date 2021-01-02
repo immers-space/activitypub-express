@@ -116,17 +116,17 @@ async function runDelivery () {
   try {
     const { actorId, body, address, signingKey } = toDeliver
     const result = await this.deliver(actorId, body, address, signingKey)
-    console.log('delivery:', address, result.statusCode)
+    this.logger.info('delivery:', address, result.statusCode)
     if (result.statusCode >= 500) {
       // 5xx errors will get requeued
       throw new Error(`Request status ${result.statusCode}`)
     }
   } catch (err) {
-    console.log(`Delivery error ${err.message}, requeuing`)
+    this.logger.warn(`Delivery error ${err.message}, requeuing`)
     // 11 tries over ~5 months
     if (toDeliver.attempt < 11) {
       await this.store.deliveryRequeue(toDeliver).catch(err => {
-        console.error('Failed to requeue delivery', err.message)
+        this.logger.error('Failed to requeue delivery', err.message)
       })
     }
     // TODO: consider tracking unreachable servers, removing followers
