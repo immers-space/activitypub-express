@@ -42,6 +42,12 @@ async function createActor (username, displayName, summary, icon, type = 'Person
   if (icon) {
     actor.icon = icon
   }
+  if (this.settings.endpoints) {
+    actor.endpoints = {
+      id: `${id}#endpoints`,
+      ...this.settings.endpoints
+    }
+  }
   actor = await this.fromJSONLD(actor)
   actor._meta = { privateKey: pair.privateKey }
   return actor
