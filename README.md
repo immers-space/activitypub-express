@@ -129,14 +129,12 @@ client.connect({ useNewUrlParser: true })
       * [x] Like
       * [x] Announce
       * [x] Undo
-        * [ ] Publish affected collection update
       * [x] Other acivity types
     * [x] Security
       * [x] Signature validation
       * [x] Honor recipient blocklist
     * [x] Recursive resolution of related objects
     * [x] Forwarding from inbox
-      * [ ] Validation of forwarded messages
   * [ ] Shared inbox POST
     * [ ] Delivery to targeted local inboxes
   * [x] Delivery
@@ -151,7 +149,6 @@ client.connect({ useNewUrlParser: true })
     * [ ] Activity side-effects
       * [x] Create
       * [x] Update
-        * [ ] Add prior recipients of updated object to federation audience
       * [x] Delete
       * [x] Follow
       * [x] Accept
@@ -161,7 +158,6 @@ client.connect({ useNewUrlParser: true })
       * [x] Like
       * [x] Block[*](#implementation-notes)
       * [x] Undo
-        * [ ] Publish affected collection update
       * [x] Other acivity types
   * [ ] Media upload
 * [ ] Other
