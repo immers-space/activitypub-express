@@ -167,7 +167,7 @@ client.connect({ useNewUrlParser: true })
 * [ ] Other
   * [x] Actor creation
     * [x] Key generation
-  * [ ] Security
+  * [x] Security
     * [x] Verification
     * [x] localhost block
     * [x] Recursive object resolution depth limit
@@ -202,6 +202,17 @@ collections, but they are not permanetly deleted, so they would re-appear after 
 * Content sanitization: the apex default store will sanitize for storage in MongoDB,
 but display sanitization is not included in `activitpub-express`.
 This should be handled in the specific implementation
+
+### Federation notes
+
+* **http signaures**
+  * In production mode, incoming POST requests without valid http signaures will be
+  rejected (401 if missing, 403 if invalid)
+  * Outoing POST requests are signed ('(request-target)', 'host', 'date', 'digest')
+  with the actor's keypair using the `Signature` header
+  * When using the `systemUser` config option, outgoing GET requests are signed
+  ('(request-target)', 'host', 'date') with the system user's keypair using the
+  `Signature` header
 
 ## API
 

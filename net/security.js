@@ -21,11 +21,11 @@ async function verifySignature (req, res, next) {
     const apex = req.app.locals.apex
     // support for apps not using signature extension to ActivityPub
     if (!req.get('authorization') && !req.get('signature')) {
-      const actor = await apex.resolveObject(apex.actorIdFromActivity(req.body))
-      if (actor.publicKey && req.app.get('env') !== 'development') {
+      if (req.app.get('env') !== 'development') {
         apex.logger.warn('Request rejected: missing http signature')
-        return res.status(400).send('Missing http signature')
+        return res.status(401).send('Missing http signature')
       }
+      const actor = await apex.resolveObject(apex.actorIdFromActivity(req.body))
       res.locals.apex.sender = actor
       return next()
     }
