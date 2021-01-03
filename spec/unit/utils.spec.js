@@ -80,4 +80,15 @@ describe('utils', function () {
       })
     })
   })
+  describe('validateOwner', function () {
+    it('establishes collection ownerhip via actor properties', async function () {
+      const otherUser = await apex.createActor('other', 'Other user', '')
+      const testFollowers = await apex.getFollowers(testUser)
+      const testCustom = await apex.getAdded(testUser, 'custom')
+      expect(apex.validateOwner(testFollowers, testUser)).toBeTrue()
+      expect(apex.validateOwner(testCustom, testUser)).toBeTrue()
+      expect(apex.validateOwner(testFollowers, otherUser)).toBeFalse()
+      expect(apex.validateOwner(testCustom, otherUser)).toBeFalse()
+    })
+  })
 })

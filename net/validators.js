@@ -99,7 +99,7 @@ function inboxActivity (req, res, next) {
     resLocal.statusMessage = `Object requried for ${activity.type} activity`
     return next()
   }
-  if (requiresObjectOwnership.includes(type) && !apex.validateOwner(object, actor.id)) {
+  if (requiresObjectOwnership.includes(type) && !apex.validateOwner(object, actor)) {
     resLocal.status = 403
     return next()
   }
@@ -329,7 +329,7 @@ async function outboxActivity (req, res, next) {
     resLocal.statusMessage = `Target required for ${activity.type} activity`
     return next()
   }
-  if (requiresObjectOwnership.includes(type) && !apex.validateOwner(object, actor.id)) {
+  if (requiresObjectOwnership.includes(type) && !apex.validateOwner(object, actor)) {
     resLocal.status = 403
     return next()
   }

@@ -1,6 +1,7 @@
 'use strict'
 const jsonld = require('jsonld')
 const merge = require('deepmerge')
+const actorStreamNames = ['inbox', 'outbox', 'following', 'followers', 'liked', 'blocked']
 
 module.exports = {
   addPageToIRI,
@@ -196,14 +197,13 @@ function mergeJSONLD (target, source) {
 
 function nameToActorStreamsFactory (domain, routes, actorParam) {
   const colonParam = `:${actorParam}`
-  const streamNames = ['inbox', 'outbox', 'following', 'followers', 'liked', 'blocked']
   const streamTemplates = {}
-  streamNames.forEach(s => {
+  actorStreamNames.forEach(s => {
     streamTemplates[s] = `https://${domain}${routes[s]}`
   })
   return name => {
     const streams = {}
-    streamNames.forEach(s => {
+    actorStreamNames.forEach(s => {
       streams[s] = streamTemplates[s].replace(colonParam, name)
     })
     return streams
@@ -255,15 +255,26 @@ function validateCollectionOwner (collectionId, ownerId) {
   return !!user && this.utils.usernameToIRI(user) === ownerId
 }
 
-function validateOwner (object, ownerId) {
+function validateOwner (object, actor) {
   if (Array.isArray(object)) {
     object = object[0]
   }
   if (!validateObject(object)) return false
-  if (object.id === ownerId) return true
-  if (Array.isArray(object.actor) && object.actor[0] === ownerId) return true
-  if (Array.isArray(object.attributedTo) && object.attributedTo[0] === ownerId) {
+  if (object.id === actor.id) return true
+  if (Array.isArray(object.actor) && object.actor[0] === actor.id) return true
+  if (Array.isArray(object.attributedTo) && object.attributedTo[0] === actor.id) {
     return true
+  }
+  // collections don't have owner in a property, but should be in actor object
+  if (object.type === 'Collection' || object.type === 'OrderedCollection') {
+    // standard collections
+    if (actorStreamNames.some(c => actor[c] && actor[c].includes(object.id))) {
+      return true
+    }
+    // custom collections
+    if (actor.streams && Object.values(actor.streams).includes(object.id)) {
+      return true
+    }
   }
   return false
 }
