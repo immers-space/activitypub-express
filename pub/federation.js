@@ -16,6 +16,9 @@ let isDelivering = false
 let nextDelivery = null
 
 function requestObject (id) {
+  if (this.isProductionEnv() && this.isLocalhostIRI(id)) {
+    return null
+  }
   const req = {
     url: id,
     headers: { Accept: 'application/activity+json' },
@@ -53,6 +56,9 @@ async function resolveReferences (object, depth = 0) {
 }
 
 function deliver (actorId, activity, address, signingKey) {
+  if (this.isProductionEnv() && this.isLocalhostIRI(address)) {
+    return null
+  }
   // digest header added for Mastodon 3.2.1 compatibility
   const digest = crypto.createHash('sha256')
     .update(activity)

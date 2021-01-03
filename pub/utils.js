@@ -1,7 +1,6 @@
 'use strict'
 const jsonld = require('jsonld')
 const merge = require('deepmerge')
-const { escape, unescape } = require('mongo-escape')
 
 module.exports = {
   addPageToIRI,
@@ -13,6 +12,8 @@ module.exports = {
   userAndIdToIRIFactory,
   isLocalCollection,
   isLocalIRI,
+  isLocalhostIRI,
+  isProductionEnv,
   isString,
   mergeJSONLD,
   nameToActorStreamsFactory,
@@ -114,18 +115,18 @@ async function fromJSONLD (obj) {
     opts.expandContext = this.context
   }
   const compact = await jsonld.compact(obj, this.context, opts)
-  // strip context and graph wrapper for easier access, escape mongo special characters
-  return escape(compact['@graph'][0])
+  // strip context and graph wrapper for easier access
+  return compact['@graph'][0]
 }
 // convert working objects to json-ld for transport
-async function toJSONLD (obj) {
-  return unescape(await jsonld.compact(obj, this.context, {
+function toJSONLD (obj) {
+  return jsonld.compact(obj, this.context, {
     // must supply initial context because it was stripped for easy handling
     expandContext: this.context,
     // unbox arrays on federated objects, in case other apps aren't using real json-ld
     compactArrays: true,
     documentLoader: this.jsonldContextLoader
-  }))
+  })
 }
 
 function stringifyPublicJSONLD (obj) {
@@ -165,6 +166,24 @@ function isLocalIRI (id) {
 
 function isString (obj) {
   return (Object.prototype.toString.call(obj) === '[object String]')
+}
+
+/* just checking a subset of cases becuase others (like no protocol)
+ * would error anyway during request and we don't have to bog down
+ * federation with additional regex or url parsing
+ */
+const localhosts = [
+  'https://localhost',
+  'https://localhost',
+  'http://127.0.0.1',
+  'https://127.0.0.1'
+]
+function isLocalhostIRI (id) {
+  return localhosts.some(lh => id.startsWith(lh))
+}
+
+function isProductionEnv () {
+  return process.env.NODE_ENV === 'production'
 }
 
 const overwriteArrays = {

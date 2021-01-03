@@ -1,6 +1,11 @@
 'use strict'
 const mongo = require('mongodb')
+const { escape, unescape } = require('mongo-escape')
+const merge = require('deepmerge')
 const IApexStore = require('./interface')
+function escapeClone (obj) {
+  return escape(merge({}, obj))
+}
 
 class ApexStore extends IApexStore {
   constructor () {
@@ -90,6 +95,7 @@ class ApexStore extends IApexStore {
       // strict comparison as we don't want to return private keys on accident
       .project(includeMeta === true ? this.metaProj : this.projection)
       .next()
+      .then(obj => unescape(obj))
   }
 
   async saveObject (object) {
@@ -103,16 +109,17 @@ class ApexStore extends IApexStore {
       return false
     }
     return db.collection('objects')
-      .insertOne(object, { forceServerObjectId: true })
+      .insertOne(escapeClone(object), { forceServerObjectId: true })
   }
 
   async updateObject (obj, actorId, fullReplace) {
-    const updated = await this.updateObjectSource(obj, actorId, fullReplace)
+    const updated = await this
+      .updateObjectSource(escapeClone(obj), actorId, fullReplace)
     if (updated) {
       // propogate update to all copies in streams
       await this.updateObjectCopies(updated)
     }
-    return updated
+    return unescape(updated)
   }
 
   getActivity (id, includeMeta) {
@@ -121,6 +128,7 @@ class ApexStore extends IApexStore {
       .limit(1)
       .project(includeMeta ? this.metaProj : this.projection)
       .next()
+      .then(act => unescape(act))
   }
 
   getContext (documentUrl) {
@@ -147,7 +155,7 @@ class ApexStore extends IApexStore {
     if (limit) {
       query.limit(limit)
     }
-    return query.toArray()
+    return query.toArray().then(stream => unescape(stream))
   }
 
   getStreamCount (collectionId) {
@@ -160,7 +168,7 @@ class ApexStore extends IApexStore {
     let inserted
     try {
       const insertResult = await this.db.collection('streams')
-        .insertOne(activity, { forceServerObjectId: true })
+        .insertOne(escapeClone(activity), { forceServerObjectId: true })
       inserted = insertResult.insertedCount
     } catch (err) {
       // if duplicate key error, ignore and return undefined
@@ -179,7 +187,7 @@ class ApexStore extends IApexStore {
       throw new Error('not implemented')
     }
     const result = await this.db.collection('streams')
-      .replaceOne({ id: activity.id }, activity)
+      .replaceOne({ id: activity.id }, escapeClone(activity))
     return result.modifiedCount
   }
 
@@ -196,7 +204,7 @@ class ApexStore extends IApexStore {
     if (!result.ok || !result.value) {
       throw new Error('Error updating activity meta: not found')
     }
-    return result.value
+    return unescape(result.value)
   }
 
   generateId () {

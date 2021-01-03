@@ -314,4 +314,16 @@ describe('federation', function () {
       expect(out.length).toBe(6)
     })
   })
+  describe('security', function () {
+    it('blocks requests to localhost in production', async function () {
+      spyOn(apex, 'isProductionEnv').and.returnValue(true)
+      const local = 'https://localhost/u/me'
+      const loopback = 'http://127.0.0.1/root'
+      // nock would throw on any of these would throw if actually requested
+      expect(await apex.requestObject(local)).toBe(null)
+      expect(await apex.requestObject(loopback)).toBe(null)
+      expect(await apex.deliver(testUser.id, '', local)).toBe(null)
+      expect(await apex.deliver(testUser.id, '', loopback)).toBe(null)
+    })
+  })
 })
