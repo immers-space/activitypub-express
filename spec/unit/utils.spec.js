@@ -82,6 +82,9 @@ describe('utils', function () {
   })
   describe('validateOwner', function () {
     it('establishes collection ownerhip via actor properties', async function () {
+      testUser.streams = {
+        custom: apex.utils.userCollectionIdToIRI(testUser.preferredUsername, 'custom')
+      }
       const otherUser = await apex.createActor('other', 'Other user', '')
       const testFollowers = await apex.getFollowers(testUser)
       const testCustom = await apex.getAdded(testUser, 'custom')

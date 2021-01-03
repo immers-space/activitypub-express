@@ -62,8 +62,8 @@ module.exports = {
       * populated with.
       */
       .filter(addr => {
-        const isFollow = apex.collectionIRIToActorName(addr, 'followers')
-        const isAdded = apex.collectionIRIToActorName(addr, 'collections')
+        const isFollow = apex.decodeCollectionIRI(addr, 'followers')
+        const isAdded = apex.decodeCollectionIRI(addr, 'collections')
         return isFollow || isAdded
       })
     if (audience.length) {

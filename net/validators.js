@@ -366,7 +366,8 @@ async function outboxActivity (req, res, next) {
     resLocal.object = apex.mergeJSONLD(object, activity.object[0])
     activity.object = [resLocal.object]
   } else if (type === 'add' || type === 'remove') {
-    if (!apex.validateCollectionOwner(activity.target, actor.id)) {
+    const colInfo = apex.decodeCollectionIRI(activity.target[0], 'collections')
+    if (!colInfo || !actor.preferredUsername.includes(colInfo.actor)) {
       resLocal.status = 403
       return next()
     }

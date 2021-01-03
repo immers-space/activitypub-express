@@ -750,7 +750,7 @@ describe('outbox', function () {
       let addable
       let add
       beforeEach(function () {
-        collection = `${testUser.id}/c/test`
+        collection = `${testUser.id}/c/testcol`
         addable = merge({}, activityNormalized)
         addable.id = apex.utils.activityIdToIRI()
         addable.object[0].id = apex.utils.objectIdToIRI()
@@ -804,7 +804,7 @@ describe('outbox', function () {
       it('adds to collection', async function (done) {
         await apex.store.saveActivity(addable)
         app.once('apex-outbox', async function (msg) {
-          const added = await apex.getAdded(testUser, 'test', Infinity)
+          const added = await apex.getAdded(testUser, 'testcol', Infinity)
           delete added.orderedItems[0]._id
           expect(added.orderedItems[0]).toEqual(addable)
           done()

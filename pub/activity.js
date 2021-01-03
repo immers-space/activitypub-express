@@ -64,9 +64,9 @@ async function address (activity, sender, audienceOverride) {
      * activities
      * 7.1.1 "the server MUST target and deliver to... Collections owned by the actor."
      */
-    const miscColOwner = this.collectionIRIToActorName(t, 'collections')
-    if (miscColOwner) {
-      if (!sender.preferredUsername.includes(miscColOwner)) {
+    const miscCol = this.decodeCollectionIRI(t, 'collections')
+    if (miscCol) {
+      if (!sender.preferredUsername.includes(miscCol.actor)) {
         return null
       }
       return this.getAdded(t, Infinity).then(col => {

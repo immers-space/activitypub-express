@@ -6,7 +6,7 @@ const actorStreamNames = ['inbox', 'outbox', 'following', 'followers', 'liked', 
 module.exports = {
   addPageToIRI,
   addMeta,
-  collectionIRIToActorName,
+  decodeCollectionIRI,
   hasMeta,
   idToActivityCollectionsFactory,
   idToIRIFactory,
@@ -27,7 +27,6 @@ module.exports = {
   stringifyPublicJSONLD,
   validateActivity,
   validateObject,
-  validateCollectionOwner,
   validateOwner,
   validateTarget
 }
@@ -79,14 +78,24 @@ function actorIdFromActivity (activity) {
   return actor.id
 }
 
-function collectionIRIToActorName (id, collectionType) {
+function decodeCollectionIRI (id, collectionType) {
   const pActor = `:${this.actorParam}`
   const pCol = `:${this.collectionParam}`
   let pattern = this.settings.routes[collectionType]
   const isActorFirst = pattern.indexOf(pCol) === -1 || pattern.indexOf(pActor) < pattern.indexOf(pCol)
   pattern = pattern.replace(pActor, '([^/]+)').replace(pCol, '([^/]+)')
-  const result = new RegExp(`^https://${this.domain}${pattern}$`).exec(id)
-  return result && (isActorFirst ? result[1] : result[2])
+  let result = new RegExp(`^https://${this.domain}${pattern}$`).exec(id)
+  if (!result) {
+    return false
+  }
+  result = result.slice(1, 3)
+  if (!isActorFirst) {
+    result = result.reverse()
+  }
+  return {
+    actor: result[0],
+    collection: result[1] || collectionType
+  }
 }
 
 function objectIdFromActivity (activity) {
@@ -242,17 +251,6 @@ function validateActivity (object) {
   if (validateObject(object) && Array.isArray(object.actor) && object.actor.length) {
     return true
   }
-}
-
-function validateCollectionOwner (collectionId, ownerId) {
-  if (Array.isArray(collectionId)) {
-    collectionId = collectionId[0]
-  }
-  if (Object.prototype.toString.call(collectionId) !== '[object String]') {
-    return false
-  }
-  const user = this.collectionIRIToActorName(collectionId, 'collections')
-  return !!user && this.utils.usernameToIRI(user) === ownerId
 }
 
 function validateOwner (object, actor) {
