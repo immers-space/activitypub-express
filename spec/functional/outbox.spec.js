@@ -259,7 +259,7 @@ describe('outbox', function () {
           .send(undo)
           .expect(403, done)
       })
-      it('removes undone activity', async function (done) {
+      it('removes undone activity', async function () {
         await apex.store.saveActivity(undone)
         await request(app)
           .post('/outbox/test')
@@ -268,9 +268,34 @@ describe('outbox', function () {
           .expect(200)
         const result = await apex.store.getActivity(undone.id)
         expect(result).toBeFalsy()
-        done()
       })
-      it('publishes related collection updates')
+      it('publishes related collection updates', async function (done) {
+        const mockedUser = 'https://mocked.com/user/mocked'
+        undone.type = 'Like'
+        undone.object = [activityNormalized.object[0].id]
+        apex.addMeta(undone, 'collection', testUser.liked[0])
+        undone.to = [mockedUser]
+        await apex.store.saveActivity(activityNormalized)
+        await apex.store.saveActivity(undone)
+        nock('https://mocked.com')
+          .get('/user/mocked')
+          .reply(200, { id: mockedUser, inbox: 'https://mocked.com/inbox/mocked' })
+        nock('https://mocked.com')
+          .post('/inbox/mocked').reply(200)
+          .on('request', (req, interceptor, body) => {
+            const sentActivity = JSON.parse(body)
+            expect(sentActivity.type).toBe('Update')
+            expect(sentActivity.object.id).toBe(testUser.liked[0])
+            expect(sentActivity.object.totalItems).toBe(0)
+            done()
+          })
+        request(app)
+          .post('/outbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(undo)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
     })
     describe('update', function () {
       let sourceObj

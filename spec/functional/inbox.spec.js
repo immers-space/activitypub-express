@@ -404,7 +404,64 @@ describe('inbox', function () {
         expect(result).toBeFalsy()
         done()
       })
-      it('publishes related collection updates')
+      it('publishes followeres collection updates', async function (done) {
+        const mockedUser = 'https://mocked.com/user/mocked'
+        undone.type = 'Follow'
+        undone.object = [testUser.id]
+        apex.addMeta(undone, 'collection', testUser.followers[0])
+        undone.to = [mockedUser]
+        await apex.store.saveActivity(undone)
+        nock('https://mocked.com')
+          .get('/user/mocked')
+          .reply(200, { id: mockedUser, inbox: 'https://mocked.com/inbox/mocked' })
+        nock('https://mocked.com')
+          .post('/inbox/mocked').reply(200)
+          .on('request', (req, interceptor, body) => {
+            const sentActivity = JSON.parse(body)
+            expect(sentActivity.type).toBe('Update')
+            expect(sentActivity.object.id).toBe(testUser.followers[0])
+            expect(sentActivity.object.totalItems).toBe(0)
+            done()
+          })
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(undo)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
+      it('publishes activity collection updates', async function (done) {
+        const mockedUser = 'https://mocked.com/user/mocked'
+        const likeable = await apex.buildActivity('Create', testUser.id, [], {
+          object: { type: 'Note', content: 'hello' }
+        })
+        undone.actor = [mockedUser]
+        undone.type = 'Like'
+        undone.object = [likeable.id]
+        apex.addMeta(undone, 'collection', likeable.likes[0])
+        undone.to = [testUser.id]
+        undo.actor = [mockedUser]
+        await apex.store.saveActivity(likeable)
+        await apex.store.saveActivity(undone)
+        nock('https://mocked.com')
+          .get('/user/mocked')
+          .reply(200, { id: mockedUser, inbox: 'https://mocked.com/inbox/mocked' })
+        nock('https://mocked.com')
+          .post('/inbox/mocked').reply(200)
+          .on('request', (req, interceptor, body) => {
+            const sentActivity = JSON.parse(body)
+            expect(sentActivity.type).toBe('Update')
+            expect(sentActivity.object.id).toBe(likeable.likes[0])
+            expect(sentActivity.object.totalItems).toBe(0)
+            done()
+          })
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(undo)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
     })
     it('fires other activity event', function (done) {
       const arriveAct = {

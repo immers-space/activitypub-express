@@ -7,6 +7,7 @@ module.exports = {
   addToOutbox,
   buildActivity,
   buildTombstone,
+  publishUndoUpdate,
   publishUpdate,
   resolveActivity
 }
@@ -134,6 +135,23 @@ async function acceptFollow (actor, targetActivity) {
     return this.publishUpdate(actor, await this.getFollowers(actor))
   }
   return { postTask, updated }
+}
+
+async function publishUndoUpdate (colId, actor, audience) {
+  const info = this.utils.iriToCollectionInfo(colId)
+  let actorId
+  if (!['followers', 'following', 'liked', 'likes', 'shares'].includes(info?.name)) {
+    return
+  }
+  if (info.activity) {
+    const activityIRI = this.utils.activityIdToIRI(info.activity)
+    actorId = (await this.store.getActivity(activityIRI))?.actor[0]
+  }
+  if (actor.id === (actorId ?? this.utils.usernameToIRI(info.actor))) {
+    const colUpdate = await this.getCollection(colId)
+    return this.publishUpdate(actor, colUpdate, audience)
+  }
+  return undefined
 }
 
 async function publishUpdate (actor, object, cc) {

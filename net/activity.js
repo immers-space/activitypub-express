@@ -153,7 +153,13 @@ module.exports = {
           // deleting the activity also removes it from all collections,
           // undoing follows, blocks, shares, and likes
           toDo.push(apex.store.removeActivity(object, actorId))
-          // TODO: publish appropriate collection updates (after #8)
+          resLocal.postWork.push(() => {
+            // update any collections the activity was removed from
+            const audience = apex.audienceFromActivity(object).concat(actor.id)
+            const updates = object._meta?.collection
+              ?.map(colId => apex.publishUndoUpdate(colId, recipient, audience))
+            return updates && Promise.allSettled(updates)
+          })
         }
         break
       case 'update':
@@ -254,7 +260,13 @@ module.exports = {
           // deleting the activity also removes it from all collections,
           // undoing follows, blocks, shares, and likes
           toDo.push(apex.store.removeActivity(object, actor.id))
-          // TODO: publish appropriate collection updates (after #8)
+          resLocal.postWork.push(() => {
+            // update any collections the activity was removed from
+            const audience = apex.audienceFromActivity(object)
+            const updates = object._meta?.collection
+              ?.map(colId => apex.publishUndoUpdate(colId, actor, audience))
+            return updates && Promise.allSettled(updates)
+          })
         }
         break
     }
