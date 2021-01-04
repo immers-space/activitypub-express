@@ -173,7 +173,7 @@ describe('federation', function () {
       setTimeout(() => {
         expect(apex.deliver).toHaveBeenCalledTimes(5)
         done()
-      }, 115)
+      }, 150)
     })
     it('can restart delivery while retries are pending', async function (done) {
       spyOn(apex.store, 'deliveryRequeue').and.callThrough()

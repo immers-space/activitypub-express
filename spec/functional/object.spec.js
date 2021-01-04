@@ -1,60 +1,23 @@
 /* global describe, beforeAll, beforeEach, it, expect */
 const request = require('supertest')
-const express = require('express')
-const { MongoClient } = require('mongodb')
-
-const ActivitypubExpress = require('../../index')
-
-const app = express()
-const apex = ActivitypubExpress({
-  domain: 'localhost',
-  context: [
-    'https://www.w3.org/ns/activitystreams',
-    'https://w3id.org/security/v1'
-  ],
-  actorParam: 'actor',
-  objectParam: 'id',
-  activityParam: 'id',
-  routes: {
-    actor: '/u/:actor',
-    object: '/o/:id',
-    activity: '/s/:id',
-    inbox: '/inbox/:actor',
-    outbox: '/outbox/:actor',
-    followers: '/followers/:actor',
-    following: '/following/:actor',
-    liked: '/liked/:actor',
-    shares: '/s/:id/shares',
-    likes: '/s/:id/likes'
-  }
-})
-const client = new MongoClient('mongodb://localhost:27017', { useUnifiedTopology: true, useNewUrlParser: true })
-
-app.use(apex)
-app.get('/u/:actor', apex.net.actor.get)
-app.get('/o/:id', apex.net.object.get)
-app.get('/s/:id', apex.net.activityStream.get)
-app.use(function (err, req, res, next) {
-  console.log(err)
-  next(err)
-})
 
 describe('resources', function () {
   let testUser
+  let app
+  let apex
+  let client
   beforeAll(async function () {
-    const actorName = 'test'
-    await client.connect({ useNewUrlParser: true })
-    apex.store.db = client.db('apexTestingTempDb')
-    testUser = await apex.createActor(actorName, actorName, 'test user')
+    const init = await global.initApex()
+    testUser = init.testUser
+    app = init.app
+    apex = init.apex
+    client = init.client
+    app.get('/u/:actor', apex.net.actor.get)
+    app.get('/o/:id', apex.net.object.get)
+    app.get('/s/:id', apex.net.activityStream.get)
   })
-  beforeEach(function (done) {
-    // reset db for each test
-    client.db('apexTestingTempDb').dropDatabase()
-      .then(() => {
-        apex.store.db = client.db('apexTestingTempDb')
-        return apex.store.setup(testUser)
-      })
-      .then(done)
+  beforeEach(function () {
+    return global.resetDb(apex, client, testUser)
   })
   describe('get actor', function () {
     it('returns actor object', function (done) {
@@ -79,6 +42,11 @@ describe('resources', function () {
               id: 'https://localhost/u/test#main-key',
               owner: 'https://localhost/u/test',
               publicKeyPem: testUser.publicKey[0].publicKeyPem[0]
+            },
+            endpoints: {
+              id: 'https://localhost/u/test#endpoints',
+              uploadMedia: 'https://localhost/upload',
+              oauthAuthorizationEndpoint: 'https://localhost/auth/authorize'
             }
           }
           expect(res.body).toEqual(standard)
