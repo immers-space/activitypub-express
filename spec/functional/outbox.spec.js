@@ -793,7 +793,7 @@ describe('outbox', function () {
           .expect(400, done)
       })
       it('rejects un-owned target', async function (done) {
-        add.target = 'https://localhost/u/bob/bobs-stuff'
+        add.target = 'https://localhost/u/bob/c/bobs-stuff'
         await apex.store.saveActivity(addable)
         request(app)
           .post('/outbox/test')
@@ -866,7 +866,7 @@ describe('outbox', function () {
           .expect(400, done)
       })
       it('rejects un-owned target', async function (done) {
-        remove.target = 'https://localhost/u/bob/bobs-stuff'
+        remove.target = 'https://localhost/u/bob/c/bobs-stuff'
         await apex.store.saveActivity(added)
         request(app)
           .post('/outbox/test')

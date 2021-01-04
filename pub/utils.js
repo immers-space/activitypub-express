@@ -1,16 +1,19 @@
 'use strict'
 const jsonld = require('jsonld')
 const merge = require('deepmerge')
-const actorStreamNames = ['inbox', 'outbox', 'following', 'followers', 'liked', 'blocked']
+const actorStreamNames = ['inbox', 'outbox', 'following', 'followers', 'liked', 'blocked', 'rejected', 'rejections']
+const activityStreamNames = ['shares', 'likes']
+const audienceFields = ['to', 'bto', 'cc', 'bcc', 'audience']
 
 module.exports = {
   addPageToIRI,
   addMeta,
-  decodeCollectionIRI,
+  audienceFromActivity,
   hasMeta,
   idToActivityCollectionsFactory,
   idToIRIFactory,
   userAndIdToIRIFactory,
+  iriToCollectionInfoFactory,
   isLocalCollection,
   isLocalIRI,
   isLocalhostIRI,
@@ -50,6 +53,12 @@ function addMeta (obj, key, value) {
   }
 }
 
+function audienceFromActivity (activity) {
+  return audienceFields.reduce((acc, t) => {
+    return activity[t] ? acc.concat(activity[t]) : acc
+  }, [])
+}
+
 function hasMeta (obj, key, value) {
   if (!obj._meta || !Array.isArray(obj._meta[key])) {
     return false
@@ -78,23 +87,43 @@ function actorIdFromActivity (activity) {
   return actor.id
 }
 
-function decodeCollectionIRI (id, collectionType) {
-  const pActor = `:${this.actorParam}`
-  const pCol = `:${this.collectionParam}`
-  let pattern = this.settings.routes[collectionType]
-  const isActorFirst = pattern.indexOf(pCol) === -1 || pattern.indexOf(pActor) < pattern.indexOf(pCol)
-  pattern = pattern.replace(pActor, '([^/]+)').replace(pCol, '([^/]+)')
-  let result = new RegExp(`^https://${this.domain}${pattern}$`).exec(id)
-  if (!result) {
-    return false
-  }
-  result = result.slice(1, 3)
-  if (!isActorFirst) {
-    result = result.reverse()
-  }
-  return {
-    actor: result[0],
-    collection: result[1] || collectionType
+function iriToCollectionInfoFactory (domain, routes, pActor, pActivity, pCollection) {
+  pActor = `:${pActor}`
+  pActivity = `:${pActivity}`
+  pCollection = `:${pCollection}`
+  const tests = []
+  // custom actor collections
+  let pattern = this.settings.routes.collections
+  const isActorFirst = pattern.indexOf(pActor) < pattern.indexOf(pCollection)
+  pattern = pattern.replace(pActor, '([^/]+)').replace(pCollection, '([^/]+)')
+  const re = new RegExp(`^https://${this.domain}${pattern}$`)
+  tests.push(iri => {
+    const match = re.exec(iri)?.slice(1)
+    return match && { name: 'collections', actor: match[+!isActorFirst], id: match[+isActorFirst] }
+  })
+  // standard actor streams
+  actorStreamNames.forEach(name => {
+    const pattern = this.settings.routes[name].replace(pActor, '([^/]+)')
+    const re = new RegExp(`^https://${this.domain}${pattern}$`)
+    tests.push(iri => {
+      const actor = re.exec(iri)?.[1]
+      return actor && { name, actor }
+    })
+  })
+  // activity object streams
+  activityStreamNames.forEach(name => {
+    const pattern = this.settings.routes[name].replace(pActivity, '([^/]+)')
+    const re = new RegExp(`^https://${this.domain}${pattern}$`)
+    tests.push(iri => {
+      const activity = re.exec(iri)?.[1]
+      return activity && { name, activity }
+    })
+  })
+  return iri => {
+    for (const test of tests) {
+      const result = test(iri)
+      if (result) return result
+    }
   }
 }
 
@@ -221,14 +250,13 @@ function nameToActorStreamsFactory (domain, routes, actorParam) {
 
 function idToActivityCollectionsFactory (domain, routes, activityParam) {
   const colonParam = `:${activityParam}`
-  const streamNames = ['shares', 'likes']
   const streamTemplates = {}
-  streamNames.forEach(s => {
+  activityStreamNames.forEach(s => {
     streamTemplates[s] = `https://${domain}${routes[s]}`
   })
   return id => {
     const streams = {}
-    streamNames.forEach(s => {
+    activityStreamNames.forEach(s => {
       streams[s] = streamTemplates[s].replace(colonParam, id)
     })
     return streams

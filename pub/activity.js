@@ -47,10 +47,8 @@ async function address (activity, sender, audienceOverride) {
   if (audienceOverride) {
     audience = audienceOverride
   } else {
-    audience = ['to', 'bto', 'cc', 'bcc', 'audience']
-      .reduce((acc, t) => {
-        return activity[t] ? acc.concat(activity[t]) : acc
-      }, [])
+    // de-dupe here to avoid resolving collections twice
+    audience = Array.from(new Set(this.audienceFromActivity(activity)))
   }
   audience = audience.map(t => {
     if (t === 'https://www.w3.org/ns/activitystreams#Public') {
@@ -64,8 +62,8 @@ async function address (activity, sender, audienceOverride) {
      * activities
      * 7.1.1 "the server MUST target and deliver to... Collections owned by the actor."
      */
-    const miscCol = this.decodeCollectionIRI(t, 'collections')
-    if (miscCol) {
+    const miscCol = this.utils.iriToCollectionInfo(t)
+    if (miscCol?.name === 'collections') {
       if (!sender.preferredUsername.includes(miscCol.actor)) {
         return null
       }
@@ -96,6 +94,7 @@ async function address (activity, sender, audienceOverride) {
         if (result.value.orderedItems) {
           return result.value.orderedItems.map(this.resolveObject)
         }
+        return undefined
       })
     // flattens and resolves collections
     return Promise.allSettled(addresses.flat(2))

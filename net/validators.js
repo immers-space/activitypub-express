@@ -366,8 +366,13 @@ async function outboxActivity (req, res, next) {
     resLocal.object = apex.mergeJSONLD(object, activity.object[0])
     activity.object = [resLocal.object]
   } else if (type === 'add' || type === 'remove') {
-    const colInfo = apex.decodeCollectionIRI(activity.target[0], 'collections')
-    if (!colInfo || !actor.preferredUsername.includes(colInfo.actor)) {
+    const colInfo = apex.utils.iriToCollectionInfo(activity.target[0])
+    if (colInfo?.name !== 'collections') {
+      // only adding to custom collections is implemented
+      resLocal.status = 405
+      return next()
+    }
+    if (!actor.preferredUsername.includes(colInfo?.actor)) {
       resLocal.status = 403
       return next()
     }

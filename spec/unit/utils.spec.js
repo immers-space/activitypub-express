@@ -94,4 +94,25 @@ describe('utils', function () {
       expect(apex.validateOwner(testCustom, otherUser)).toBeFalse()
     })
   })
+  describe('iriToCollectionInfoFactory', function () {
+    it('decode IRIs', function () {
+      expect(apex.utils.iriToCollectionInfo('https://localhost/inbox/test')).toEqual({
+        name: 'inbox',
+        actor: 'test'
+      })
+      expect(apex.utils.iriToCollectionInfo('https://localhost/followers/test')).toEqual({
+        name: 'followers',
+        actor: 'test'
+      })
+      expect(apex.utils.iriToCollectionInfo('https://localhost/s/abc123/shares')).toEqual({
+        name: 'shares',
+        activity: 'abc123'
+      })
+      expect(apex.utils.iriToCollectionInfo('https://localhost/u/test/c/stuff')).toEqual({
+        name: 'collections',
+        actor: 'test',
+        id: 'stuff'
+      })
+    })
+  })
 })

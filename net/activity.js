@@ -61,11 +61,7 @@ module.exports = {
       * and is used in addressing. Perhaps also Added, depending on what it is
       * populated with.
       */
-      .filter(addr => {
-        const isFollow = apex.decodeCollectionIRI(addr, 'followers')
-        const isAdded = apex.decodeCollectionIRI(addr, 'collections')
-        return isFollow || isAdded
-      })
+      .filter(addr => ['followers', 'collections'].includes(apex.utils.iriToCollectionInfo(addr)?.name))
     if (audience.length) {
       resLocal.postWork
         .push(() => apex.addToOutbox(resLocal.target, activity, audience))
