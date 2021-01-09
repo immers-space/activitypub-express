@@ -82,6 +82,7 @@ function inboxActivity (req, res, next) {
   const object = resLocal.object
   const actor = resLocal.actor
   const recipient = resLocal.target
+  const tasks = []
   if (!apex.validateActivity(activity)) {
     resLocal.status = 400
     resLocal.statusMessage = 'Invalid activity'
@@ -105,9 +106,8 @@ function inboxActivity (req, res, next) {
   }
   if (type === 'update') {
     if (apex.validateActivity(object)) {
-      resLocal.status = 400
-      resLocal.statusMessage = 'Updates to activities not supported'
-      return next()
+      // update activity collection info
+      tasks.push(apex.embedCollections(object))
     }
   } else if (type === 'delete' && object) {
     if (apex.validateActivity(object)) {
@@ -128,9 +128,12 @@ function inboxActivity (req, res, next) {
       return next()
     }
   }
-  apex.addMeta(req.body, 'collection', recipient.inbox[0])
-  res.locals.apex.activity = true
-  next()
+  tasks.push(apex.embedCollections(activity))
+  Promise.all(tasks).then(() => {
+    apex.addMeta(req.body, 'collection', recipient.inbox[0])
+    res.locals.apex.activity = true
+    next()
+  }).catch(next)
 }
 
 async function jsonld (req, res, next) {
@@ -260,8 +263,12 @@ function outboxCreate (req, res, next) {
       }
     })
     activity = apex.buildActivity('Create', actorIRI, object.to, extras)
-  } else if (activity.type.toLowerCase() === 'create' && activity.object) {
-    activity.object[0].id = apex.utils.objectIdToIRI()
+  } else {
+    if (activity.type.toLowerCase() === 'create' && activity.object) {
+      activity.object[0].id = apex.utils.objectIdToIRI()
+    }
+    // run through builder to format & ensure published, shares, likes included
+    activity = apex.buildActivity(activity.type, actorIRI, activity.to, activity)
   }
   Promise.resolve(activity).then(actResolved => {
     req.body = actResolved
@@ -298,7 +305,7 @@ function outboxActivityObject (req, res, next) {
     next()
   })
 }
-async function outboxActivity (req, res, next) {
+function outboxActivity (req, res, next) {
   if (!res.locals.apex.target) {
     return next()
   }

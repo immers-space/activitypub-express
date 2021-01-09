@@ -101,14 +101,18 @@ module.exports = {
       case 'announce':
         toDo.push((async () => {
           const targetActivity = object
-          // add to object shares collection, increment share count
           if (apex.isLocalIRI(targetActivity.id) && targetActivity.shares) {
+            const shares = apex.objectIdFromValue(targetActivity.shares)
+            // add to object shares collection, increment share count
             activity = await apex.store
-              .updateActivityMeta(activity, 'collection', targetActivity.shares[0])
-            // publish update to shares count
-            resLocal.postWork.push(async () => {
-              return apex.publishUpdate(recipient, await apex.getShares(targetActivity), actorId)
-            })
+              .updateActivityMeta(activity, 'collection', shares)
+            // publish updated object with updated shares count
+            const updatedTarget = await apex.updateCollection(shares)
+            if (updatedTarget) {
+              resLocal.postWork.push(async () => {
+                return apex.publishUpdate(recipient, updatedTarget, actorId)
+              })
+            }
           }
         })())
         break
@@ -124,14 +128,18 @@ module.exports = {
       case 'like':
         toDo.push((async () => {
           const targetActivity = object
-          // add to object likes collection, incrementing like count
           if (apex.isLocalIRI(targetActivity.id) && targetActivity.likes) {
+            const likes = apex.objectIdFromValue(targetActivity.likes)
+            // add to object likes collection, incrementing like count
             activity = await apex.store
-              .updateActivityMeta(activity, 'collection', targetActivity.likes[0])
-            // publish update to shares count
-            resLocal.postWork.push(async () => {
-              return apex.publishUpdate(recipient, await apex.getLikes(targetActivity), actorId)
-            })
+              .updateActivityMeta(activity, 'collection', likes)
+            // publish updated object with updated likes count
+            const updatedTarget = await apex.updateCollection(likes)
+            if (updatedTarget) {
+              resLocal.postWork.push(async () => {
+                return apex.publishUpdate(recipient, updatedTarget, actorId)
+              })
+            }
           }
         })())
         break
@@ -163,7 +171,11 @@ module.exports = {
         }
         break
       case 'update':
-        toDo.push(apex.store.updateObject(object, actorId, true))
+        if (apex.validateActivity(object)) {
+          toDo.push(apex.store.updateActivity(object, true))
+        } else {
+          toDo.push(apex.store.updateObject(object, actorId, true))
+        }
         break
     }
     Promise.all(toDo).then(() => {

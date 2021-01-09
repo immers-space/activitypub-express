@@ -1,35 +1,33 @@
 'use strict'
 
-const merge = require('deepmerge')
 module.exports = {
   acceptFollow,
   address,
   addToOutbox,
   buildActivity,
   buildTombstone,
+  embedCollections,
   publishUndoUpdate,
   publishUpdate,
   resolveActivity
 }
 
-function buildActivity (type, actorId, to, etc = {}) {
+async function buildActivity (type, actorId, to, etc = {}) {
   const activityId = this.store.generateId()
   const collections = this.utils.idToActivityCollections(activityId)
-  const act = merge.all([
-    {
-      id: this.utils.activityIdToIRI(activityId),
-      type,
-      actor: actorId,
-      to,
-      published: new Date().toISOString()
-    },
-    collections,
-    etc
-  ])
-  return this.fromJSONLD(act).then(activity => {
-    activity._meta = {}
-    return activity
-  })
+  let activity = this.mergeJSONLD({
+    id: this.utils.activityIdToIRI(activityId),
+    type,
+    actor: actorId,
+    to,
+    published: new Date().toISOString()
+  }, etc)
+  activity = await this.fromJSONLD(activity)
+  for (const key in collections) {
+    activity[key] = [await this.buildCollection(collections[key], true, 0)]
+  }
+  activity._meta = {}
+  return activity
 }
 
 async function buildTombstone (object) {
@@ -90,10 +88,10 @@ async function address (activity, sender, audienceOverride) {
           return result.value
         }
         if (result.value.items) {
-          return result.value.items.map(this.resolveObject)
+          return result.value.items.map(id => this.resolveObject(id))
         }
         if (result.value.orderedItems) {
-          return result.value.orderedItems.map(this.resolveObject)
+          return result.value.orderedItems.map(id => this.resolveObject(id))
         }
         return undefined
       })
@@ -137,21 +135,53 @@ async function acceptFollow (actor, targetActivity) {
   return { postTask, updated }
 }
 
+async function embedCollections (activity) {
+  if (this.isLocalIRI(activity.id)) {
+    if (this.isString(activity.shares?.[0])) {
+      activity.shares = [await this.getCollection(activity.shares)]
+    }
+    if (this.isString(activity.likes?.[0])) {
+      activity.likes = [await this.getCollection(activity.likes)]
+    }
+  } else {
+    if (this.isString(activity.shares?.[0])) {
+      activity.shares = [await this.resolveObject(activity.shares, false, true)]
+    }
+    // if not paged, don't duplicate items in embedded copies
+    delete activity.shares?.[0]?.orderedItems
+    if (this.isString(activity.likes?.[0])) {
+      activity.likes = [await this.resolveObject(activity.likes, false, true)]
+    }
+    delete activity.likes?.[0]?.orderedItems
+  }
+  return activity
+}
+
+// undo may need to publish updates on behalf of multiple
+// actors to completely clear the activity
 async function publishUndoUpdate (colId, actor, audience) {
   const info = this.utils.iriToCollectionInfo(colId)
-  let actorId
+  let updated
+  let updatedActorId
   if (!['followers', 'following', 'liked', 'likes', 'shares'].includes(info?.name)) {
     return
   }
   if (info.activity) {
-    const activityIRI = this.utils.activityIdToIRI(info.activity)
-    actorId = (await this.store.getActivity(activityIRI))?.actor[0]
+    updated = await this.updateCollection(colId)
+    updatedActorId = updated.actor[0]
+  } else {
+    updated = await this.getCollection(colId)
+    updatedActorId = this.utils.usernameToIRI(info.actor)
   }
-  if (actor.id === (actorId ?? this.utils.usernameToIRI(info.actor))) {
-    const colUpdate = await this.getCollection(colId)
-    return this.publishUpdate(actor, colUpdate, audience)
+  if (actor.id === updatedActorId) {
+    return this.publishUpdate(actor, updated, audience)
+  } else {
+    return this.publishUpdate(
+      await this.store.getObject(updatedActorId, true),
+      updated,
+      audience
+    )
   }
-  return undefined
 }
 
 async function publishUpdate (actor, object, cc) {

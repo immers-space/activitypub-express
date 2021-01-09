@@ -41,6 +41,18 @@ const activityNormalized = {
   ],
   to: [
     'https://ignore.com/u/ignored'
+  ],
+  shares: [
+    {
+      type: 'OrderedCollection',
+      totalItems: [0]
+    }
+  ],
+  likes: [
+    {
+      type: 'OrderedCollection',
+      totalItems: [0]
+    }
   ]
 }
 
@@ -89,7 +101,7 @@ describe('outbox', function () {
         .expect(404, '\'noone\' not found on this instance', done)
     })
     // activity save
-    it('saves activity in stream', function (done) {
+    it('formats & saves activity in stream', function (done) {
       request(app)
         .post('/outbox/test')
         .set('Content-Type', 'application/activity+json')
@@ -103,10 +115,8 @@ describe('outbox', function () {
         .then(act => {
           expect(act._meta.collection).toEqual(['https://localhost/outbox/test'])
           delete act._meta
-          delete act._id
-          delete act.id
-          delete act.object[0].id
-          expect(act).toEqual(activityNormalized)
+          expect(new Date(act.published[0]).toString()).not.toBe('Invalid Date')
+          expect(global.stripIds(act)).toEqual(activityNormalized)
           done()
         })
         .catch(done)
@@ -147,6 +157,8 @@ describe('outbox', function () {
         })
         .then(act => {
           expect(act.type).toBe('Create')
+          expect(apex.validateObject(act.shares)).toBeTruthy()
+          expect(apex.validateObject(act.likes)).toBeTruthy()
           delete act.object[0].id
           expect(act.object[0]).toEqual(activityNormalized.object[0])
           done()
@@ -161,12 +173,19 @@ describe('outbox', function () {
         .reply(200, { id: 'https://mocked.com/user/mocked', inbox: 'https://mocked.com/inbox/mocked' })
       nock('https://mocked.com').post('/inbox/mocked')
         .reply(200)
-        .on('request', (req, interceptor, body) => {
+        .on('request', async (req, interceptor, body) => {
           // correctly formed activity sent
           const sentActivity = JSON.parse(body)
-          delete sentActivity.id
-          delete sentActivity.object.id
-          expect(sentActivity).toEqual(act)
+          // colletions added during processing
+          act.shares = {
+            totalItems: 0,
+            type: 'OrderedCollection'
+          }
+          act.likes = {
+            totalItems: 0,
+            type: 'OrderedCollection'
+          }
+          expect(global.stripIds(sentActivity)).toEqual(act)
           // valid signature
           req.originalUrl = req.path
           const sigHead = httpSignature.parse(req)
@@ -210,11 +229,9 @@ describe('outbox', function () {
     it('fires create event', function (done) {
       app.once('apex-outbox', msg => {
         expect(msg.actor).toEqual(testUser)
-        delete msg.activity.id
-        delete msg.object.id
         const exp = merge({ _meta: { collection: ['https://localhost/outbox/test'] } }, activityNormalized)
-        expect(msg.activity).toEqual(exp)
-        expect(msg.object).toEqual(activityNormalized.object[0])
+        expect(global.stripIds(msg.activity)).toEqual(exp)
+        expect(global.stripIds(msg.object)).toEqual(activityNormalized.object[0])
         done()
       })
       request(app)
@@ -418,11 +435,10 @@ describe('outbox', function () {
         await apex.store.saveActivity(follow)
         app.once('apex-outbox', msg => {
           expect(msg.actor).toEqual(testUser)
-          delete msg.activity.id
           const exp = merge({ _meta: { collection: ['https://localhost/outbox/test'] } }, activityNormalized)
           exp.type = 'Accept'
           exp.object = [follow.id]
-          expect(msg.activity).toEqual(exp)
+          expect(global.stripIds(msg.activity)).toEqual(exp)
           follow._meta.collection.push(testUser.followers[0])
           expect(msg.object).toEqual(follow)
           done()
@@ -497,11 +513,10 @@ describe('outbox', function () {
         await apex.store.saveActivity(follow)
         app.once('apex-outbox', msg => {
           expect(msg.actor).toEqual(testUser)
-          delete msg.activity.id
           const exp = merge({ _meta: { collection: testUser.outbox } }, activityNormalized)
           exp.type = 'Reject'
           exp.object = [follow.id]
-          expect(msg.activity).toEqual(exp)
+          expect(global.stripIds(msg.activity)).toEqual(exp)
           // removed from followers
           follow._meta.collection = [testUser.inbox[0], rejected]
           expect(msg.object).toEqual(follow)
@@ -573,15 +588,16 @@ describe('outbox', function () {
         await apex.store.saveObject(toDelete)
         app.once('apex-outbox', function (msg) {
           expect(msg.actor).toEqual(testUser)
-          delete msg.activity.id
-          expect(msg.activity).toEqual({
+          expect(global.stripIds(msg.activity)).toEqual({
             _meta: { collection: ['https://localhost/outbox/test'] },
             type: 'Delete',
             actor: ['https://localhost/u/test'],
             object: ['https://localhost/o/2349-ssdfds-34tdgf'],
             to: [
               'https://ignore.com/u/ignored'
-            ]
+            ],
+            likes: [{ totalItems: [0], type: 'OrderedCollection' }],
+            shares: [{ totalItems: [0], type: 'OrderedCollection' }]
           })
           expect(msg.object).toEqual(toDelete)
           done()
@@ -690,6 +706,9 @@ describe('outbox', function () {
         app.once('apex-outbox', function (msg) {
           expect(msg.actor).toEqual(testUser)
           delete msg.activity.id
+          delete msg.activity.likes
+          delete msg.activity.shares
+          delete msg.activity.published
           expect(msg.activity).toEqual({
             _meta: { collection: [testUser.outbox[0], testUser.liked[0]] },
             type: 'Like',
@@ -789,6 +808,9 @@ describe('outbox', function () {
         app.once('apex-outbox', function (msg) {
           expect(msg.actor).toEqual(testUser)
           delete msg.activity.id
+          delete msg.activity.likes
+          delete msg.activity.shares
+          delete msg.activity.published
           expect(msg.activity).toEqual({
             _meta: { collection: ['https://localhost/outbox/test'] },
             type: 'Add',
@@ -861,14 +883,15 @@ describe('outbox', function () {
         await apex.store.saveActivity(added)
         app.once('apex-outbox', function (msg) {
           expect(msg.actor).toEqual(testUser)
-          delete msg.activity.id
-          expect(msg.activity).toEqual({
+          expect(global.stripIds(msg.activity)).toEqual({
             _meta: { collection: ['https://localhost/outbox/test'] },
             type: 'Remove',
             actor: ['https://localhost/u/test'],
             object: [added.id],
             target: [collection],
-            to: ['https://ignore.com/u/ignored']
+            to: ['https://ignore.com/u/ignored'],
+            likes: [{ totalItems: [0], type: 'OrderedCollection' }],
+            shares: [{ totalItems: [0], type: 'OrderedCollection' }]
           })
           added._meta.collection = []
           expect(msg.object).toEqual(added)
@@ -928,6 +951,9 @@ describe('outbox', function () {
         app.once('apex-outbox', function (msg) {
           expect(msg.actor).toEqual(testUser)
           delete msg.activity.id
+          delete msg.activity.likes
+          delete msg.activity.shares
+          delete msg.activity.published
           expect(msg.activity).toEqual({
             _meta: { collection: [apex.utils.nameToBlockedIRI(testUser.preferredUsername)] },
             type: 'Block',
@@ -971,8 +997,7 @@ describe('outbox', function () {
       }
       app.once('apex-outbox', msg => {
         expect(msg.actor).toEqual(testUser)
-        delete msg.activity.id
-        expect(msg.activity).toEqual({
+        expect(global.stripIds(msg.activity)).toEqual({
           _meta: { collection: ['https://localhost/outbox/test'] },
           type: 'Arrive',
           to: ['https://ignore.com/u/ignored'],
@@ -980,7 +1005,9 @@ describe('outbox', function () {
           location: [{
             type: 'Place',
             name: ['Here']
-          }]
+          }],
+          likes: [{ totalItems: [0], type: 'OrderedCollection' }],
+          shares: [{ totalItems: [0], type: 'OrderedCollection' }]
         })
         done()
       })

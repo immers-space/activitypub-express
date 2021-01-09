@@ -17,8 +17,8 @@ function verifyActor (req, res, next) {
 }
 
 async function verifySignature (req, res, next) {
+  const apex = req.app.locals.apex
   try {
-    const apex = req.app.locals.apex
     // support for apps not using signature extension to ActivityPub
     if (!req.get('authorization') && !req.get('signature')) {
       if (req.app.get('env') !== 'development') {
@@ -43,7 +43,7 @@ async function verifySignature (req, res, next) {
       // user delete message that can't be verified because we don't have the user cached
       return res.status(200).send()
     }
-    this.logger.warn('error during signature verification', err.message)
+    apex.logger.warn('error during signature verification', err.message)
     return res.status(500).send()
   }
 }

@@ -5,22 +5,28 @@ module.exports = {
 }
 
 // find object in local DB or fetch from origin server
-async function resolveObject (id, includeMeta) {
+async function resolveObject (id, includeMeta, refresh) {
   let object
+  let cached
+  if (Array.isArray(id)) {
+    id = id[0]
+  }
   if (this.validateObject(id)) {
     // already an object
     object = id
   } else {
-    object = await this.store.getObject(id, true)
-    if (object) {
-      return object
+    cached = await this.store.getObject(id, true)
+    if (cached && !refresh) {
+      return cached
     }
     // resolve remote object from id
     object = await this.requestObject(id)
   }
   // local collections are generated on-demand; not cached
   if (!this.isLocalCollection(object)) {
-    await this.store.saveObject(object)
+    cached
+      ? await this.store.updateObject(object, null, true)
+      : await this.store.saveObject(object)
   }
   return object
 }

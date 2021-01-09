@@ -186,15 +186,24 @@ class ApexStore extends IApexStore {
   }
 
   async updateActivity (activity, fullReplace) {
-    if (!fullReplace) {
-      throw new Error('not implemented')
+    const query = { id: activity.id }
+    let result
+    activity = escapeClone(activity)
+    if (fullReplace) {
+      result = await this.db.collection('streams')
+        .replaceOne(query, escapeClone(activity))
+    } else {
+      result = await this.db.collection('streams')
+        .findOneAndUpdate(query, this.objectToUpdateDoc(activity), {
+          returnOriginal: false,
+          projection: this.metaProj
+        })
+      activity = result?.value ?? activity
     }
-    const result = await this.db.collection('streams')
-      .replaceOne({ id: activity.id }, escapeClone(activity))
     if (result.modifiedCount) {
       await this.updateObjectCopies(activity)
     }
-    return result.modifiedCount
+    return unescape(activity)
   }
 
   async updateActivityMeta (activity, key, value, remove) {
@@ -218,20 +227,7 @@ class ApexStore extends IApexStore {
   }
 
   // class methods
-  updateObjectSource (object, actorId, fullReplace) {
-    // limit udpates to owners of objects
-    const q = object.id === actorId
-      ? { id: object.id }
-      : { id: object.id, attributedTo: actorId }
-    if (fullReplace) {
-      return this.db.collection('objects')
-        .replaceOne(q, object)
-        .then(result => {
-          if (result.modifiedCount > 0) {
-            return object
-          }
-        })
-    }
+  objectToUpdateDoc (object) {
     let doSet = false
     let doUnset = false
     const set = {}
@@ -253,9 +249,26 @@ class ApexStore extends IApexStore {
     if (doUnset) {
       op.$unset = unset
     }
+    return op
+  }
 
+  updateObjectSource (object, actorId, fullReplace) {
+    // limit udpates to owners of objects
+    const q = { id: object.id }
+    if (fullReplace) {
+      return this.db.collection('objects')
+        .replaceOne(q, object)
+        .then(result => {
+          if (result.modifiedCount > 0) {
+            return object
+          }
+        })
+    }
     return this.db.collection('objects')
-      .findOneAndUpdate(q, op, { returnOriginal: false, projection: this.projection })
+      .findOneAndUpdate(q, this.objectToUpdateDoc(object), {
+        returnOriginal: false,
+        projection: this.projection
+      })
       .then(result => result.value)
   }
 
@@ -266,6 +279,8 @@ class ApexStore extends IApexStore {
       { $set: { 'object.$[element]': object } },
       { arrayFilters: [{ 'element.id': object.id }] }
     )
+    // these activities have an activity as their object which may in turn
+    // include the object being updated
     await this.db.collection('streams').updateMany(
       {
         type: { $in: ['Announce', 'Like', 'Add', 'Reject'] },
@@ -274,7 +289,7 @@ class ApexStore extends IApexStore {
       { $set: { 'object.$[].object.$[element]': object } },
       { arrayFilters: [{ 'element.id': object.id }] }
     )
-    if (object._meta && object._meta.privateKey) {
+    if (object._meta?.privateKey) {
       // just in case actor keypairs are updated while deliveries are queued
       await this.db.collection('deliveryQueue').updateMany(
         { actorId: object.id },

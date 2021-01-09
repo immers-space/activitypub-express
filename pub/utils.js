@@ -27,6 +27,7 @@ module.exports = {
   jsonldContextLoader,
   actorIdFromActivity,
   objectIdFromActivity,
+  objectIdFromValue,
   stringifyPublicJSONLD,
   validateActivity,
   validateObject,
@@ -139,6 +140,16 @@ function objectIdFromActivity (activity) {
     return object.href[0]
   }
   return object.id
+}
+
+function objectIdFromValue (object) {
+  if (this.isString(object)) {
+    return object
+  }
+  if (Array.isArray(object)) {
+    object = object[0]
+  }
+  return object?.id
 }
 
 // convert incoming json-ld to local context and
@@ -267,7 +278,7 @@ function validateObject (object) {
   if (Array.isArray(object)) {
     object = object[0]
   }
-  if (object && object.id && object.type) {
+  if (object?.id && object?.type) {
     return true
   }
 }

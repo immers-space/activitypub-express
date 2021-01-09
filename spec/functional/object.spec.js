@@ -115,5 +115,36 @@ describe('resources', function () {
           done(err)
         })
     })
+    it('returns activity with embedded collections', async function (done) {
+      const activity = await apex.buildActivity('Create', testUser.id, ['https://ignore.com/u/ignored'], {
+        object: {
+          id: apex.utils.objectIdToIRI(),
+          type: 'Note',
+          attributedTo: 'https://localhost/u/test',
+          to: 'https://ignore.com/u/ignored',
+          content: 'Say, did you finish reading that book I lent you?'
+        }
+      })
+      await apex.store.saveActivity(activity)
+      request(app)
+        .get(activity.id.replace('https://localhost', ''))
+        .set('Accept', apex.consts.jsonldTypes[0])
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.shares).toEqual({
+            id: `${activity.id}/shares`,
+            type: 'OrderedCollection',
+            totalItems: 0,
+            first: `${activity.id}/shares?page=true`
+          })
+          expect(res.body.likes).toEqual({
+            id: `${activity.id}/likes`,
+            type: 'OrderedCollection',
+            totalItems: 0,
+            first: `${activity.id}/likes?page=true`
+          })
+          done(err)
+        })
+    })
   })
 })
