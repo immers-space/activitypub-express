@@ -29,7 +29,11 @@ global.initApex = async function initApex () {
     actorParam: 'actor',
     objectParam: 'id',
     activityParam: 'id',
-    routes
+    routes,
+    endpoints: {
+      uploadMedia: 'https://localhost/upload',
+      oauthAuthorizationEndpoint: 'https://localhost/auth/authorize'
+    }
   })
 
   app.use(express.json({ type: apex.consts.jsonldTypes }), apex)

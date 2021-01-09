@@ -4,20 +4,6 @@ const pub = require('./pub')
 const net = require('./net')
 const ApexStore = require('./store')
 
-function onFinishedHandler (err, res) {
-  if (err) return
-  const apexLocal = res.locals.apex
-  Promise.all(apexLocal.postWork.map(task => task.call(res)))
-    .then(() => {
-      if (apexLocal.eventName) {
-        res.app.emit(apexLocal.eventName, apexLocal.eventMessage)
-      }
-    })
-    .catch(err => {
-      console.error('post-response error:', err.message)
-    })
-}
-
 module.exports = function (settings) {
   const apex = function (req, res, next) {
     req.app.locals.apex = apex // apex api object
@@ -50,6 +36,7 @@ module.exports = function (settings) {
   apex.itemsPerPage = settings.itemsPerPage || 20
   apex.threadDepth = settings.threadDepth || 10
   apex.systemUser = settings.systemUser
+  apex.logger = settings.logger || console
   apex.utils = {
     usernameToIRI: apex.idToIRIFactory(apex.domain, settings.routes.actor, apex.actorParam),
     objectIdToIRI: apex.idToIRIFactory(apex.domain, settings.routes.object, apex.objectParam),
@@ -60,6 +47,20 @@ module.exports = function (settings) {
     nameToRejectedIRI: apex.idToIRIFactory(apex.domain, settings.routes.rejected, apex.actorParam),
     nameToRejectionsIRI: apex.idToIRIFactory(apex.domain, settings.routes.rejections, apex.actorParam),
     idToActivityCollections: apex.idToActivityCollectionsFactory(apex.domain, settings.routes, apex.activityParam)
+  }
+
+  function onFinishedHandler (err, res) {
+    if (err) return
+    const apexLocal = res.locals.apex
+    Promise.all(apexLocal.postWork.map(task => task.call(res)))
+      .then(() => {
+        if (apexLocal.eventName) {
+          res.app.emit(apexLocal.eventName, apexLocal.eventMessage)
+        }
+      })
+      .catch(err => {
+        apex.logger.error('post-response error:', err.message)
+      })
   }
 
   return apex

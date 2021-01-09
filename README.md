@@ -129,14 +129,12 @@ client.connect({ useNewUrlParser: true })
       * [x] Like
       * [x] Announce
       * [x] Undo
-        * [ ] Publish affected collection update
       * [x] Other acivity types
     * [x] Security
       * [x] Signature validation
       * [x] Honor recipient blocklist
     * [x] Recursive resolution of related objects
     * [x] Forwarding from inbox
-      * [ ] Validation of forwarded messages
   * [ ] Shared inbox POST
     * [ ] Delivery to targeted local inboxes
   * [x] Delivery
@@ -151,7 +149,6 @@ client.connect({ useNewUrlParser: true })
     * [ ] Activity side-effects
       * [x] Create
       * [x] Update
-        * [ ] Add prior recipients of updated object to federation audience
       * [x] Delete
       * [x] Follow
       * [x] Accept
@@ -161,13 +158,12 @@ client.connect({ useNewUrlParser: true })
       * [x] Like
       * [x] Block[*](#implementation-notes)
       * [x] Undo
-        * [ ] Publish affected collection update
       * [x] Other acivity types
   * [ ] Media upload
 * [ ] Other
   * [x] Actor creation
     * [x] Key generation
-  * [ ] Security
+  * [x] Security
     * [x] Verification
     * [x] localhost block
     * [x] Recursive object resolution depth limit
@@ -202,6 +198,17 @@ collections, but they are not permanetly deleted, so they would re-appear after 
 * Content sanitization: the apex default store will sanitize for storage in MongoDB,
 but display sanitization is not included in `activitpub-express`.
 This should be handled in the specific implementation
+
+### Federation notes
+
+* **http signaures**
+  * In production mode, incoming POST requests without valid http signaures will be
+  rejected (401 if missing, 403 if invalid)
+  * Outoing POST requests are signed ('(request-target)', 'host', 'date', 'digest')
+  with the actor's keypair using the `Signature` header
+  * When using the `systemUser` config option, outgoing GET requests are signed
+  ('(request-target)', 'host', 'date') with the system user's keypair using the
+  `Signature` header
 
 ## API
 
@@ -244,6 +251,8 @@ collectionParam | String. Express route parameter used for collection id (defaul
 pageParam | String. Query parameter used for collection page identifier (defaults to `page`)
 itemsPerPage | Number. Count of items in each collection page (default `20`)
 context | String, Array. JSON-LD context for your app. Defaults to AcivityStreams + Security vocabs
+endpoints | Object. Optional system-wide api endpoint URLs included in [actor objects](https://www.w3.org/TR/activitypub/#actor-objects): `proxyUrl`, `oauthAuthorizationEndpoint`, `oauthTokenEndpoint`, `provideClientKey`, `signClientKey`, `sharedInbox`, `uploadMedia`
+logger | Object with `info`, `warn`, `error` methods to replace `console`
 store | Replace the default storage model & database backend with your own (see `store/interface.js` for API)
 threadDepth | Controls how far up apex will follow links in incoming activities in order to display the conversation thread & check for inbox forwarding needs  (default 10)
 systemUser | Actor object representing system and used for signing GETs (see below)

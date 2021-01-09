@@ -150,7 +150,7 @@ async function jsonld (req, res, next) {
       req.body = obj
     } catch (err) {
       // potential fetch errors on context sources
-      console.error('jsonld validation', err)
+      apex.logger.error('jsonld validation', err.message)
       return res.status(500).send('Error processing request JSON-LD')
     }
     return next()
@@ -182,9 +182,13 @@ async function targetActor (req, res, next) {
     actorObj = await apex.store.getObject(actorIRI)
   } catch (err) { return next(err) }
   if (!actorObj) {
-    return res.status(404).send(`'${actor}' not found on this instance`)
+    res.locals.apex.status = 404
+    res.locals.apex.statusMessage = `'${actor}' not found on this instance`
+  } else if (actorObj.type === 'Tombstone') {
+    res.locals.apex.status = 410
+  } else {
+    res.locals.apex.target = actorObj
   }
-  res.locals.apex.target = actorObj
   next()
 }
 
@@ -197,8 +201,11 @@ function targetActorWithMeta (req, res, next) {
   const actorIRI = apex.utils.usernameToIRI(actor)
   apex.store.getObject(actorIRI, true).then(actorObj => {
     if (!actorObj) {
-      resLocal.status = 404
-      resLocal.statusMessage = `'${actor}' not found on this instance`
+      res.locals.apex.status = 404
+      res.locals.apex.statusMessage = `'${actor}' not found on this instance`
+      return next()
+    } else if (actorObj.type === 'Tombstone') {
+      res.locals.apex.status = 410
       return next()
     }
     // for temp in-memory storage
@@ -287,7 +294,7 @@ function outboxActivityObject (req, res, next) {
     resLocal.object = obj
     next()
   }).catch(err => {
-    console.error('Error resolving outbox activity object', err.message)
+    apex.logger.warn('Error resolving outbox activity object', err.message)
     next()
   })
 }

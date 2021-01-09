@@ -292,14 +292,14 @@ async function jsonldContextLoader (url, options) {
       return cached
     }
   } catch (err) {
-    console.log('Error checking jsonld context cache', err.message)
+    this.logger.error('Error checking jsonld context cache', err.message)
   }
   const context = await nodeDocumentLoader(url)
   if (context && context.document) {
     try {
       await this.store.saveContext(context)
     } catch (err) {
-      console.log('Error saving jsonld contact cache', err.message)
+      this.logger.error('Error saving jsonld contact cache', err.message)
     }
   }
   // call the default documentLoader

@@ -16,7 +16,7 @@ async function result (req, res) {
   }
   const body = apex.stringifyPublicJSONLD(await apex.toJSONLD(result))
   res.type(res.locals.apex.responseType)
-  res.status(200).send(body)
+  res.status(target.type === 'Tombstone' ? 410 : 200).send(body)
 }
 
 function status (req, res) {
@@ -33,5 +33,5 @@ async function target (req, res) {
   }
   const body = apex.stringifyPublicJSONLD(await apex.toJSONLD(target))
   res.type(res.locals.apex.responseType)
-  res.status(200).send(body)
+  res.status(target.type === 'Tombstone' ? 410 : 200).send(body)
 }
