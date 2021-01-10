@@ -146,7 +146,7 @@ client.connect({ useNewUrlParser: true })
 * [ ] Client-to-server
   * [x] Outbox POST
     * [x] Auto-Create for bare objects
-    * [ ] Activity side-effects
+    * [x] Activity side-effects
       * [x] Create
       * [x] Update
       * [x] Delete
@@ -228,6 +228,17 @@ Override this by setting `response.locals.apex.authorized` to `true` (allow) or 
   * When using the `systemUser` config option, outgoing GET requests are signed
   ('(request-target)', 'host', 'date') with the system user's keypair using the
   `Signature` header
+* **Synchronizing collections**
+  * An apex server does not modify collections that belong to other servers
+   and does not expect other servers to maintain the state of its collections.
+  * Instead, an Update activity is published whenever the content of
+  a collection changes.
+  * If it is an actor collection (e.g. followers), the Update
+  object will be the `OrderedCollection` itself. Other servers can verify ownership
+  by checking that Actor object of the sender contains a reference to
+  the collection.
+  * If it is an activity collection (likes/shares), the Update object
+  will be the activity itself with the collection objects embedded.
 
 ## API
 
