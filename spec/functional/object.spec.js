@@ -1,4 +1,5 @@
 /* global describe, beforeAll, beforeEach, it, expect */
+const express = require('express')
 const request = require('supertest')
 
 describe('resources', function () {
@@ -12,9 +13,15 @@ describe('resources', function () {
     app = init.app
     apex = init.apex
     client = init.client
-    app.get('/u/:actor', apex.net.actor.get)
-    app.get('/o/:id', apex.net.object.get)
-    app.get('/s/:id', apex.net.activityStream.get)
+    const router = express.Router()
+    router.get('/u/:actor', apex.net.actor.get)
+    router.get('/o/:id', apex.net.object.get)
+    router.get('/s/:id', apex.net.activityStream.get)
+    app.use(router)
+    app.use('/authorized', (req, res, next) => {
+      req.user = { username: 'test' }
+      next()
+    }, router)
   })
   beforeEach(function () {
     return global.resetDb(apex, client, testUser)
@@ -55,14 +62,14 @@ describe('resources', function () {
     })
   })
   describe('get object', function () {
-    it('returns the object', async function (done) {
+    it('returns public object', async function (done) {
       const oid = apex.utils.objectIdToIRI()
       let obj = {
         id: oid,
         type: 'Note',
         content: 'Hello.',
         attributedTo: 'https://localhost/u/test',
-        to: 'https://ignore.com/u/ignored'
+        to: ['https://ignore.com/u/ignored', apex.consts.publicAddress]
       }
       obj = await apex.fromJSONLD(obj)
       await apex.store.saveObject(obj)
@@ -77,16 +84,99 @@ describe('resources', function () {
             type: 'Note',
             content: 'Hello.',
             attributedTo: 'https://localhost/u/test',
+            to: ['https://ignore.com/u/ignored', apex.consts.publicAddress]
+          }
+          expect(res.get('content-type')?.includes('application/ld+json')).toBeTrue()
+          expect(res.body).toEqual(standard)
+          done(err)
+        })
+    })
+    it('denies non-public object without authorization', async function (done) {
+      const oid = apex.utils.objectIdToIRI()
+      let obj = {
+        id: oid,
+        type: 'Note',
+        content: 'Hello.',
+        attributedTo: 'https://localhost/u/test',
+        to: 'https://ignore.com/u/ignored'
+      }
+      obj = await apex.fromJSONLD(obj)
+      await apex.store.saveObject(obj)
+      request(app)
+        .get(oid.replace('https://localhost', ''))
+        .set('Accept', apex.consts.jsonldTypes[0])
+        .expect(403)
+        .end(function (err, res) {
+          expect(res.body).toEqual({})
+          done(err)
+        })
+    })
+    it('returns non-public object with authorization', async function (done) {
+      const oid = apex.utils.objectIdToIRI()
+      let obj = {
+        id: oid,
+        type: 'Note',
+        content: 'Hello.',
+        attributedTo: 'https://localhost/u/test',
+        to: 'https://ignore.com/u/ignored'
+      }
+      obj = await apex.fromJSONLD(obj)
+      await apex.store.saveObject(obj)
+      request(app)
+        .get(oid.replace('https://localhost', '/authorized'))
+        .set('Accept', apex.consts.jsonldTypes[0])
+        .expect(200)
+        .end(function (err, res) {
+          const standard = {
+            '@context': ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1'],
+            id: oid,
+            type: 'Note',
+            content: 'Hello.',
+            attributedTo: 'https://localhost/u/test',
             to: 'https://ignore.com/u/ignored'
           }
-          expect(res.get('content-type').includes('application/ld+json')).toBeTrue()
+          expect(res.get('content-type')?.includes('application/ld+json')).toBeTrue()
           expect(res.body).toEqual(standard)
           done(err)
         })
     })
   })
   describe('get activity', function () {
-    it('returns the activity', async function (done) {
+    it('returns public activity', async function (done) {
+      const aid = apex.utils.activityIdToIRI()
+      const activityInput = {
+        id: aid,
+        type: 'Create',
+        to: 'https://ignore.com/u/ignored',
+        cc: 'https://www.w3.org/ns/activitystreams#Public',
+        actor: 'https://localhost/u/test',
+        object: {
+          id: apex.utils.objectIdToIRI(),
+          type: 'Note',
+          attributedTo: 'https://localhost/u/test',
+          to: 'https://ignore.com/u/ignored',
+          cc: 'https://www.w3.org/ns/activitystreams#Public',
+          content: 'Say, did you finish reading that book I lent you?'
+        }
+      }
+      const activity = await apex.fromJSONLD(activityInput)
+      activity._meta = { collection: [] }
+      await apex.store.saveActivity(activity)
+      request(app)
+        .get(aid.replace('https://localhost', ''))
+        .set('Accept', apex.consts.jsonldTypes[0])
+        .expect(200)
+        .end(function (err, res) {
+          activityInput['@context'] = ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1']
+          expect(res.get('content-type')?.includes('application/ld+json')).toBeTrue()
+          // converted format during jsonld processing
+          activityInput.cc = apex.consts.publicAddress
+          activityInput.object.cc = apex.consts.publicAddress
+          expect(res.body).toEqual(activityInput)
+          done(err)
+        })
+    })
+    it('denies non-public activity without authorization', async function (done) {
       const aid = apex.utils.activityIdToIRI()
       const activityInput = {
         id: aid,
@@ -107,21 +197,47 @@ describe('resources', function () {
       request(app)
         .get(aid.replace('https://localhost', ''))
         .set('Accept', apex.consts.jsonldTypes[0])
-        .expect(200)
+        .expect(403)
         .end(function (err, res) {
-          activityInput['@context'] = ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1']
-          expect(res.get('content-type').includes('application/ld+json')).toBeTrue()
-          expect(res.body).toEqual(activityInput)
+          expect(res.body).toEqual({})
           done(err)
         })
     })
-    it('returns activity with embedded collections', async function (done) {
-      const activity = await apex.buildActivity('Create', testUser.id, ['https://ignore.com/u/ignored'], {
+    it('returns non-public activity with authorization', async function (done) {
+      const aid = apex.utils.activityIdToIRI()
+      const activityInput = {
+        id: aid,
+        type: 'Create',
+        to: 'https://ignore.com/u/ignored',
+        actor: 'https://localhost/u/test',
         object: {
           id: apex.utils.objectIdToIRI(),
           type: 'Note',
           attributedTo: 'https://localhost/u/test',
           to: 'https://ignore.com/u/ignored',
+          content: 'Say, did you finish reading that book I lent you?'
+        }
+      }
+      const activity = await apex.fromJSONLD(activityInput)
+      activity._meta = { collection: [] }
+      await apex.store.saveActivity(activity)
+      request(app)
+        .get(aid.replace('https://localhost', '/authorized'))
+        .set('Accept', apex.consts.jsonldTypes[0])
+        .expect(200)
+        .end(function (err, res) {
+          activityInput['@context'] = ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1']
+          expect(res.get('content-type')?.includes('application/ld+json')).toBeTrue()
+          expect(res.body).toEqual(activityInput)
+          done(err)
+        })
+    })
+    it('returns activity with embedded collections', async function (done) {
+      const activity = await apex.buildActivity('Create', testUser.id, ['https://ignore.com/u/ignored', apex.consts.publicAddress], {
+        object: {
+          id: apex.utils.objectIdToIRI(),
+          type: 'Note',
+          attributedTo: 'https://localhost/u/test',
           content: 'Say, did you finish reading that book I lent you?'
         }
       })

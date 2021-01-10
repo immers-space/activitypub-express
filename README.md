@@ -112,9 +112,9 @@ client.connect({ useNewUrlParser: true })
       * [x] Misc collections (of activities)
       * [x] Pagination
     * [ ] Relay requests for remote objects
-    * [ ] Response code 410 for Tombstones
-  * [ ] Security
-    * [ ] Permission-based filtering
+    * [x] Response code 410 for Tombstones
+  * [x] Security
+    * [x] Permission-based filtering
 * [ ] Server-to-server
   * [x] Inbox POST
     * [x] Activity side-effects
@@ -207,6 +207,16 @@ collections, but they are not permanetly deleted, so they would re-appear after 
 * Content sanitization: the apex default store will sanitize for storage in MongoDB,
 but display sanitization is not included in `activitpub-express`.
 This should be handled in the specific implementation
+
+* Authorization: the prepacked GET middlewares will only return items that are
+publicly addressed unless the request is authorized.
+**Determining the requesting user**: By default, apex will check for
+[PassportJS](http://www.passportjs.org/)-style authentication,
+where `request.user.username` has the `preferredUsername` of the authorized actor.
+Override this by setting `response.locals.apex.authorizedUserId` to an actor IRI.
+**Determining authorization**: Be default, a request is considered authorized
+if the `authorizedUserId` is the item's owner.
+Override this by setting `response.locals.apex.authorized` to `true` (allow) or `false` (deny)
 
 ### Federation notes
 

@@ -16,21 +16,40 @@ module.exports = {
   wellKnown,
   // meta - colletions of middleware to complete activitypub actions
   activityStream: {
-    get: [validators.jsonld, validators.targetActivity, responders.target]
+    get: [
+      validators.jsonld,
+      validators.targetActivity,
+      security.verifyAuthorization,
+      security.requireAuthorizedOrPublic,
+      responders.target
+    ]
   },
   actor: {
     get: [validators.jsonld, validators.targetActor, responders.target]
   },
   blocked: {
-    get: [validators.jsonld, validators.targetActor, collection.blocked, responders.result]
+    get: [
+      validators.jsonld,
+      validators.targetActor,
+      security.verifyAuthorization,
+      collection.blocked,
+      responders.result
+    ]
   },
   collections: {
-    get: [validators.jsonld, validators.targetActor, collection.added, responders.result]
+    get: [
+      validators.jsonld,
+      validators.targetActor,
+      security.verifyAuthorization,
+      collection.added,
+      responders.result
+    ]
   },
   followers: {
     get: [
       validators.jsonld,
       validators.targetActorWithMeta,
+      security.verifyAuthorization,
       collection.followers,
       responders.result
     ]
@@ -39,6 +58,7 @@ module.exports = {
     get: [
       validators.jsonld,
       validators.targetActor,
+      security.verifyAuthorization,
       collection.following,
       responders.result
     ]
@@ -60,6 +80,7 @@ module.exports = {
     get: [
       validators.jsonld,
       validators.targetActorWithMeta,
+      security.verifyAuthorization,
       collection.inbox,
       responders.result
     ]
@@ -68,6 +89,7 @@ module.exports = {
     get: [
       validators.jsonld,
       validators.targetActor,
+      security.verifyAuthorization,
       collection.liked,
       responders.result
     ]
@@ -76,6 +98,7 @@ module.exports = {
     get: [
       validators.jsonld,
       validators.targetActivity,
+      security.verifyAuthorization,
       collection.shares,
       responders.result
     ]
@@ -84,12 +107,19 @@ module.exports = {
     get: [
       validators.jsonld,
       validators.targetActivity,
+      security.verifyAuthorization,
       collection.likes,
       responders.result
     ]
   },
   object: {
-    get: [validators.jsonld, validators.targetObject, responders.target]
+    get: [
+      validators.jsonld,
+      validators.targetObject,
+      security.verifyAuthorization,
+      security.requireAuthorizedOrPublic,
+      responders.target
+    ]
   },
   outbox: {
     post: [
@@ -105,15 +135,28 @@ module.exports = {
     get: [
       validators.jsonld,
       validators.targetActor,
+      security.verifyAuthorization,
       collection.outbox,
       responders.result
     ]
   },
   rejected: {
-    get: [validators.jsonld, validators.targetActor, collection.rejected, responders.result]
+    get: [
+      validators.jsonld,
+      validators.targetActor,
+      security.verifyAuthorization,
+      collection.rejected,
+      responders.result
+    ]
   },
   rejections: {
-    get: [validators.jsonld, validators.targetActor, collection.rejections, responders.result]
+    get: [
+      validators.jsonld,
+      validators.targetActor,
+      security.verifyAuthorization,
+      collection.rejections,
+      responders.result
+    ]
   },
   webfinger: {
     get: [
