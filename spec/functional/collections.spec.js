@@ -12,6 +12,10 @@ describe('collections', function () {
     app = init.app
     apex = init.apex
     client = init.client
+    app.use((req, res, next) => {
+      res.locals.apex.authorized = true
+      next()
+    })
     app.get('/followers/:actor', apex.net.followers.get)
     app.get('/following/:actor', apex.net.following.get)
     app.get('/liked/:actor', apex.net.liked.get)
@@ -293,7 +297,7 @@ describe('collections', function () {
       for (const block of blocks) {
         await apex.store.saveActivity(block)
       }
-      const blockList = await apex.getBlocked(testUser, Infinity)
+      const blockList = await apex.getBlocked(testUser, Infinity, true)
       expect(blockList.orderedItems).toEqual(baddies.reverse())
     })
     it('rejections gets actors rejected activity ids', async function () {
@@ -307,7 +311,7 @@ describe('collections', function () {
       for (const follow of follows) {
         await apex.store.saveActivity(follow)
       }
-      const rejections = await apex.getRejections(testUser, Infinity)
+      const rejections = await apex.getRejections(testUser, Infinity, true)
       expect(rejections.orderedItems).toEqual(follows.map(f => f.id).reverse())
     })
     it('rejected gets ids for activities rejected by actor', async function () {
@@ -321,7 +325,7 @@ describe('collections', function () {
       for (const follow of follows) {
         await apex.store.saveActivity(follow)
       }
-      const rejected = await apex.getRejected(testUser, Infinity)
+      const rejected = await apex.getRejected(testUser, Infinity, true)
       expect(rejected.orderedItems).toEqual(follows.map(a => a.id).reverse())
     })
   })

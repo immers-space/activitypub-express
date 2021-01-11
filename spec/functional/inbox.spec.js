@@ -8,12 +8,14 @@ const activity = {
   type: 'Create',
   id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
   to: ['https://localhost/u/test'],
+  audience: ['as:Public'],
   actor: 'https://localhost/u/test',
   object: {
     type: 'Note',
     id: 'https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19',
     attributedTo: 'https://localhost/u/test',
     to: ['https://localhost/u/test'],
+    audience: ['as:Public'],
     content: 'Say, did you finish reading that book I lent you?'
   },
   shares: {
@@ -49,6 +51,9 @@ const activityNormalized = {
       ],
       to: [
         'https://localhost/u/test'
+      ],
+      audience: [
+        'as:Public'
       ]
     }
   ],
@@ -66,6 +71,9 @@ const activityNormalized = {
   }],
   to: [
     'https://localhost/u/test'
+  ],
+  audience: [
+    'as:Public'
   ]
 }
 
@@ -83,6 +91,10 @@ describe('inbox', function () {
     app.route('/inbox/:actor')
       .post(apex.net.inbox.post)
       .get(apex.net.inbox.get)
+    app.get('/authorized/inbox/:actor', (req, res, next) => {
+      res.locals.apex.authorized = true
+      next()
+    }, apex.net.inbox.get)
   })
   beforeEach(function () {
     // don't let failed deliveries pollute later tests
@@ -1128,9 +1140,12 @@ describe('inbox', function () {
     beforeEach(async function () {
       inbox = []
       const meta = { collection: ['https://localhost/inbox/test'] }
-      ;[1, 2, 3].forEach(i => {
+      ;[1, 2, 3, 4].forEach(i => {
         inbox.push(merge.all([{}, activityNormalized, { id: `${activity.id}${i}`, _meta: meta }]))
       })
+      // remove public address from last item
+      delete inbox[3].audience
+      delete inbox[3].object[0].audience
       await apex.store.db
         .collection('streams')
         .insertMany(inbox)
@@ -1140,7 +1155,7 @@ describe('inbox', function () {
         '@context': ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1'],
         id: 'https://localhost/inbox/test',
         type: 'OrderedCollection',
-        totalItems: 3,
+        totalItems: 4,
         first: 'https://localhost/inbox/test?page=true'
       }
       request(app)
@@ -1163,12 +1178,14 @@ describe('inbox', function () {
           type: 'Create',
           id: `https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3${i}`,
           to: 'https://localhost/u/test',
+          audience: 'as:Public',
           actor: 'https://localhost/u/test',
           object: {
             type: 'Note',
             id: 'https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19',
             attributedTo: 'https://localhost/u/test',
             to: 'https://localhost/u/test',
+            audience: 'as:Public',
             content: 'Say, did you finish reading that book I lent you?'
           },
           shares: {
@@ -1194,6 +1211,41 @@ describe('inbox', function () {
           done(err)
         })
     })
+    it('includes non-public posts when authorized', (done) => {
+      request(app)
+        .get('/authorized/inbox/test?page=true')
+        .set('Accept', 'application/activity+json')
+        .expect(200)
+        .end((err, res) => {
+          expect(res.body.orderedItems.length).toBe(4)
+          expect(res.body.orderedItems[0]).toEqual({
+            type: 'Create',
+            id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d34',
+            to: 'https://localhost/u/test',
+            actor: 'https://localhost/u/test',
+            object: {
+              type: 'Note',
+              id: 'https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19',
+              attributedTo: 'https://localhost/u/test',
+              to: 'https://localhost/u/test',
+              content: 'Say, did you finish reading that book I lent you?'
+            },
+            shares: {
+              id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3/shares',
+              type: 'OrderedCollection',
+              totalItems: 0,
+              first: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3/shares?page=true'
+            },
+            likes: {
+              id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3/likes',
+              type: 'OrderedCollection',
+              totalItems: 0,
+              first: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3/likes?page=true'
+            }
+          })
+          done(err)
+        })
+    })
     it('filters blocked actors', async function (done) {
       const meta = { collection: ['https://localhost/inbox/test'] }
       const blocked = merge.all([
@@ -1216,12 +1268,14 @@ describe('inbox', function () {
           type: 'Create',
           id: `https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3${i}`,
           to: 'https://localhost/u/test',
+          audience: 'as:Public',
           actor: 'https://localhost/u/test',
           object: {
             type: 'Note',
             id: 'https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19',
             attributedTo: 'https://localhost/u/test',
             to: 'https://localhost/u/test',
+            audience: 'as:Public',
             content: 'Say, did you finish reading that book I lent you?'
           },
           shares: {

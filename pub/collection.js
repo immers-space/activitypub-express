@@ -17,7 +17,7 @@ module.exports = {
   getBlocked,
   getRejected,
   getRejections,
-  updateCollection,
+  updateCollection
 }
 
 function buildCollection (id, isOrdered, totalItems) {
@@ -43,7 +43,7 @@ async function buildCollectionPage (collectionId, page, isOrdered, lastItemId) {
  *    'true' - get first page
  *    Infinity - get all items (internal use only)
  */
-async function getCollection (collectionId, page, remapper, blockList) {
+async function getCollection (collectionId, page, remapper, includePrivate, blockList) {
   collectionId = this.objectIdFromValue(collectionId)
   if (!page) {
     // if page isn't specified, just collection description is served
@@ -71,6 +71,9 @@ async function getCollection (collectionId, page, remapper, blockList) {
   if (blockList) {
     stream = stream.filter(act => !overlaps(blockList, act.actor))
   }
+  if (!includePrivate) {
+    stream = stream.filter(act => this.isPublic(act))
+  }
   if (remapper) {
     stream = stream.map(remapper)
   }
@@ -78,52 +81,52 @@ async function getCollection (collectionId, page, remapper, blockList) {
   return pageObj
 }
 
-function getInbox (actor, page) {
-  return this.getCollection(actor.inbox[0], page, null, actor._local.blockList)
+function getInbox (actor, page, includePrivate) {
+  return this.getCollection(actor.inbox[0], page, null, includePrivate, actor._local.blockList)
 }
 
-function getOutbox (actor, page) {
-  return this.getCollection(actor.outbox[0], page)
+function getOutbox (actor, page, includePrivate) {
+  return this.getCollection(actor.outbox[0], page, null, includePrivate)
 }
 
-function getFollowers (actor, page) {
-  return this.getCollection(actor.followers[0], page, this.actorIdFromActivity, actor._local.blockList)
+function getFollowers (actor, page, includePrivate) {
+  return this.getCollection(actor.followers[0], page, this.actorIdFromActivity, includePrivate, actor._local.blockList)
 }
 
-function getFollowing (actor, page) {
-  return this.getCollection(actor.following[0], page, this.objectIdFromActivity)
+function getFollowing (actor, page, includePrivate) {
+  return this.getCollection(actor.following[0], page, this.objectIdFromActivity, includePrivate)
 }
 
-function getLiked (actor, page) {
-  return this.getCollection(actor.liked[0], page, this.objectIdFromActivity)
+function getLiked (actor, page, includePrivate) {
+  return this.getCollection(actor.liked[0], page, this.objectIdFromActivity, includePrivate)
 }
 
-function getShares (object, page) {
-  return this.getCollection(object.shares[0], page, idRemapper)
+function getShares (object, page, includePrivate) {
+  return this.getCollection(object.shares[0], page, idRemapper, includePrivate)
 }
 
-function getLikes (object, page) {
-  return this.getCollection(object.likes[0], page, idRemapper)
+function getLikes (object, page, includePrivate) {
+  return this.getCollection(object.likes[0], page, idRemapper, includePrivate)
 }
 
-function getAdded (actor, colId, page) {
+function getAdded (actor, colId, page, includePrivate) {
   const collectionIRI = this.utils.userCollectionIdToIRI(actor.preferredUsername, colId)
-  return this.getCollection(collectionIRI, page)
+  return this.getCollection(collectionIRI, page, null, includePrivate)
 }
 
-function getBlocked (actor, page) {
+function getBlocked (actor, page, includePrivate) {
   const blockedIRI = this.utils.nameToBlockedIRI(actor.preferredUsername)
-  return this.getCollection(blockedIRI, page, this.objectIdFromActivity)
+  return this.getCollection(blockedIRI, page, this.objectIdFromActivity, includePrivate)
 }
 
-function getRejected (actor, page) {
+function getRejected (actor, page, includePrivate) {
   const rejectedIRI = this.utils.nameToRejectedIRI(actor.preferredUsername)
-  return this.getCollection(rejectedIRI, page, idRemapper)
+  return this.getCollection(rejectedIRI, page, idRemapper, includePrivate)
 }
 
-function getRejections (actor, page) {
+function getRejections (actor, page, includePrivate) {
   const rejectionsIRI = this.utils.nameToRejectionsIRI(actor.preferredUsername)
-  return this.getCollection(rejectionsIRI, page, idRemapper)
+  return this.getCollection(rejectionsIRI, page, idRemapper, includePrivate)
 }
 
 async function updateCollection (collectionId) {

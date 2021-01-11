@@ -11,11 +11,13 @@ const activity = {
   ],
   type: 'Create',
   to: 'https://ignore.com/u/ignored',
+  audience: 'as:Public',
   actor: 'https://localhost/u/test',
   object: {
     type: 'Note',
     attributedTo: 'https://localhost/u/test',
     to: 'https://ignore.com/u/ignored',
+    audience: 'as:Public',
     content: 'Say, did you finish reading that book I lent you?'
   }
 }
@@ -36,11 +38,17 @@ const activityNormalized = {
       ],
       to: [
         'https://ignore.com/u/ignored'
+      ],
+      audience: [
+        'as:Public'
       ]
     }
   ],
   to: [
     'https://ignore.com/u/ignored'
+  ],
+  audience: [
+    'as:Public'
   ],
   shares: [
     {
@@ -70,6 +78,10 @@ describe('outbox', function () {
     app.route('/outbox/:actor')
       .get(apex.net.outbox.get)
       .post(apex.net.outbox.post)
+    app.get('/authorized/outbox/:actor', (req, res, next) => {
+      res.locals.apex.authorized = true
+      next()
+    }, apex.net.outbox.get)
   })
   beforeEach(function () {
     // don't let failed deliveries pollute later tests
@@ -372,6 +384,7 @@ describe('outbox', function () {
               type: 'Note',
               attributedTo: 'https://localhost/u/test',
               to: 'https://mocked.com/user/mocked',
+              audience: 'as:Public',
               content: 'updated'
             })
             done()
@@ -596,6 +609,7 @@ describe('outbox', function () {
             to: [
               'https://ignore.com/u/ignored'
             ],
+            audience: ['as:Public'],
             likes: [{ totalItems: [0], type: 'OrderedCollection' }],
             shares: [{ totalItems: [0], type: 'OrderedCollection' }]
           })
@@ -714,7 +728,8 @@ describe('outbox', function () {
             type: 'Like',
             actor: ['https://localhost/u/test'],
             object: [likeable],
-            to: ['https://ignore.com/u/ignored']
+            to: ['https://ignore.com/u/ignored'],
+            audience: ['as:Public']
           })
           expect(msg.object).toEqual(likeable)
           done()
@@ -817,7 +832,8 @@ describe('outbox', function () {
             actor: ['https://localhost/u/test'],
             object: [addable],
             target: [collection],
-            to: ['https://ignore.com/u/ignored']
+            to: ['https://ignore.com/u/ignored'],
+            audience: ['as:Public']
           })
           addable._meta = { collection: [collection] }
           expect(msg.object).toEqual(addable)
@@ -890,6 +906,7 @@ describe('outbox', function () {
             object: [added.id],
             target: [collection],
             to: ['https://ignore.com/u/ignored'],
+            audience: ['as:Public'],
             likes: [{ totalItems: [0], type: 'OrderedCollection' }],
             shares: [{ totalItems: [0], type: 'OrderedCollection' }]
           })
@@ -945,6 +962,7 @@ describe('outbox', function () {
         block = merge({}, activity)
         block.type = 'Block'
         block.to = null
+        delete block.audience
         block.object = { id: 'https://ignore.com/bob', type: 'Actor' }
       })
       it('fires block event', async function (done) {
@@ -972,7 +990,7 @@ describe('outbox', function () {
       })
       it('adds to blocklist', async function (done) {
         app.once('apex-outbox', async function (msg) {
-          const blockList = await apex.getBlocked(testUser, Infinity)
+          const blockList = await apex.getBlocked(testUser, Infinity, true)
           expect(blockList.orderedItems).toEqual([block.object.id])
           done()
         })
@@ -1024,11 +1042,13 @@ describe('outbox', function () {
     const fakeOId = 'https://localhost/o/a29a6843-9feb-4c74-a7f7-081b9c9201d3'
     let outbox
     beforeEach(async function () {
-      outbox = [1, 2, 3].map(i => {
+      outbox = [1, 2, 3, 4].map(i => {
         const a = Object.assign({}, activity, { id: `${fakeId}${i}`, _meta: { collection: ['https://localhost/outbox/test'] } })
         a.object = Object.assign({}, a.object, { id: `${fakeOId}${i}` })
         return a
       })
+      delete outbox[3].audience
+      delete outbox[3].object.audience
       await apex.store.db
         .collection('streams')
         .insertMany(outbox)
@@ -1038,7 +1058,7 @@ describe('outbox', function () {
         '@context': ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1'],
         id: 'https://localhost/outbox/test',
         type: 'OrderedCollection',
-        totalItems: 3,
+        totalItems: 4,
         first: 'https://localhost/outbox/test?page=true'
       }
       request(app)
@@ -1060,12 +1080,14 @@ describe('outbox', function () {
           type: 'Create',
           id: `${fakeId}${i}`,
           to: 'https://ignore.com/u/ignored',
+          audience: 'as:Public',
           actor: 'https://localhost/u/test',
           object: {
             type: 'Note',
             id: `${fakeOId}${i}`,
             attributedTo: 'https://localhost/u/test',
             to: 'https://ignore.com/u/ignored',
+            audience: 'as:Public',
             content: 'Say, did you finish reading that book I lent you?'
           }
         })),
@@ -1080,6 +1102,29 @@ describe('outbox', function () {
           done(err)
         })
     })
+    it('includes non-public items when authorized', (done) => {
+      request(app)
+        .get('/authorized/outbox/test?page=true')
+        .set('Accept', 'application/activity+json')
+        .expect(200)
+        .end((err, res) => {
+          expect(res.body.orderedItems.length).toBe(4)
+          expect(res.body.orderedItems[0]).toEqual({
+            type: 'Create',
+            id: `${fakeId}4`,
+            to: 'https://ignore.com/u/ignored',
+            actor: 'https://localhost/u/test',
+            object: {
+              type: 'Note',
+              id: `${fakeOId}4`,
+              attributedTo: 'https://localhost/u/test',
+              to: 'https://ignore.com/u/ignored',
+              content: 'Say, did you finish reading that book I lent you?'
+            }
+          })
+          done(err)
+        })
+    })
     it('starts page after previous item', (done) => {
       const outboxPage = {
         '@context': ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1'],
@@ -1090,12 +1135,14 @@ describe('outbox', function () {
           type: 'Create',
           id: `${fakeId}${1}`,
           to: 'https://ignore.com/u/ignored',
+          audience: 'as:Public',
           actor: 'https://localhost/u/test',
           object: {
             type: 'Note',
             id: `${fakeOId}${1}`,
             attributedTo: 'https://localhost/u/test',
             to: 'https://ignore.com/u/ignored',
+            audience: 'as:Public',
             content: 'Say, did you finish reading that book I lent you?'
           }
         }],
