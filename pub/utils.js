@@ -18,6 +18,7 @@ module.exports = {
   isLocalIRI,
   isLocalhostIRI,
   isProductionEnv,
+  isPublic,
   isString,
   mergeJSONLD,
   nameToActorStreamsFactory,
@@ -212,6 +213,11 @@ function isLocalCollection (object) {
 
 function isLocalIRI (id) {
   return id.startsWith(`https://${this.domain}`)
+}
+
+function isPublic (object) {
+  return object._meta?.isPublic ||
+    this.audienceFromActivity(object).includes(this.consts.publicAddress)
 }
 
 function isString (obj) {

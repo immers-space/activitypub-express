@@ -50,7 +50,7 @@ async function address (activity, sender, audienceOverride) {
     audience = Array.from(new Set(this.audienceFromActivity(activity)))
   }
   audience = audience.map(t => {
-    if (t === 'https://www.w3.org/ns/activitystreams#Public') {
+    if (t === this.consts.publicAddress) {
       return null
     }
     if (t === sender.followers[0]) {

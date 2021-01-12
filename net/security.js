@@ -2,18 +2,35 @@
 const httpSignature = require('http-signature')
 // http communication middleware
 module.exports = {
-  verifyActor,
+  requireAuthorizedOrPublic,
+  verifyAuthorization,
   verifySignature
 }
 
-function verifyActor (req, res, next) {
+function requireAuthorizedOrPublic (req, res, next) {
   const apex = req.app.locals.apex
   const locals = res.locals.apex
-  const actor = apex.actorIdFromActivity(req.body)
-  if (locals.sender && locals.sender.id === actor) {
-    locals.verified = true
+  if (locals.target && !(apex.isPublic(locals.target) || locals.authorized)) {
+    // will trigger responder not to send
+    locals.status = 403
   }
-  // TODO: LD-signatures verification and/or check for valid inbox forwarding cases
+  return next()
+}
+
+function verifyAuthorization (req, res, next) {
+  const apex = req.app.locals.apex
+  const locals = res.locals.apex
+  // if not already set, check for PassportJS-style auth
+  if (locals.authorizedUserId == null) {
+    locals.authorizedUserId = req.user?.username &&
+      apex.utils.usernameToIRI(req.user.username)
+  }
+  // if not already set, check authorization via ownership
+  if (locals.authorized == null) {
+    locals.authorized = locals.target && locals.authorizedUserId &&
+      apex.validateOwner(locals.target, { id: locals.authorizedUserId })
+  }
+  next()
 }
 
 async function verifySignature (req, res, next) {

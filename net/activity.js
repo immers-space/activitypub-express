@@ -81,13 +81,18 @@ module.exports = {
     let activity = req.body
     let object = resLocal.object
     resLocal.status = 200
-    if (!res.locals.apex.isNewActivity) {
-      // ignore duplicate deliveries
+    /* isNewActivity:
+      false - this inbox has seen this activity before
+      'new collection' - known activity, new inbox
+      true - first time seeing this activity
+    */
+    if (res.locals.apex.isNewActivity === false) {
+      // ignore redundant deliveries to same inbox
       return next()
     }
     switch (activity.type.toLowerCase()) {
       case 'accept':
-        if (object.type.toLowerCase() === 'follow') {
+        if (apex.validateOwner(object, recipient) && object.type.toLowerCase() === 'follow') {
           toDo.push((async () => {
             // Add orignal follow activity to following collection
             object = await apex.store
@@ -101,7 +106,7 @@ module.exports = {
       case 'announce':
         toDo.push((async () => {
           const targetActivity = object
-          if (apex.isLocalIRI(targetActivity.id) && targetActivity.shares) {
+          if (apex.validateOwner(targetActivity, recipient) && targetActivity.shares) {
             const shares = apex.objectIdFromValue(targetActivity.shares)
             // add to object shares collection, increment share count
             activity = await apex.store
@@ -128,7 +133,8 @@ module.exports = {
       case 'like':
         toDo.push((async () => {
           const targetActivity = object
-          if (apex.isLocalIRI(targetActivity.id) && targetActivity.likes) {
+          // only owner processes the change so they can publish update
+          if (apex.validateOwner(targetActivity, recipient) && targetActivity.likes) {
             const likes = apex.objectIdFromValue(targetActivity.likes)
             // add to object likes collection, incrementing like count
             activity = await apex.store
@@ -144,19 +150,23 @@ module.exports = {
         })())
         break
       case 'reject':
-        toDo.push((async () => {
-          const rejectionsIRI = apex.utils.nameToRejectionsIRI(actor.preferredUsername)
-          object = await apex.store
-            .updateActivityMeta(object, 'collection', rejectionsIRI)
-          // reject is also the undo of a follow accept
-          if (apex.hasMeta(object, 'collection', recipient.following[0])) {
+        if (apex.validateOwner(object, recipient)) {
+          toDo.push((async () => {
+            const rejectionsIRI = apex.utils.nameToRejectionsIRI(recipient.preferredUsername)
             object = await apex.store
-              .updateActivityMeta(object, 'collection', recipient.following[0], true)
-            resLocal.postWork.push(async () => apex.publishUpdate(recipient, await apex.getFollowers(recipient)))
-          }
-        })())
+              .updateActivityMeta(object, 'collection', rejectionsIRI)
+            // reject is also the undo of a follow accept
+            if (apex.hasMeta(object, 'collection', recipient.following[0])) {
+              object = await apex.store
+                .updateActivityMeta(object, 'collection', recipient.following[0], true)
+              resLocal.postWork.push(async () => apex.publishUpdate(recipient, await apex.getFollowers(recipient)))
+            }
+          })())
+        }
         break
       case 'undo':
+        // unlike other activities, undo will process updates for all affected actors
+        // on first delivery so it can be deleted immediately
         if (object) {
           // deleting the activity also removes it from all collections,
           // undoing follows, blocks, shares, and likes
@@ -171,10 +181,12 @@ module.exports = {
         }
         break
       case 'update':
-        if (apex.validateActivity(object)) {
-          toDo.push(apex.store.updateActivity(object, true))
-        } else {
-          toDo.push(apex.store.updateObject(object, actorId, true))
+        if (resLocal.isNewActivity === true) {
+          if (apex.validateActivity(object)) {
+            toDo.push(apex.store.updateActivity(object, true))
+          } else {
+            toDo.push(apex.store.updateObject(object, actorId, true))
+          }
         }
         break
     }

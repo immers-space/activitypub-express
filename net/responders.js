@@ -9,9 +9,13 @@ module.exports = {
 // sends other output as jsonld
 async function result (req, res) {
   const apex = req.app.locals.apex
-  const resLocal = res.locals.apex
-  const result = resLocal.result
-  if (!resLocal.responseType || !result) {
+  const locals = res.locals.apex
+  const result = locals.result
+  if (locals.status >= 400) {
+    return res.status(locals.status)
+      .send(locals.statusMessage || null)
+  }
+  if (!locals.responseType || !result) {
     return res.sendStatus(404)
   }
   const body = apex.stringifyPublicJSONLD(await apex.toJSONLD(result))
@@ -27,11 +31,16 @@ function status (req, res) {
 // sends the target object as jsonld
 async function target (req, res) {
   const apex = req.app.locals.apex
-  const target = res.locals.apex.target
-  if (!res.locals.apex.responseType || !target) {
+  const locals = res.locals.apex
+  const target = locals.target
+  if (locals.status >= 400) {
+    return res.status(locals.status)
+      .send(locals.statusMessage || null)
+  }
+  if (!locals.responseType || !target) {
     return res.sendStatus(404)
   }
   const body = apex.stringifyPublicJSONLD(await apex.toJSONLD(target))
-  res.type(res.locals.apex.responseType)
+  res.type(locals.responseType)
   res.status(target.type === 'Tombstone' ? 410 : 200).send(body)
 }

@@ -8,12 +8,14 @@ const activity = {
   type: 'Create',
   id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
   to: ['https://localhost/u/test'],
+  audience: ['as:Public'],
   actor: 'https://localhost/u/test',
   object: {
     type: 'Note',
     id: 'https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19',
     attributedTo: 'https://localhost/u/test',
     to: ['https://localhost/u/test'],
+    audience: ['as:Public'],
     content: 'Say, did you finish reading that book I lent you?'
   },
   shares: {
@@ -49,6 +51,9 @@ const activityNormalized = {
       ],
       to: [
         'https://localhost/u/test'
+      ],
+      audience: [
+        'as:Public'
       ]
     }
   ],
@@ -66,6 +71,9 @@ const activityNormalized = {
   }],
   to: [
     'https://localhost/u/test'
+  ],
+  audience: [
+    'as:Public'
   ]
 }
 
@@ -83,6 +91,10 @@ describe('inbox', function () {
     app.route('/inbox/:actor')
       .post(apex.net.inbox.post)
       .get(apex.net.inbox.get)
+    app.get('/authorized/inbox/:actor', (req, res, next) => {
+      res.locals.apex.authorized = true
+      next()
+    }, apex.net.inbox.get)
   })
   beforeEach(function () {
     // don't let failed deliveries pollute later tests
@@ -781,6 +793,7 @@ describe('inbox', function () {
       })
       it('does not add to shares collection if remote', async function (done) {
         targetAct.id = 'https://ignore.com/o/123-abc'
+        targetAct.actor = ['https://ignore.com/u/ignored']
         announce.object = targetAct.id
         await apex.store.saveActivity(targetAct)
         request(app)
@@ -891,6 +904,7 @@ describe('inbox', function () {
       })
       it('does not add to likes collection if remote', async function (done) {
         targetAct.id = 'https://ignore.com/o/123-abc'
+        targetAct.actor = ['https://ignore.com/u/ignored']
         like.object = targetAct.id
         await apex.store.saveActivity(targetAct)
         request(app)
@@ -1122,15 +1136,73 @@ describe('inbox', function () {
           .end(err => { if (err) done(err) })
       })
     })
+    describe('asynchronicity', function () {
+      it('adds to each collection in rapid, duplicate delivery', async function () {
+        const users = await Promise.all(
+          [1, 2, 3, 4].map(async i => {
+            const user = await apex.createActor(`test${i}`, `Test ${i}`)
+            await apex.store.saveObject(user)
+            return user
+          })
+        )
+        await Promise.all(users.map(user => {
+          return request(app)
+            .post(user.inbox[0].replace('https://localhost', ''))
+            .set('Content-Type', 'application/activity+json')
+            .send(activity)
+            .expect(200)
+        }))
+        const final = await apex.store.getActivity(activity.id, true)
+        expect(final._meta.collection.sort()).toEqual(users.map(u => u.inbox[0]))
+      })
+      it('sends collection update when owner is not first recipient', async function (done) {
+        await apex.store.saveActivity(activityNormalized)
+        const u2 = await apex.createActor('test2', 'Test 2')
+        await apex.store.saveObject(u2)
+        const like = merge({}, activity)
+        like.id = apex.utils.activityIdToIRI()
+        like.type = 'Like'
+        like.actor = 'https://mocked.com/u/mocked'
+        like.object = activity.id
+        spyOn(apex, 'address').and.callFake(async () => ['https://mocked.com/inbox/mocked'])
+        nock('https://mocked.com')
+          .get('/u/mocked')
+          .reply(200, { id: 'https://mocked.com/u/mocked', inbox: 'https://mocked.com/inbox/mocked' })
+        nock('https://mocked.com')
+          .post('/inbox/mocked')
+          .reply(200)
+          .on('request', (req, interceptor, body) => {
+            body = JSON.parse(body)
+            expect(body.type).toBe('Update')
+            expect(body.actor).toBe(testUser.id)
+            expect(body.object.id).toBe(activity.id)
+            expect(body.object.likes.totalItems).toBe(1)
+            done()
+          })
+        await request(app)
+          .post(u2.inbox[0].replace('https://localhost', ''))
+          .set('Content-Type', 'application/activity+json')
+          .send(like)
+          .expect(200)
+        return request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(like)
+          .expect(200)
+      })
+    })
   })
   describe('get', function () {
     let inbox
     beforeEach(async function () {
       inbox = []
       const meta = { collection: ['https://localhost/inbox/test'] }
-      ;[1, 2, 3].forEach(i => {
+      ;[1, 2, 3, 4].forEach(i => {
         inbox.push(merge.all([{}, activityNormalized, { id: `${activity.id}${i}`, _meta: meta }]))
       })
+      // remove public address from last item
+      delete inbox[3].audience
+      delete inbox[3].object[0].audience
       await apex.store.db
         .collection('streams')
         .insertMany(inbox)
@@ -1140,7 +1212,7 @@ describe('inbox', function () {
         '@context': ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1'],
         id: 'https://localhost/inbox/test',
         type: 'OrderedCollection',
-        totalItems: 3,
+        totalItems: 4,
         first: 'https://localhost/inbox/test?page=true'
       }
       request(app)
@@ -1163,12 +1235,14 @@ describe('inbox', function () {
           type: 'Create',
           id: `https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3${i}`,
           to: 'https://localhost/u/test',
+          audience: 'as:Public',
           actor: 'https://localhost/u/test',
           object: {
             type: 'Note',
             id: 'https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19',
             attributedTo: 'https://localhost/u/test',
             to: 'https://localhost/u/test',
+            audience: 'as:Public',
             content: 'Say, did you finish reading that book I lent you?'
           },
           shares: {
@@ -1194,6 +1268,41 @@ describe('inbox', function () {
           done(err)
         })
     })
+    it('includes non-public posts when authorized', (done) => {
+      request(app)
+        .get('/authorized/inbox/test?page=true')
+        .set('Accept', 'application/activity+json')
+        .expect(200)
+        .end((err, res) => {
+          expect(res.body.orderedItems.length).toBe(4)
+          expect(res.body.orderedItems[0]).toEqual({
+            type: 'Create',
+            id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d34',
+            to: 'https://localhost/u/test',
+            actor: 'https://localhost/u/test',
+            object: {
+              type: 'Note',
+              id: 'https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19',
+              attributedTo: 'https://localhost/u/test',
+              to: 'https://localhost/u/test',
+              content: 'Say, did you finish reading that book I lent you?'
+            },
+            shares: {
+              id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3/shares',
+              type: 'OrderedCollection',
+              totalItems: 0,
+              first: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3/shares?page=true'
+            },
+            likes: {
+              id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3/likes',
+              type: 'OrderedCollection',
+              totalItems: 0,
+              first: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3/likes?page=true'
+            }
+          })
+          done(err)
+        })
+    })
     it('filters blocked actors', async function (done) {
       const meta = { collection: ['https://localhost/inbox/test'] }
       const blocked = merge.all([
@@ -1216,12 +1325,14 @@ describe('inbox', function () {
           type: 'Create',
           id: `https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3${i}`,
           to: 'https://localhost/u/test',
+          audience: 'as:Public',
           actor: 'https://localhost/u/test',
           object: {
             type: 'Note',
             id: 'https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19',
             attributedTo: 'https://localhost/u/test',
             to: 'https://localhost/u/test',
+            audience: 'as:Public',
             content: 'Say, did you finish reading that book I lent you?'
           },
           shares: {

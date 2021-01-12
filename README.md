@@ -112,9 +112,9 @@ client.connect({ useNewUrlParser: true })
       * [x] Misc collections (of activities)
       * [x] Pagination
     * [ ] Relay requests for remote objects
-    * [ ] Response code 410 for Tombstones
-  * [ ] Security
-    * [ ] Permission-based filtering
+    * [x] Response code 410 for Tombstones
+  * [x] Security
+    * [x] Permission-based filtering
 * [ ] Server-to-server
   * [x] Inbox POST
     * [x] Activity side-effects
@@ -146,7 +146,7 @@ client.connect({ useNewUrlParser: true })
 * [ ] Client-to-server
   * [x] Outbox POST
     * [x] Auto-Create for bare objects
-    * [ ] Activity side-effects
+    * [x] Activity side-effects
       * [x] Create
       * [x] Update
       * [x] Delete
@@ -208,6 +208,16 @@ collections, but they are not permanetly deleted, so they would re-appear after 
 but display sanitization is not included in `activitpub-express`.
 This should be handled in the specific implementation
 
+* Authorization: the prepacked GET middlewares will only return items that are
+publicly addressed unless the request is authorized.
+**Determining the requesting user**: By default, apex will check for
+[PassportJS](http://www.passportjs.org/)-style authentication,
+where `request.user.username` has the `preferredUsername` of the authorized actor.
+Override this by setting `response.locals.apex.authorizedUserId` to an actor IRI.
+**Determining authorization**: Be default, a request is considered authorized
+if the `authorizedUserId` is the item's owner.
+Override this by setting `response.locals.apex.authorized` to `true` (allow) or `false` (deny)
+
 ### Federation notes
 
 * **http signaures**
@@ -218,6 +228,17 @@ This should be handled in the specific implementation
   * When using the `systemUser` config option, outgoing GET requests are signed
   ('(request-target)', 'host', 'date') with the system user's keypair using the
   `Signature` header
+* **Synchronizing collections**
+  * An apex server does not modify collections that belong to other servers
+   and does not expect other servers to maintain the state of its collections.
+  * Instead, an Update activity is published whenever the content of
+  a collection changes.
+  * If it is an actor collection (e.g. followers), the Update
+  object will be the `OrderedCollection` itself. Other servers can verify ownership
+  by checking that Actor object of the sender contains a reference to
+  the collection.
+  * If it is an activity collection (likes/shares), the Update object
+  will be the activity itself with the collection objects embedded.
 
 ## API
 
