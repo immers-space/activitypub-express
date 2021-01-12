@@ -90,6 +90,84 @@ client.connect({ useNewUrlParser: true })
   })
 ```
 
+## API
+
+### ActivitypubExpress initializer
+
+Configures and returns an express middleware function that must be added to the route
+before any other apex midddleware. It needs to be configured with the routes you will use
+in order to correctly generate IRIs and actor profiles
+
+```
+const ActivitypubExpress = require('activitypub-express')
+const apex = ActivitypubExpress(options)
+app.use(apex)
+```
+
+Option | Description
+--- | ---
+**Required** |
+domain | String. Hostname for your app
+actorParam | String. Express route parameter used for actor name
+objectParam | String. Express route parameter used for object id
+routes | Object. The routes your app uses for ActivityPub endpoints (including parameter). Details below
+routes.actor | Actor profile route & IRI pattern
+routes.object | Object retrieval route & IRI pattern
+routes.activity | Activity retrieval route & IRI pattern
+routes.inbox | Actor inbox route
+routes.outbox | Actor outbox route
+routes.following | Actor following collection route
+routes.followers | Actor followers collection route
+routes.liked | Actor liked collection route
+routes.blocked | Actor's blocklist
+routes.rejected | Activities rejected by actor
+routes.rejections | Actor's activities that were rejected by recipient
+routes.shares | Activity shares collection route
+routes.likes | Activity likes collection route
+routes.collections | Actors' miscellaneous collections route (must include `actorParam` and `collectionParam`)
+**Optional** |
+activityParam | String. Express route parameter used for activity id (defaults to `objectParam`)
+collectionParam | String. Express route parameter used for collection id (defaults to `objectParam`)
+pageParam | String. Query parameter used for collection page identifier (defaults to `page`)
+itemsPerPage | Number. Count of items in each collection page (default `20`)
+context | String, Array. JSON-LD context for your app. Defaults to AcivityStreams + Security vocabs
+endpoints | Object. Optional system-wide api endpoint URLs included in [actor objects](https://www.w3.org/TR/activitypub/#actor-objects): `proxyUrl`, `oauthAuthorizationEndpoint`, `oauthTokenEndpoint`, `provideClientKey`, `signClientKey`, `sharedInbox`, `uploadMedia`
+logger | Object with `info`, `warn`, `error` methods to replace `console`
+store | Replace the default storage model & database backend with your own (see `store/interface.js` for API)
+threadDepth | Controls how far up apex will follow links in incoming activities in order to display the conversation thread & check for inbox forwarding needs  (default 10)
+systemUser | Actor object representing system and used for signing GETs (see below)
+
+Blocked, rejections, and rejected: these routes must be defined in order to track
+these items internally for each actor, but they do not need to be exposed endpoints
+(and probably should not be public even then)
+
+### System User / GET authentication
+
+Some federated apps may require http signature authentication on GET requests.
+To enable this functionality, set the `systemUser` property on your apex instance
+equal to an actor created with `createActor` (generally of type 'Service')
+and saved to your object store.
+Its keys will be used to sign all federated object retrieval requests.
+This property can be set after initializing your apex instance, as
+you will need access to the `createActor` method and a database connection.
+
+```
+const ActivitypubExpress = require('activitypub-express')
+const apex = ActivitypubExpress(options)
+// ... connect to db
+apex.createActor('system-user', 'System user', '', null, 'Service')
+  .then(async actor => {
+    await apex.store.saveObject(actor)
+    apex.systemUser = actor
+  })
+```
+
+## FAQ
+
+Q: How do I resolve this error seen when receiving/delivering activities or running the federation tests: `Uncaught exception: InvalidHeaderError: bad param format`
+
+A: Run `npm dedupe` to ensure `request` library is using the patched version of `http-signature` library.
+
 ## Implementation status
 
 * [ ] Shared server- & client-to-server
@@ -239,82 +317,3 @@ Override this by setting `response.locals.apex.authorized` to `true` (allow) or 
   the collection.
   * If it is an activity collection (likes/shares), the Update object
   will be the activity itself with the collection objects embedded.
-
-## API
-
-### ActivitypubExpress initializer
-
-Configures and returns an express middleware function that must be added to the route
-before any other apex midddleware. It needs to be configured with the routes you will use
-in order to correctly generate IRIs and actor profiles
-
-```
-const ActivitypubExpress = require('activitypub-express')
-const apex = ActivitypubExpress(options)
-app.use(apex)
-```
-
-Option | Description
---- | ---
-**Required** |
-domain | String. Hostname for your app
-actorParam | String. Express route parameter used for actor name
-objectParam | String. Express route parameter used for object id
-routes | Object. The routes your app uses for ActivityPub endpoints (including parameter). Details below
-routes.actor | Actor profile route & IRI pattern
-routes.object | Object retrieval route & IRI pattern
-routes.activity | Activity retrieval route & IRI pattern
-routes.inbox | Actor inbox route
-routes.outbox | Actor outbox route
-routes.following | Actor following collection route
-routes.followers | Actor followers collection route
-routes.liked | Actor liked collection route
-routes.blocked | Actor's blocklist
-routes.rejected | Activities rejected by actor
-routes.rejections | Actor's activities that were rejected by recipient
-routes.shares | Activity shares collection route
-routes.likes | Activity likes collection route
-routes.collections | Actors' miscellaneous collections route (must include `actorParam` and `collectionParam`)
-**Optional** |
-activityParam | String. Express route parameter used for activity id (defaults to `objectParam`)
-collectionParam | String. Express route parameter used for collection id (defaults to `objectParam`)
-pageParam | String. Query parameter used for collection page identifier (defaults to `page`)
-itemsPerPage | Number. Count of items in each collection page (default `20`)
-context | String, Array. JSON-LD context for your app. Defaults to AcivityStreams + Security vocabs
-endpoints | Object. Optional system-wide api endpoint URLs included in [actor objects](https://www.w3.org/TR/activitypub/#actor-objects): `proxyUrl`, `oauthAuthorizationEndpoint`, `oauthTokenEndpoint`, `provideClientKey`, `signClientKey`, `sharedInbox`, `uploadMedia`
-logger | Object with `info`, `warn`, `error` methods to replace `console`
-store | Replace the default storage model & database backend with your own (see `store/interface.js` for API)
-threadDepth | Controls how far up apex will follow links in incoming activities in order to display the conversation thread & check for inbox forwarding needs  (default 10)
-systemUser | Actor object representing system and used for signing GETs (see below)
-
-Blocked, rejections, and rejected: these routes must be defined in order to track
-these items internally for each actor, but they do not need to be exposed endpoints
-(and probably should not be public even then)
-
-### System User / GET authentication
-
-Some federated apps may require http signature authentication on GET requests.
-To enable this functionality, set the `systemUser` property on your apex instance
-equal to an actor created with `createActor` (generally of type 'Service')
-and saved to your object store.
-Its keys will be used to sign all federated object retrieval requests.
-This property can be set after initializing your apex instance, as
-you will need access to the `createActor` method and a database connection.
-
-```
-const ActivitypubExpress = require('activitypub-express')
-const apex = ActivitypubExpress(options)
-// ... connect to db
-apex.createActor('system-user', 'System user', '', null, 'Service')
-  .then(async actor => {
-    await apex.store.saveObject(actor)
-    apex.systemUser = actor
-  })
-```
-
-
-## FAQ
-
-Q: How do I resolve this error seen when receiving/delivering activities or running the federation tests: `Uncaught exception: InvalidHeaderError: bad param format`
-
-A: Run `npm dedupe` to ensure `request` library is using the patched version of `http-signature` library.
