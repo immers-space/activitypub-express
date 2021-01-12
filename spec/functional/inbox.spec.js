@@ -1134,6 +1134,26 @@ describe('inbox', function () {
           .end(err => { if (err) done(err) })
       })
     })
+    describe('asynchronicity', function () {
+      it('adds to each collection in rapid, duplicate delivery', async function () {
+        const users = await Promise.all(
+          [1, 2, 3, 4].map(async i => {
+            const user = await apex.createActor(`test${i}`, `Test ${i}`)
+            await apex.store.saveObject(user)
+            return user
+          })
+        )
+        await Promise.all(users.map(user => {
+          return request(app)
+            .post(user.inbox[0].replace('https://localhost', ''))
+            .set('Content-Type', 'application/activity+json')
+            .send(activity)
+            .expect(200)
+        }))
+        const final = await apex.store.getActivity(activity.id, true)
+        expect(final._meta.collection.sort()).toEqual(users.map(u => u.inbox[0]))
+      })
+    })
   })
   describe('get', function () {
     let inbox

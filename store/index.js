@@ -102,17 +102,17 @@ class ApexStore extends IApexStore {
   }
 
   async saveObject (object) {
-    const db = this.db
-    const exists = await db.collection('objects')
-      .find({ id: object.id })
-      .project({ _id: 1 })
-      .limit(1)
-      .hasNext()
-    if (exists) {
-      return false
-    }
-    return db.collection('objects')
+    return this.db.collection('objects')
       .insertOne(escapeClone(object), { forceServerObjectId: true })
+      .then(result => {
+        return !!result.insertedCount
+      })
+      .catch(err => {
+        if (!(err.code === 11000 && err.name === 'MongoError')) {
+          throw err
+        }
+        return false
+      })
   }
 
   async updateObject (obj, actorId, fullReplace) {
