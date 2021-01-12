@@ -793,6 +793,7 @@ describe('inbox', function () {
       })
       it('does not add to shares collection if remote', async function (done) {
         targetAct.id = 'https://ignore.com/o/123-abc'
+        targetAct.actor = ['https://ignore.com/u/ignored']
         announce.object = targetAct.id
         await apex.store.saveActivity(targetAct)
         request(app)
@@ -903,6 +904,7 @@ describe('inbox', function () {
       })
       it('does not add to likes collection if remote', async function (done) {
         targetAct.id = 'https://ignore.com/o/123-abc'
+        targetAct.actor = ['https://ignore.com/u/ignored']
         like.object = targetAct.id
         await apex.store.saveActivity(targetAct)
         request(app)
@@ -1152,6 +1154,41 @@ describe('inbox', function () {
         }))
         const final = await apex.store.getActivity(activity.id, true)
         expect(final._meta.collection.sort()).toEqual(users.map(u => u.inbox[0]))
+      })
+      it('sends collection update when owner is not first recipient', async function (done) {
+        await apex.store.saveActivity(activityNormalized)
+        const u2 = await apex.createActor('test2', 'Test 2')
+        await apex.store.saveObject(u2)
+        const like = merge({}, activity)
+        like.id = apex.utils.activityIdToIRI()
+        like.type = 'Like'
+        like.actor = 'https://mocked.com/u/mocked'
+        like.object = activity.id
+        spyOn(apex, 'address').and.callFake(async () => ['https://mocked.com/inbox/mocked'])
+        nock('https://mocked.com')
+          .get('/u/mocked')
+          .reply(200, { id: 'https://mocked.com/u/mocked', inbox: 'https://mocked.com/inbox/mocked' })
+        nock('https://mocked.com')
+          .post('/inbox/mocked')
+          .reply(200)
+          .on('request', (req, interceptor, body) => {
+            body = JSON.parse(body)
+            expect(body.type).toBe('Update')
+            expect(body.actor).toBe(testUser.id)
+            expect(body.object.id).toBe(activity.id)
+            expect(body.object.likes.totalItems).toBe(1)
+            done()
+          })
+        await request(app)
+          .post(u2.inbox[0].replace('https://localhost', ''))
+          .set('Content-Type', 'application/activity+json')
+          .send(like)
+          .expect(200)
+        return request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(like)
+          .expect(200)
       })
     })
   })
