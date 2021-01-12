@@ -58,3 +58,15 @@ global.resetDb = async function (apex, client, testUser) {
   await apex.store.setup(testUser)
   testUser._local = { blockList: [] }
 }
+
+// remove properties from object that may differ for each test run
+global.stripIds = function (obj) {
+  return JSON.parse(JSON.stringify(obj, skipTransient))
+}
+
+function skipTransient (key, value) {
+  if (['_id', 'id', 'published', 'first'].includes(key)) {
+    return undefined
+  }
+  return value
+}

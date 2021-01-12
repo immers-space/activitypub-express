@@ -3,6 +3,9 @@
   "version": "0.3.1",
   "description": "Modular ActivityPub implementation as Express middleware to easily add decentralization and federation to Node apps",
   "main": "index.js",
+  "engines": {
+    "node": ">=14.15"
+  },
   "scripts": {
     "test": "jasmine"
   },
@@ -29,7 +32,7 @@
     "http-signature": "github:wmurphyrd/node-http-signature#9c02eeb",
     "jsonld": "^3.2.0",
     "mongo-escape": "^2.0.6",
-    "mongodb": "^3.3.2",
+    "mongodb": "^3.6.3",
     "on-finished": "^2.3.0",
     "overlaps": "^1.0.0",
     "request": "^2.88.0",
@@ -39,7 +42,7 @@
     "jasmine": "^3.5.0",
     "jasmine-spec-reporter": "^4.2.1",
     "nock": "^12.0.3",
-    "standard": "^14.3.3",
+    "standard": "^16.0.3",
     "supertest": "^4.0.2"
   }
 }

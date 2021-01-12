@@ -1,5 +1,14 @@
 'use strict'
 
+// For collection display, store with objects resolved
+// updates also get their objects denormalized during validation
+const denormalizeObject = [
+  // object objects
+  'create', 'follow', 'block',
+  // activity objects
+  'announce', 'like', 'add', 'reject'
+]
+
 module.exports = {
   save (req, res, next) {
     if (!res.locals.apex.activity || !res.locals.apex.target) {
@@ -7,12 +16,18 @@ module.exports = {
     }
     const apex = req.app.locals.apex
     const resLocal = res.locals.apex
-    apex.store.saveActivity(req.body).then(saveResult => {
+    let activity = req.body
+    if (denormalizeObject.includes(activity.type.toLowerCase())) {
+      // save with resolved object for ease of rendering
+      activity = [{}, activity, { object: [resLocal.object] }]
+        .reduce(apex.mergeJSONLD)
+    }
+    apex.store.saveActivity(activity).then(saveResult => {
       resLocal.isNewActivity = !!saveResult
       if (!saveResult && !resLocal.skipOutbox) {
-        const newTarget = req.body._meta.collection[0]
+        const newTarget = activity._meta.collection[0]
         return apex.store
-          .updateActivityMeta(req.body, 'collection', newTarget)
+          .updateActivityMeta(activity, 'collection', newTarget)
       }
     }).then(updated => {
       if (updated) {
@@ -46,11 +61,7 @@ module.exports = {
       * and is used in addressing. Perhaps also Added, depending on what it is
       * populated with.
       */
-      .filter(addr => {
-        const isFollow = apex.collectionIRIToActorName(addr, 'followers')
-        const isAdded = apex.collectionIRIToActorName(addr, 'collections')
-        return isFollow || isAdded
-      })
+      .filter(addr => ['followers', 'collections'].includes(apex.utils.iriToCollectionInfo(addr)?.name))
     if (audience.length) {
       resLocal.postWork
         .push(() => apex.addToOutbox(resLocal.target, activity, audience))
@@ -90,14 +101,18 @@ module.exports = {
       case 'announce':
         toDo.push((async () => {
           const targetActivity = object
-          // add to object shares collection, increment share count
           if (apex.isLocalIRI(targetActivity.id) && targetActivity.shares) {
+            const shares = apex.objectIdFromValue(targetActivity.shares)
+            // add to object shares collection, increment share count
             activity = await apex.store
-              .updateActivityMeta(activity, 'collection', targetActivity.shares[0])
-            // publish update to shares count
-            resLocal.postWork.push(async () => {
-              return apex.publishUpdate(recipient, await apex.getShares(targetActivity), actorId)
-            })
+              .updateActivityMeta(activity, 'collection', shares)
+            // publish updated object with updated shares count
+            const updatedTarget = await apex.updateCollection(shares)
+            if (updatedTarget) {
+              resLocal.postWork.push(async () => {
+                return apex.publishUpdate(recipient, updatedTarget, actorId)
+              })
+            }
           }
         })())
         break
@@ -113,14 +128,18 @@ module.exports = {
       case 'like':
         toDo.push((async () => {
           const targetActivity = object
-          // add to object likes collection, incrementing like count
           if (apex.isLocalIRI(targetActivity.id) && targetActivity.likes) {
+            const likes = apex.objectIdFromValue(targetActivity.likes)
+            // add to object likes collection, incrementing like count
             activity = await apex.store
-              .updateActivityMeta(activity, 'collection', targetActivity.likes[0])
-            // publish update to shares count
-            resLocal.postWork.push(async () => {
-              return apex.publishUpdate(recipient, await apex.getLikes(targetActivity), actorId)
-            })
+              .updateActivityMeta(activity, 'collection', likes)
+            // publish updated object with updated likes count
+            const updatedTarget = await apex.updateCollection(likes)
+            if (updatedTarget) {
+              resLocal.postWork.push(async () => {
+                return apex.publishUpdate(recipient, updatedTarget, actorId)
+              })
+            }
           }
         })())
         break
@@ -142,11 +161,21 @@ module.exports = {
           // deleting the activity also removes it from all collections,
           // undoing follows, blocks, shares, and likes
           toDo.push(apex.store.removeActivity(object, actorId))
-          // TODO: publish appropriate collection updates (after #8)
+          resLocal.postWork.push(() => {
+            // update any collections the activity was removed from
+            const audience = apex.audienceFromActivity(object).concat(actor.id)
+            const updates = object._meta?.collection
+              ?.map(colId => apex.publishUndoUpdate(colId, recipient, audience))
+            return updates && Promise.allSettled(updates)
+          })
         }
         break
       case 'update':
-        toDo.push(apex.store.updateObject(object, actorId, true))
+        if (apex.validateActivity(object)) {
+          toDo.push(apex.store.updateActivity(object, true))
+        } else {
+          toDo.push(apex.store.updateObject(object, actorId, true))
+        }
         break
     }
     Promise.all(toDo).then(() => {
@@ -243,7 +272,13 @@ module.exports = {
           // deleting the activity also removes it from all collections,
           // undoing follows, blocks, shares, and likes
           toDo.push(apex.store.removeActivity(object, actor.id))
-          // TODO: publish appropriate collection updates (after #8)
+          resLocal.postWork.push(() => {
+            // update any collections the activity was removed from
+            const audience = apex.audienceFromActivity(object)
+            const updates = object._meta?.collection
+              ?.map(colId => apex.publishUndoUpdate(colId, actor, audience))
+            return updates && Promise.allSettled(updates)
+          })
         }
         break
     }
@@ -252,7 +287,9 @@ module.exports = {
       resLocal.eventMessage = { actor, activity, object }
       resLocal.eventName = 'apex-outbox'
       if (!resLocal.skipOutbox) {
-        resLocal.postWork.unshift(() => apex.addToOutbox(actor, activity))
+        // local activity object may have been updated (e.g. denormalized object);
+        // send original req.body to outbox
+        resLocal.postWork.unshift(() => apex.addToOutbox(actor, req.body))
       }
       next()
     }).catch(next)

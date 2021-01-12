@@ -1,15 +1,19 @@
 'use strict'
 const jsonld = require('jsonld')
 const merge = require('deepmerge')
+const actorStreamNames = ['inbox', 'outbox', 'following', 'followers', 'liked', 'blocked', 'rejected', 'rejections']
+const activityStreamNames = ['shares', 'likes']
+const audienceFields = ['to', 'bto', 'cc', 'bcc', 'audience']
 
 module.exports = {
   addPageToIRI,
   addMeta,
-  collectionIRIToActorName,
+  audienceFromActivity,
   hasMeta,
   idToActivityCollectionsFactory,
   idToIRIFactory,
   userAndIdToIRIFactory,
+  iriToCollectionInfoFactory,
   isLocalCollection,
   isLocalIRI,
   isLocalhostIRI,
@@ -23,10 +27,10 @@ module.exports = {
   jsonldContextLoader,
   actorIdFromActivity,
   objectIdFromActivity,
+  objectIdFromValue,
   stringifyPublicJSONLD,
   validateActivity,
   validateObject,
-  validateCollectionOwner,
   validateOwner,
   validateTarget
 }
@@ -48,6 +52,12 @@ function addMeta (obj, key, value) {
   } else {
     obj._meta[key].push(value)
   }
+}
+
+function audienceFromActivity (activity) {
+  return audienceFields.reduce((acc, t) => {
+    return activity[t] ? acc.concat(activity[t]) : acc
+  }, [])
 }
 
 function hasMeta (obj, key, value) {
@@ -78,14 +88,44 @@ function actorIdFromActivity (activity) {
   return actor.id
 }
 
-function collectionIRIToActorName (id, collectionType) {
-  const pActor = `:${this.actorParam}`
-  const pCol = `:${this.collectionParam}`
-  let pattern = this.settings.routes[collectionType]
-  const isActorFirst = pattern.indexOf(pCol) === -1 || pattern.indexOf(pActor) < pattern.indexOf(pCol)
-  pattern = pattern.replace(pActor, '([^/]+)').replace(pCol, '([^/]+)')
-  const result = new RegExp(`^https://${this.domain}${pattern}$`).exec(id)
-  return result && (isActorFirst ? result[1] : result[2])
+function iriToCollectionInfoFactory (domain, routes, pActor, pActivity, pCollection) {
+  pActor = `:${pActor}`
+  pActivity = `:${pActivity}`
+  pCollection = `:${pCollection}`
+  const tests = []
+  // custom actor collections
+  let pattern = this.settings.routes.collections
+  const isActorFirst = pattern.indexOf(pActor) < pattern.indexOf(pCollection)
+  pattern = pattern.replace(pActor, '([^/]+)').replace(pCollection, '([^/]+)')
+  const re = new RegExp(`^https://${this.domain}${pattern}$`)
+  tests.push(iri => {
+    const match = re.exec(iri)?.slice(1)
+    return match && { name: 'collections', actor: match[+!isActorFirst], id: match[+isActorFirst] }
+  })
+  // standard actor streams
+  actorStreamNames.forEach(name => {
+    const pattern = this.settings.routes[name].replace(pActor, '([^/]+)')
+    const re = new RegExp(`^https://${this.domain}${pattern}$`)
+    tests.push(iri => {
+      const actor = re.exec(iri)?.[1]
+      return actor && { name, actor }
+    })
+  })
+  // activity object streams
+  activityStreamNames.forEach(name => {
+    const pattern = this.settings.routes[name].replace(pActivity, '([^/]+)')
+    const re = new RegExp(`^https://${this.domain}${pattern}$`)
+    tests.push(iri => {
+      const activity = re.exec(iri)?.[1]
+      return activity && { name, activity }
+    })
+  })
+  return iri => {
+    for (const test of tests) {
+      const result = test(iri)
+      if (result) return result
+    }
+  }
 }
 
 function objectIdFromActivity (activity) {
@@ -100,6 +140,16 @@ function objectIdFromActivity (activity) {
     return object.href[0]
   }
   return object.id
+}
+
+function objectIdFromValue (object) {
+  if (this.isString(object)) {
+    return object
+  }
+  if (Array.isArray(object)) {
+    object = object[0]
+  }
+  return object?.id
 }
 
 // convert incoming json-ld to local context and
@@ -196,14 +246,13 @@ function mergeJSONLD (target, source) {
 
 function nameToActorStreamsFactory (domain, routes, actorParam) {
   const colonParam = `:${actorParam}`
-  const streamNames = ['inbox', 'outbox', 'following', 'followers', 'liked', 'blocked']
   const streamTemplates = {}
-  streamNames.forEach(s => {
+  actorStreamNames.forEach(s => {
     streamTemplates[s] = `https://${domain}${routes[s]}`
   })
   return name => {
     const streams = {}
-    streamNames.forEach(s => {
+    actorStreamNames.forEach(s => {
       streams[s] = streamTemplates[s].replace(colonParam, name)
     })
     return streams
@@ -212,14 +261,13 @@ function nameToActorStreamsFactory (domain, routes, actorParam) {
 
 function idToActivityCollectionsFactory (domain, routes, activityParam) {
   const colonParam = `:${activityParam}`
-  const streamNames = ['shares', 'likes']
   const streamTemplates = {}
-  streamNames.forEach(s => {
+  activityStreamNames.forEach(s => {
     streamTemplates[s] = `https://${domain}${routes[s]}`
   })
   return id => {
     const streams = {}
-    streamNames.forEach(s => {
+    activityStreamNames.forEach(s => {
       streams[s] = streamTemplates[s].replace(colonParam, id)
     })
     return streams
@@ -230,7 +278,7 @@ function validateObject (object) {
   if (Array.isArray(object)) {
     object = object[0]
   }
-  if (object && object.id && object.type) {
+  if (object?.id && object?.type) {
     return true
   }
 }
@@ -244,26 +292,26 @@ function validateActivity (object) {
   }
 }
 
-function validateCollectionOwner (collectionId, ownerId) {
-  if (Array.isArray(collectionId)) {
-    collectionId = collectionId[0]
-  }
-  if (Object.prototype.toString.call(collectionId) !== '[object String]') {
-    return false
-  }
-  const user = this.collectionIRIToActorName(collectionId, 'collections')
-  return !!user && this.utils.usernameToIRI(user) === ownerId
-}
-
-function validateOwner (object, ownerId) {
+function validateOwner (object, actor) {
   if (Array.isArray(object)) {
     object = object[0]
   }
   if (!validateObject(object)) return false
-  if (object.id === ownerId) return true
-  if (Array.isArray(object.actor) && object.actor[0] === ownerId) return true
-  if (Array.isArray(object.attributedTo) && object.attributedTo[0] === ownerId) {
+  if (object.id === actor.id) return true
+  if (Array.isArray(object.actor) && object.actor[0] === actor.id) return true
+  if (Array.isArray(object.attributedTo) && object.attributedTo[0] === actor.id) {
     return true
+  }
+  // collections don't have owner in a property, but should be in actor object
+  if (object.type === 'Collection' || object.type === 'OrderedCollection') {
+    // standard collections
+    if (actorStreamNames.some(c => actor[c] && actor[c].includes(object.id))) {
+      return true
+    }
+    // custom collections
+    if (actor.streams && Object.values(actor.streams).includes(object.id)) {
+      return true
+    }
   }
   return false
 }

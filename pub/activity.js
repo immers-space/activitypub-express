@@ -1,34 +1,33 @@
 'use strict'
 
-const merge = require('deepmerge')
 module.exports = {
   acceptFollow,
   address,
   addToOutbox,
   buildActivity,
   buildTombstone,
+  embedCollections,
+  publishUndoUpdate,
   publishUpdate,
   resolveActivity
 }
 
-function buildActivity (type, actorId, to, etc = {}) {
+async function buildActivity (type, actorId, to, etc = {}) {
   const activityId = this.store.generateId()
   const collections = this.utils.idToActivityCollections(activityId)
-  const act = merge.all([
-    {
-      id: this.utils.activityIdToIRI(activityId),
-      type,
-      actor: actorId,
-      to,
-      published: new Date().toISOString()
-    },
-    collections,
-    etc
-  ])
-  return this.fromJSONLD(act).then(activity => {
-    activity._meta = {}
-    return activity
-  })
+  let activity = this.mergeJSONLD({
+    id: this.utils.activityIdToIRI(activityId),
+    type,
+    actor: actorId,
+    to,
+    published: new Date().toISOString()
+  }, etc)
+  activity = await this.fromJSONLD(activity)
+  for (const key in collections) {
+    activity[key] = [await this.buildCollection(collections[key], true, 0)]
+  }
+  activity._meta = {}
+  return activity
 }
 
 async function buildTombstone (object) {
@@ -47,10 +46,8 @@ async function address (activity, sender, audienceOverride) {
   if (audienceOverride) {
     audience = audienceOverride
   } else {
-    audience = ['to', 'bto', 'cc', 'bcc', 'audience']
-      .reduce((acc, t) => {
-        return activity[t] ? acc.concat(activity[t]) : acc
-      }, [])
+    // de-dupe here to avoid resolving collections twice
+    audience = Array.from(new Set(this.audienceFromActivity(activity)))
   }
   audience = audience.map(t => {
     if (t === 'https://www.w3.org/ns/activitystreams#Public') {
@@ -64,9 +61,9 @@ async function address (activity, sender, audienceOverride) {
      * activities
      * 7.1.1 "the server MUST target and deliver to... Collections owned by the actor."
      */
-    const miscColOwner = this.collectionIRIToActorName(t, 'collections')
-    if (miscColOwner) {
-      if (!sender.preferredUsername.includes(miscColOwner)) {
+    const miscCol = this.utils.iriToCollectionInfo(t)
+    if (miscCol?.name === 'collections') {
+      if (!sender.preferredUsername.includes(miscCol.actor)) {
         return null
       }
       return this.getAdded(t, Infinity).then(col => {
@@ -91,11 +88,12 @@ async function address (activity, sender, audienceOverride) {
           return result.value
         }
         if (result.value.items) {
-          return result.value.items.map(this.resolveObject)
+          return result.value.items.map(id => this.resolveObject(id))
         }
         if (result.value.orderedItems) {
-          return result.value.orderedItems.map(this.resolveObject)
+          return result.value.orderedItems.map(id => this.resolveObject(id))
         }
+        return undefined
       })
     // flattens and resolves collections
     return Promise.allSettled(addresses.flat(2))
@@ -135,6 +133,55 @@ async function acceptFollow (actor, targetActivity) {
     return this.publishUpdate(actor, await this.getFollowers(actor))
   }
   return { postTask, updated }
+}
+
+async function embedCollections (activity) {
+  if (this.isLocalIRI(activity.id)) {
+    if (this.isString(activity.shares?.[0])) {
+      activity.shares = [await this.getCollection(activity.shares)]
+    }
+    if (this.isString(activity.likes?.[0])) {
+      activity.likes = [await this.getCollection(activity.likes)]
+    }
+  } else {
+    if (this.isString(activity.shares?.[0])) {
+      activity.shares = [await this.resolveObject(activity.shares, false, true)]
+    }
+    // if not paged, don't duplicate items in embedded copies
+    delete activity.shares?.[0]?.orderedItems
+    if (this.isString(activity.likes?.[0])) {
+      activity.likes = [await this.resolveObject(activity.likes, false, true)]
+    }
+    delete activity.likes?.[0]?.orderedItems
+  }
+  return activity
+}
+
+// undo may need to publish updates on behalf of multiple
+// actors to completely clear the activity
+async function publishUndoUpdate (colId, actor, audience) {
+  const info = this.utils.iriToCollectionInfo(colId)
+  let updated
+  let updatedActorId
+  if (!['followers', 'following', 'liked', 'likes', 'shares'].includes(info?.name)) {
+    return
+  }
+  if (info.activity) {
+    updated = await this.updateCollection(colId)
+    updatedActorId = updated.actor[0]
+  } else {
+    updated = await this.getCollection(colId)
+    updatedActorId = this.utils.usernameToIRI(info.actor)
+  }
+  if (actor.id === updatedActorId) {
+    return this.publishUpdate(actor, updated, audience)
+  } else {
+    return this.publishUpdate(
+      await this.store.getObject(updatedActorId, true),
+      updated,
+      audience
+    )
+  }
 }
 
 async function publishUpdate (actor, object, cc) {

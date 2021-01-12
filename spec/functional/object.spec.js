@@ -1,60 +1,23 @@
 /* global describe, beforeAll, beforeEach, it, expect */
 const request = require('supertest')
-const express = require('express')
-const { MongoClient } = require('mongodb')
-
-const ActivitypubExpress = require('../../index')
-
-const app = express()
-const apex = ActivitypubExpress({
-  domain: 'localhost',
-  context: [
-    'https://www.w3.org/ns/activitystreams',
-    'https://w3id.org/security/v1'
-  ],
-  actorParam: 'actor',
-  objectParam: 'id',
-  activityParam: 'id',
-  routes: {
-    actor: '/u/:actor',
-    object: '/o/:id',
-    activity: '/s/:id',
-    inbox: '/inbox/:actor',
-    outbox: '/outbox/:actor',
-    followers: '/followers/:actor',
-    following: '/following/:actor',
-    liked: '/liked/:actor',
-    shares: '/s/:id/shares',
-    likes: '/s/:id/likes'
-  }
-})
-const client = new MongoClient('mongodb://localhost:27017', { useUnifiedTopology: true, useNewUrlParser: true })
-
-app.use(apex)
-app.get('/u/:actor', apex.net.actor.get)
-app.get('/o/:id', apex.net.object.get)
-app.get('/s/:id', apex.net.activityStream.get)
-app.use(function (err, req, res, next) {
-  console.log(err)
-  next(err)
-})
 
 describe('resources', function () {
   let testUser
+  let app
+  let apex
+  let client
   beforeAll(async function () {
-    const actorName = 'test'
-    await client.connect({ useNewUrlParser: true })
-    apex.store.db = client.db('apexTestingTempDb')
-    testUser = await apex.createActor(actorName, actorName, 'test user')
+    const init = await global.initApex()
+    testUser = init.testUser
+    app = init.app
+    apex = init.apex
+    client = init.client
+    app.get('/u/:actor', apex.net.actor.get)
+    app.get('/o/:id', apex.net.object.get)
+    app.get('/s/:id', apex.net.activityStream.get)
   })
-  beforeEach(function (done) {
-    // reset db for each test
-    client.db('apexTestingTempDb').dropDatabase()
-      .then(() => {
-        apex.store.db = client.db('apexTestingTempDb')
-        return apex.store.setup(testUser)
-      })
-      .then(done)
+  beforeEach(function () {
+    return global.resetDb(apex, client, testUser)
   })
   describe('get actor', function () {
     it('returns actor object', function (done) {
@@ -79,6 +42,11 @@ describe('resources', function () {
               id: 'https://localhost/u/test#main-key',
               owner: 'https://localhost/u/test',
               publicKeyPem: testUser.publicKey[0].publicKeyPem[0]
+            },
+            endpoints: {
+              id: 'https://localhost/u/test#endpoints',
+              uploadMedia: 'https://localhost/upload',
+              oauthAuthorizationEndpoint: 'https://localhost/auth/authorize'
             }
           }
           expect(res.body).toEqual(standard)
@@ -144,6 +112,37 @@ describe('resources', function () {
           activityInput['@context'] = ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1']
           expect(res.get('content-type').includes('application/ld+json')).toBeTrue()
           expect(res.body).toEqual(activityInput)
+          done(err)
+        })
+    })
+    it('returns activity with embedded collections', async function (done) {
+      const activity = await apex.buildActivity('Create', testUser.id, ['https://ignore.com/u/ignored'], {
+        object: {
+          id: apex.utils.objectIdToIRI(),
+          type: 'Note',
+          attributedTo: 'https://localhost/u/test',
+          to: 'https://ignore.com/u/ignored',
+          content: 'Say, did you finish reading that book I lent you?'
+        }
+      })
+      await apex.store.saveActivity(activity)
+      request(app)
+        .get(activity.id.replace('https://localhost', ''))
+        .set('Accept', apex.consts.jsonldTypes[0])
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.shares).toEqual({
+            id: `${activity.id}/shares`,
+            type: 'OrderedCollection',
+            totalItems: 0,
+            first: `${activity.id}/shares?page=true`
+          })
+          expect(res.body.likes).toEqual({
+            id: `${activity.id}/likes`,
+            type: 'OrderedCollection',
+            totalItems: 0,
+            first: `${activity.id}/likes?page=true`
+          })
           done(err)
         })
     })

@@ -193,7 +193,7 @@ describe('collections', function () {
             content: 'hello'
           }
         })
-        expect(act.shares).toEqual([`${act.id}/shares`])
+        expect(act.shares).toEqual([await apex.getShares(act)])
       })
       it('get page returns announces for activity', async function (done) {
         const act = await apex.buildActivity('Create', testUser.id, testUser.followers, {
@@ -206,7 +206,7 @@ describe('collections', function () {
         const announce = await apex.buildActivity('Announce', 'https://ignore.com/bob', testUser.id, {
           object: act.id
         })
-        await apex.addMeta(announce, 'collection', act.shares[0])
+        await apex.addMeta(announce, 'collection', apex.objectIdFromValue(act.shares))
         await apex.store.saveActivity(act)
         await apex.store.saveActivity(announce)
         request(app)
@@ -228,7 +228,7 @@ describe('collections', function () {
             content: 'hello'
           }
         })
-        expect(act.likes).toEqual([`${act.id}/likes`])
+        expect(act.likes).toEqual([await apex.getLikes(act)])
       })
       it('returns likes for activity', async function (done) {
         const act = await apex.buildActivity('Create', testUser.id, testUser.followers, {
@@ -241,7 +241,7 @@ describe('collections', function () {
         const like = await apex.buildActivity('Like', 'https://ignore.com/bob', testUser.id, {
           object: act.id
         })
-        await apex.addMeta(like, 'collection', act.likes[0])
+        await apex.addMeta(like, 'collection', apex.objectIdFromValue(act.likes))
         await apex.store.saveActivity(act)
         await apex.store.saveActivity(like)
         request(app)

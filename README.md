@@ -180,6 +180,15 @@ client.connect({ useNewUrlParser: true })
 
 ### Implementation notes
 
+* `actor.streams` miscellaneous collections: Add/Remove activities create custom collections
+on the fly using the id scheme in `routes.collections`, but these are not publicized by default.
+To make a custom collection public, you'll need to publish Updates to the collection object with each Add/Remove. However, for those updates to be verified, the actor must demonstrate ownership
+by adding the collection id as a property value in `actor.streams` (and publishing the actor object update)
+
+* Addressing collections: in addition to followers, apex can also address to miscellaneous
+collections. It will add actors from the actor and/or object fields of each activity in the
+collection to the audience.
+
 * Inbox Add/Remove: I don't see a general purpose
 (i.e. a remote actor being able to modify local collections);
 specific uses can be added in the implementation via the event handler.

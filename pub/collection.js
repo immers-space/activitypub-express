@@ -3,6 +3,8 @@
 const overlaps = require('overlaps')
 
 module.exports = {
+  buildCollection,
+  buildCollectionPage,
   getCollection,
   getInbox,
   getOutbox,
@@ -14,7 +16,26 @@ module.exports = {
   getAdded,
   getBlocked,
   getRejected,
-  getRejections
+  getRejections,
+  updateCollection,
+}
+
+function buildCollection (id, isOrdered, totalItems) {
+  return this.fromJSONLD({
+    id,
+    type: isOrdered ? 'OrderedCollection' : 'Collection',
+    totalItems,
+    first: this.addPageToIRI(id, true)
+  })
+}
+
+async function buildCollectionPage (collectionId, page, isOrdered, lastItemId) {
+  return this.fromJSONLD({
+    id: this.addPageToIRI(collectionId, page),
+    partOf: collectionId,
+    type: isOrdered ? 'OrderedCollectionPage' : 'CollectionPage',
+    next: lastItemId ? this.addPageToIRI(collectionId, lastItemId) : null
+  })
 }
 
 /* page: MongoDB _id of item to begin querying after (i.e. last item of last page) or
@@ -23,14 +44,11 @@ module.exports = {
  *    Infinity - get all items (internal use only)
  */
 async function getCollection (collectionId, page, remapper, blockList) {
+  collectionId = this.objectIdFromValue(collectionId)
   if (!page) {
     // if page isn't specified, just collection description is served
-    return this.fromJSONLD({
-      id: collectionId,
-      type: 'OrderedCollection',
-      totalItems: await this.store.getStreamCount(collectionId),
-      first: this.addPageToIRI(collectionId, true)
-    })
+    const totalItems = await this.store.getStreamCount(collectionId)
+    return this.buildCollection(collectionId, true, totalItems)
   }
   let after = page
   let limit = this.itemsPerPage
@@ -41,15 +59,15 @@ async function getCollection (collectionId, page, remapper, blockList) {
     after = null
     limit = null
   }
-  const pageObj = {
-    id: this.addPageToIRI(collectionId, page),
-    partOf: collectionId,
-    type: 'OrderedCollectionPage'
-  }
   let stream = await this.store.getStream(collectionId, limit, after)
-  if (stream.length) {
-    pageObj.next = this.addPageToIRI(collectionId, stream[stream.length - 1]._id)
-  }
+  const pageObj = await this.buildCollectionPage(
+    collectionId,
+    page,
+    true,
+    // determine next page prior to filtering so
+    // you can pass large blocks of filtered activities
+    stream[stream.length - 1]?._id
+  )
   if (blockList) {
     stream = stream.filter(act => !overlaps(blockList, act.actor))
   }
@@ -57,7 +75,7 @@ async function getCollection (collectionId, page, remapper, blockList) {
     stream = stream.map(remapper)
   }
   pageObj.orderedItems = stream
-  return this.fromJSONLD(pageObj)
+  return pageObj
 }
 
 function getInbox (actor, page) {
@@ -106,6 +124,21 @@ function getRejected (actor, page) {
 function getRejections (actor, page) {
   const rejectionsIRI = this.utils.nameToRejectionsIRI(actor.preferredUsername)
   return this.getCollection(rejectionsIRI, page, idRemapper)
+}
+
+async function updateCollection (collectionId) {
+  collectionId = this.objectIdFromValue(collectionId)
+  const info = this.utils.iriToCollectionInfo(collectionId)
+  // shares/likes have to be embedded in their activity
+  // for verifiable updates because the actor id is not in
+  // the collection object
+  if (info.activity) {
+    // updated embedded copies in activity
+    return this.store.updateActivity({
+      id: this.utils.activityIdToIRI(info.activity),
+      [info.name]: [await this.getCollection(collectionId)]
+    }, false)
+  }
 }
 
 // non-exported utils

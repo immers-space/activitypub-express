@@ -80,4 +80,39 @@ describe('utils', function () {
       })
     })
   })
+  describe('validateOwner', function () {
+    it('establishes collection ownerhip via actor properties', async function () {
+      testUser.streams = {
+        custom: apex.utils.userCollectionIdToIRI(testUser.preferredUsername, 'custom')
+      }
+      const otherUser = await apex.createActor('other', 'Other user', '')
+      const testFollowers = await apex.getFollowers(testUser)
+      const testCustom = await apex.getAdded(testUser, 'custom')
+      expect(apex.validateOwner(testFollowers, testUser)).toBeTrue()
+      expect(apex.validateOwner(testCustom, testUser)).toBeTrue()
+      expect(apex.validateOwner(testFollowers, otherUser)).toBeFalse()
+      expect(apex.validateOwner(testCustom, otherUser)).toBeFalse()
+    })
+  })
+  describe('iriToCollectionInfoFactory', function () {
+    it('decode IRIs', function () {
+      expect(apex.utils.iriToCollectionInfo('https://localhost/inbox/test')).toEqual({
+        name: 'inbox',
+        actor: 'test'
+      })
+      expect(apex.utils.iriToCollectionInfo('https://localhost/followers/test')).toEqual({
+        name: 'followers',
+        actor: 'test'
+      })
+      expect(apex.utils.iriToCollectionInfo('https://localhost/s/abc123/shares')).toEqual({
+        name: 'shares',
+        activity: 'abc123'
+      })
+      expect(apex.utils.iriToCollectionInfo('https://localhost/u/test/c/stuff')).toEqual({
+        name: 'collections',
+        actor: 'test',
+        id: 'stuff'
+      })
+    })
+  })
 })

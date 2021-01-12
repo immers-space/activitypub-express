@@ -46,7 +46,8 @@ module.exports = function (settings) {
     nameToBlockedIRI: apex.idToIRIFactory(apex.domain, settings.routes.blocked, apex.actorParam),
     nameToRejectedIRI: apex.idToIRIFactory(apex.domain, settings.routes.rejected, apex.actorParam),
     nameToRejectionsIRI: apex.idToIRIFactory(apex.domain, settings.routes.rejections, apex.actorParam),
-    idToActivityCollections: apex.idToActivityCollectionsFactory(apex.domain, settings.routes, apex.activityParam)
+    idToActivityCollections: apex.idToActivityCollectionsFactory(apex.domain, settings.routes, apex.activityParam),
+    iriToCollectionInfo: apex.iriToCollectionInfoFactory(apex.domain, settings.routes, apex.actorParam, apex.activityParam, apex.collectionParam)
   }
 
   function onFinishedHandler (err, res) {

@@ -16,8 +16,19 @@ const activity = {
     to: ['https://localhost/u/test'],
     content: 'Say, did you finish reading that book I lent you?'
   },
-  shares: 'https://localhost/shares/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
-  likes: 'https://localhost/likes/a29a6843-9feb-4c74-a7f7-081b9c9201d3'
+  shares: {
+    id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3/shares',
+    type: 'OrderedCollection',
+    totalItems: 0,
+    first: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3/shares?page=true'
+
+  },
+  likes: {
+    id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3/likes',
+    type: 'OrderedCollection',
+    totalItems: 0,
+    first: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3/likes?page=true'
+  }
 }
 
 const activityNormalized = {
@@ -41,12 +52,18 @@ const activityNormalized = {
       ]
     }
   ],
-  shares: [
-    'https://localhost/shares/a29a6843-9feb-4c74-a7f7-081b9c9201d3'
-  ],
-  likes: [
-    'https://localhost/likes/a29a6843-9feb-4c74-a7f7-081b9c9201d3'
-  ],
+  shares: [{
+    id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3/shares',
+    type: 'OrderedCollection',
+    totalItems: [0],
+    first: ['https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3/shares?page=true']
+  }],
+  likes: [{
+    id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3/likes',
+    type: 'OrderedCollection',
+    totalItems: [0],
+    first: ['https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3/likes?page=true']
+  }],
   to: [
     'https://localhost/u/test'
   ]
@@ -117,6 +134,55 @@ describe('inbox', function () {
         })
         .catch(done)
     })
+    it('resolves and embeds activity collections', function (done) {
+      const act = merge({}, activity)
+      act.id = 'https://mocked.com/s/abc123'
+      act.actor = 'https://mocked.com/u/mocked'
+      act.shares = 'https://mocked.com/s/abc123/shares'
+      act.likes = 'https://mocked.com/s/abc123/likes'
+      nock('https://mocked.com')
+        .get('/u/mocked')
+        .reply(200, { id: 'https://mocked.com/u/mocked', inbox: 'https://mocked.com/inbox/mocked' })
+      nock('https://mocked.com')
+        .get('/s/abc123/shares')
+        .reply(200, {
+          id: 'https://mocked.com/s/abc123/shares',
+          type: 'OrderedCollection',
+          totalItems: 0,
+          first: 'https://mocked.com/s/abc123/shares?page=true'
+        })
+      nock('https://mocked.com')
+        .get('/s/abc123/likes')
+        .reply(200, {
+          id: 'https://mocked.com/s/abc123/likes',
+          type: 'OrderedCollection',
+          totalItems: 0,
+          first: 'https://mocked.com/s/abc123/likes?page=true'
+        })
+      request(app)
+        .post('/inbox/test')
+        .set('Content-Type', 'application/activity+json')
+        .send(act)
+        .expect(200)
+        .then(async () => {
+          const saved = await apex.store.db
+            .collection('streams')
+            .findOne({ id: act.id })
+          expect(saved.shares).toEqual([{
+            id: 'https://mocked.com/s/abc123/shares',
+            type: 'OrderedCollection',
+            totalItems: [0],
+            first: ['https://mocked.com/s/abc123/shares?page=true']
+          }])
+          expect(saved.likes).toEqual([{
+            id: 'https://mocked.com/s/abc123/likes',
+            type: 'OrderedCollection',
+            totalItems: [0],
+            first: ['https://mocked.com/s/abc123/likes?page=true']
+          }])
+          done()
+        })
+    })
     it('consolidates repeated deliveries', async function (done) {
       const first = merge({ _meta: { collection: ['https://localhost/u/bob'] } }, activityNormalized)
       await apex.store.saveActivity(first)
@@ -134,7 +200,6 @@ describe('inbox', function () {
           expect(act._meta.collection).toEqual([
             'https://localhost/u/bob',
             'https://localhost/inbox/test'
-
           ])
           done()
         })
@@ -404,7 +469,65 @@ describe('inbox', function () {
         expect(result).toBeFalsy()
         done()
       })
-      it('publishes related collection updates')
+      it('publishes followers collection updates', async function (done) {
+        const mockedUser = 'https://mocked.com/user/mocked'
+        undone.type = 'Follow'
+        undone.object = [testUser.id]
+        apex.addMeta(undone, 'collection', testUser.followers[0])
+        undone.to = [mockedUser]
+        await apex.store.saveActivity(undone)
+        nock('https://mocked.com')
+          .get('/user/mocked')
+          .reply(200, { id: mockedUser, inbox: 'https://mocked.com/inbox/mocked' })
+        nock('https://mocked.com')
+          .post('/inbox/mocked').reply(200)
+          .on('request', (req, interceptor, body) => {
+            const sentActivity = JSON.parse(body)
+            expect(sentActivity.type).toBe('Update')
+            expect(sentActivity.object.id).toBe(testUser.followers[0])
+            expect(sentActivity.object.totalItems).toBe(0)
+            done()
+          })
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(undo)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
+      it('publishes activity collection updates', async function (done) {
+        const mockedUser = 'https://mocked.com/user/mocked'
+        const likeable = await apex.buildActivity('Create', testUser.id, [], {
+          object: { type: 'Note', content: 'hello' }
+        })
+        undone.actor = [mockedUser]
+        undone.type = 'Like'
+        undone.object = [likeable.id]
+        apex.addMeta(undone, 'collection', likeable.likes[0].id)
+        undone.to = [testUser.id]
+        undo.actor = [mockedUser]
+        await apex.store.saveActivity(likeable)
+        await apex.store.saveActivity(undone)
+        await apex.updateCollection(likeable.likes, undone)
+        nock('https://mocked.com')
+          .get('/user/mocked')
+          .reply(200, { id: mockedUser, inbox: 'https://mocked.com/inbox/mocked' })
+        nock('https://mocked.com')
+          .post('/inbox/mocked').reply(200)
+          .on('request', (req, interceptor, body) => {
+            const sentActivity = JSON.parse(body)
+            expect(sentActivity.type).toBe('Update')
+            expect(sentActivity.object.id).toBe(likeable.id)
+            expect(sentActivity.object.likes.totalItems).toBe(0)
+            done()
+          })
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(undo)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
     })
     it('fires other activity event', function (done) {
       const arriveAct = {
@@ -645,7 +768,7 @@ describe('inbox', function () {
       it('adds to shares collection if local', async function (done) {
         app.once('apex-inbox', async () => {
           const act = await apex.store.db.collection('streams').findOne({ id: announce.id })
-          expect(act._meta.collection).toEqual([testUser.inbox[0], targetAct.shares[0]])
+          expect(act._meta.collection).toEqual([testUser.inbox[0], targetAct.shares[0].id])
           done()
         })
         await apex.store.saveActivity(targetAct)
@@ -671,10 +794,10 @@ describe('inbox', function () {
             done()
           })
       })
-      it('publishes shares collection update', async function (done) {
+      it('publishes shared activity update with collection', async function (done) {
         nock('https://mocked.com').post('/inbox/mocked')
           .reply(200)
-          .on('request', (req, interceptor, body) => {
+          .on('request', async (req, interceptor, body) => {
             // correctly formed activity sent
             const sentActivity = JSON.parse(body)
             expect(sentActivity.id).toContain('https://localhost')
@@ -684,24 +807,36 @@ describe('inbox', function () {
             expect(new Date(sentActivity.published).toString()).not.toBe('Invalid Date')
             delete sentActivity.published
             delete announce['@context']
+            const updatedAct = await apex.toJSONLD(targetAct)
+            delete updatedAct['@context']
+            updatedAct.shares.totalItems = 1
             expect(sentActivity).toEqual({
               '@context': apex.context,
               type: 'Update',
               actor: testUser.id,
               to: 'https://localhost/followers/test',
               cc: announce.actor,
-              object: {
-                id: targetAct.shares[0],
-                type: 'OrderedCollection',
-                totalItems: 1,
-                first: 'https://localhost/shares/a29a6843-9feb-4c74-a7f7-081b9c9201d3?page=true'
-              }
+              object: updatedAct
             })
             done()
           })
         // mocks followers collection
         addrSpy.and.callFake(async () => ['https://mocked.com/inbox/mocked'])
         await apex.store.saveActivity(targetAct)
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(announce)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
+      it('denormalizes announced activity object', async function (done) {
+        await apex.store.saveActivity(targetAct)
+        app.once('apex-inbox', async msg => {
+          const saved = await apex.store.getActivity(announce.id)
+          expect(saved.object).toEqual([targetAct])
+          done()
+        })
         request(app)
           .post('/inbox/test')
           .set('Content-Type', 'application/activity+json')
@@ -743,7 +878,7 @@ describe('inbox', function () {
       it('adds to likes collection if local', async function (done) {
         app.once('apex-inbox', async () => {
           const act = await apex.store.db.collection('streams').findOne({ id: like.id })
-          expect(act._meta.collection).toEqual([testUser.inbox[0], targetAct.likes[0]])
+          expect(act._meta.collection).toEqual([testUser.inbox[0], targetAct.likes[0].id])
           done()
         })
         await apex.store.saveActivity(targetAct)
@@ -769,10 +904,10 @@ describe('inbox', function () {
             done()
           })
       })
-      it('publishes likes collection update', async function (done) {
+      it('publishes liked object update with collection', async function (done) {
         nock('https://mocked.com').post('/inbox/mocked')
           .reply(200)
-          .on('request', (req, interceptor, body) => {
+          .on('request', async (req, interceptor, body) => {
             // correctly formed activity sent
             const sentActivity = JSON.parse(body)
             expect(sentActivity.id).toContain('https://localhost')
@@ -782,18 +917,16 @@ describe('inbox', function () {
             expect(new Date(sentActivity.published).toString()).not.toBe('Invalid Date')
             delete sentActivity.published
             delete like['@context']
+            const updatedAct = await apex.toJSONLD(targetAct)
+            delete updatedAct['@context']
+            updatedAct.likes.totalItems = 1
             expect(sentActivity).toEqual({
               '@context': apex.context,
               type: 'Update',
               actor: testUser.id,
               to: 'https://localhost/followers/test',
               cc: like.actor,
-              object: {
-                id: targetAct.likes[0],
-                type: 'OrderedCollection',
-                totalItems: 1,
-                first: 'https://localhost/likes/a29a6843-9feb-4c74-a7f7-081b9c9201d3?page=true'
-              }
+              object: updatedAct
             })
             done()
           })
@@ -868,6 +1001,35 @@ describe('inbox', function () {
           expect(msg.object.content).toEqual(['I have been updated'])
           const upd = await apex.store.getActivity(activityNormalized.id)
           expect(upd.object[0].content).toEqual(['I have been updated'])
+          done()
+        })
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(update)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
+      it('processes activity collection updates', async function (done) {
+        const orig = merge({}, activityNormalized)
+        await apex.store.saveActivity(orig)
+        orig.shares[0].totalItems = [5]
+        orig.likes[0].totalItems = [3]
+        update.object = orig
+        app.once('apex-inbox', async msg => {
+          const inStreams = await apex.store.getActivity(orig.id)
+          expect(inStreams.shares[0]).toEqual({
+            id: orig.shares[0].id,
+            type: 'OrderedCollection',
+            totalItems: [5],
+            first: orig.shares[0].first
+          })
+          expect(inStreams.likes[0]).toEqual({
+            id: orig.likes[0].id,
+            type: 'OrderedCollection',
+            totalItems: [3],
+            first: orig.likes[0].first
+          })
           done()
         })
         request(app)
@@ -1009,8 +1171,18 @@ describe('inbox', function () {
             to: 'https://localhost/u/test',
             content: 'Say, did you finish reading that book I lent you?'
           },
-          shares: 'https://localhost/shares/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
-          likes: 'https://localhost/likes/a29a6843-9feb-4c74-a7f7-081b9c9201d3'
+          shares: {
+            id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3/shares',
+            type: 'OrderedCollection',
+            totalItems: 0,
+            first: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3/shares?page=true'
+          },
+          likes: {
+            id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3/likes',
+            type: 'OrderedCollection',
+            totalItems: 0,
+            first: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3/likes?page=true'
+          }
         }))
       }
       request(app)
@@ -1052,8 +1224,18 @@ describe('inbox', function () {
             to: 'https://localhost/u/test',
             content: 'Say, did you finish reading that book I lent you?'
           },
-          shares: 'https://localhost/shares/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
-          likes: 'https://localhost/likes/a29a6843-9feb-4c74-a7f7-081b9c9201d3'
+          shares: {
+            id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3/shares',
+            type: 'OrderedCollection',
+            totalItems: 0,
+            first: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3/shares?page=true'
+          },
+          likes: {
+            id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3/likes',
+            type: 'OrderedCollection',
+            totalItems: 0,
+            first: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3/likes?page=true'
+          }
         }))
       }
       request(app)
