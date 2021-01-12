@@ -214,7 +214,7 @@ publicly addressed unless the request is authorized.
 [PassportJS](http://www.passportjs.org/)-style authentication,
 where `request.user.username` has the `preferredUsername` of the authorized actor.
 Override this by setting `response.locals.apex.authorizedUserId` to an actor IRI.
-**Determining authorization**: Be default, a request is considered authorized
+**Determining authorization**: By default, a request is considered authorized
 if the `authorizedUserId` is the item's owner.
 Override this by setting `response.locals.apex.authorized` to `true` (allow) or `false` (deny)
 
