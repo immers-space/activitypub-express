@@ -248,7 +248,6 @@ A: Run `npm dedupe` to ensure `request` library is using the patched version of 
   * [ ] Related standards
     * [x] http-signature
     * [x] webfinger
-    * [ ] oauth
     * [x] json-ld
       * [x] Context cache
     * [ ] Linked data signatures
