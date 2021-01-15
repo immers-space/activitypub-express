@@ -190,6 +190,8 @@ async function publishUpdate (actor, object, cc) {
     actor.followers[0],
     { object, cc }
   )
+  this.addMeta(act, 'collection', actor.outbox[0])
+  await this.store.saveActivity(act)
   return this.addToOutbox(actor, act)
 }
 

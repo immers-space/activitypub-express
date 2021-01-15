@@ -393,11 +393,9 @@ function outboxActivity (req, res, next) {
       resLocal.statusMessage = 'Block requires object'
       return next()
     }
-    resLocal.skipOutbox = true
+    resLocal.doNotPublish = true
   }
-  if (!resLocal.skipOutbox) {
-    apex.addMeta(req.body, 'collection', resLocal.target.outbox[0])
-  }
+  apex.addMeta(req.body, 'collection', resLocal.target.outbox[0])
   resLocal.activity = true
   next()
 }

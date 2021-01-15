@@ -24,7 +24,7 @@ module.exports = {
     }
     apex.store.saveActivity(activity).then(saveResult => {
       resLocal.isNewActivity = !!saveResult
-      if (!saveResult && !resLocal.skipOutbox) {
+      if (!saveResult) {
         const newTarget = activity._meta.collection[0]
         return apex.store
           .updateActivityMeta(activity, 'collection', newTarget)
@@ -298,7 +298,7 @@ module.exports = {
       // configure event hook to be triggered after response sent
       resLocal.eventMessage = { actor, activity, object }
       resLocal.eventName = 'apex-outbox'
-      if (!resLocal.skipOutbox) {
+      if (!resLocal.doNotPublish) {
         // local activity object may have been updated (e.g. denormalized object);
         // send original req.body to outbox
         resLocal.postWork.unshift(() => apex.addToOutbox(actor, req.body))
