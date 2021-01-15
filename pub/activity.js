@@ -7,6 +7,7 @@ module.exports = {
   buildActivity,
   buildTombstone,
   embedCollections,
+  publishActivity,
   publishUndoUpdate,
   publishUpdate,
   resolveActivity
@@ -110,18 +111,16 @@ async function address (activity, sender, audienceOverride) {
   // 7.1 de-dupe
   return Array.from(new Set(audience))
 }
-/* audienceOverride: array of IRIs, used in inbox forwarding to
- * skip normall addressing and deliver to specific audience
+
+/** addToOutbox
+ * Given a newly created activity, add it to the actor's outbox and publish it
+ * @param  {object} actor
+ * @param  {object} activity
  */
-async function addToOutbox (actor, activity, audienceOverride) {
-  const tasks = [
-    this.address(activity, actor, audienceOverride),
-    this.toJSONLD(activity)
-  ]
-  const [addresses, outgoingActivity] = await Promise.all(tasks)
-  if (addresses.length) {
-    return this.queueForDelivery(actor, outgoingActivity, addresses)
-  }
+async function addToOutbox (actor, activity) {
+  this.addMeta(activity, 'collection', actor.outbox[0])
+  await this.store.saveActivity(activity)
+  return this.publishActivity(actor, activity)
 }
 
 // follow accept side effects: add to followers, publish updated followers
@@ -154,6 +153,25 @@ async function embedCollections (activity) {
     delete activity.likes?.[0]?.orderedItems
   }
   return activity
+}
+
+/** publishActivity
+ * Prepare an activity for federated delivery, resolve addresses, and add
+ * to delivery queue
+ * @param  {object} actor - actor object with meta for request signing
+ * @param  {object} activity - activity object
+ * @param  {string[]} audienceOverride - array of IRIs, used in inbox forwarding to
+ * skip normall addressing and deliver to specific audience
+ */
+async function publishActivity (actor, activity, audienceOverride) {
+  const tasks = [
+    this.address(activity, actor, audienceOverride),
+    this.toJSONLD(activity)
+  ]
+  const [addresses, outgoingActivity] = await Promise.all(tasks)
+  if (addresses.length) {
+    return this.queueForDelivery(actor, outgoingActivity, addresses)
+  }
 }
 
 // undo may need to publish updates on behalf of multiple
@@ -190,8 +208,6 @@ async function publishUpdate (actor, object, cc) {
     actor.followers[0],
     { object, cc }
   )
-  this.addMeta(act, 'collection', actor.outbox[0])
-  await this.store.saveActivity(act)
   return this.addToOutbox(actor, act)
 }
 

@@ -697,9 +697,9 @@ describe('outbox', function () {
       })
       it('does not denormalize object in delivered activity', async function (done) {
         await apex.store.saveActivity(announceable)
-        spyOn(apex, 'addToOutbox')
+        spyOn(apex, 'publishActivity')
         app.once('apex-outbox', function () {
-          expect(apex.addToOutbox.calls.argsFor(0)[1].object)
+          expect(apex.publishActivity.calls.argsFor(0)[1].object)
             .toEqual([announceable.id])
           done()
         })

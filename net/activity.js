@@ -64,7 +64,7 @@ module.exports = {
       .filter(addr => ['followers', 'collections'].includes(apex.utils.iriToCollectionInfo(addr)?.name))
     if (audience.length) {
       resLocal.postWork
-        .push(() => apex.addToOutbox(resLocal.target, activity, audience))
+        .push(() => apex.publishActivity(resLocal.target, activity, audience))
     }
     next()
   },
@@ -301,7 +301,7 @@ module.exports = {
       if (!resLocal.doNotPublish) {
         // local activity object may have been updated (e.g. denormalized object);
         // send original req.body to outbox
-        resLocal.postWork.unshift(() => apex.addToOutbox(actor, req.body))
+        resLocal.postWork.unshift(() => apex.publishActivity(actor, req.body))
       }
       next()
     }).catch(next)
