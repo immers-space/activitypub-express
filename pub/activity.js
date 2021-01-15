@@ -53,7 +53,7 @@ async function address (activity, sender, audienceOverride) {
       return null
     }
     if (t === sender.followers[0]) {
-      return this.getFollowers(sender, Infinity)
+      return this.getFollowers(sender, Infinity, true)
     }
     /* Allow addressing to sender's custom collections, e.g. a concept like a list
      * of specific friends could be represented by a collection of Follow
