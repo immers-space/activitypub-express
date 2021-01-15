@@ -130,7 +130,7 @@ activityParam | String. Express route parameter used for activity id (defaults t
 collectionParam | String. Express route parameter used for collection id (defaults to `objectParam`)
 pageParam | String. Query parameter used for collection page identifier (defaults to `page`)
 itemsPerPage | Number. Count of items in each collection page (default `20`)
-context | String, Array. JSON-LD context for your app. Defaults to AcivityStreams + Security vocabs
+context | String, Object, Array. JSON-LD context(s) to use with your app in addition to the base AcivityStreams + Security vocabs
 endpoints | Object. Optional system-wide api endpoint URLs included in [actor objects](https://www.w3.org/TR/activitypub/#actor-objects): `proxyUrl`, `oauthAuthorizationEndpoint`, `oauthTokenEndpoint`, `provideClientKey`, `signClientKey`, `sharedInbox`, `uploadMedia`
 logger | Object with `info`, `warn`, `error` methods to replace `console`
 store | Replace the default storage model & database backend with your own (see `store/interface.js` for API)
