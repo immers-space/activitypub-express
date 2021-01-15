@@ -4,7 +4,7 @@
 // updates also get their objects denormalized during validation
 const denormalizeObject = [
   // object objects
-  'create', 'follow', 'block',
+  'create',
   // activity objects
   'announce', 'like', 'add', 'reject'
 ]
