@@ -207,11 +207,8 @@ module.exports = {
     const actor = resLocal.target
     let activity = req.body
     let object = resLocal.object
-    resLocal.status = 200
-    if (!resLocal.isNewActivity) {
-      // ignore duplicate deliveries
-      return next()
-    }
+    resLocal.status = 201
+    resLocal.createdLocation = activity.id
 
     switch (activity.type.toLowerCase()) {
       case 'accept':

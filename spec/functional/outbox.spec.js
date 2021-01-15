@@ -112,13 +112,21 @@ describe('outbox', function () {
         .send(activity)
         .expect(404, '\'noone\' not found on this instance', done)
     })
+    it('responds 201 with Location header', function () {
+      return request(app)
+        .post('/outbox/test')
+        .set('Content-Type', 'application/activity+json')
+        .send(activity)
+        .expect(201)
+        .expect('Location', /^https:\/\/localhost\/s\/[A-Za-z0-9-]+$/)
+    })
     // activity save
     it('formats & saves activity in stream', function (done) {
       request(app)
         .post('/outbox/test')
         .set('Content-Type', 'application/activity+json')
         .send(activity)
-        .expect(200)
+        .expect(201)
         .then(() => {
           return apex.store.db
             .collection('streams')
@@ -138,7 +146,7 @@ describe('outbox', function () {
         .post('/outbox/test')
         .set('Content-Type', 'application/activity+json')
         .send(activity)
-        .expect(200)
+        .expect(201)
         .then(() => {
           return apex.store.db
             .collection('objects')
@@ -161,7 +169,7 @@ describe('outbox', function () {
         .post('/outbox/test')
         .set('Content-Type', 'application/activity+json')
         .send(bareObj)
-        .expect(200)
+        .expect(201)
         .then(() => {
           return apex.store.db
             .collection('streams')
@@ -210,7 +218,7 @@ describe('outbox', function () {
         .post('/outbox/test')
         .set('Content-Type', 'application/activity+json')
         .send(act)
-        .expect(200)
+        .expect(201)
         .end(function (err) {
           if (err) throw err
         })
@@ -232,7 +240,7 @@ describe('outbox', function () {
         .post('/outbox/test')
         .set('Content-Type', 'application/activity+json')
         .send(act)
-        .expect(200)
+        .expect(201)
         .end(function (err) {
           if (err) throw err
         })
@@ -250,7 +258,7 @@ describe('outbox', function () {
         .post('/outbox/test')
         .set('Content-Type', 'application/activity+json')
         .send(activity)
-        .expect(200)
+        .expect(201)
         .end(err => { if (err) done(err) })
     })
     describe('undo', function () {
@@ -276,7 +284,7 @@ describe('outbox', function () {
           .post('/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(undo)
-          .expect(200)
+          .expect(201)
           .end(err => { if (err) done(err) })
       })
       it('rejects undo with owner mismatch', async function (done) {
@@ -294,7 +302,7 @@ describe('outbox', function () {
           .post('/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(undo)
-          .expect(200)
+          .expect(201)
         const result = await apex.store.getActivity(undone.id)
         expect(result).toBeFalsy()
       })
@@ -325,7 +333,7 @@ describe('outbox', function () {
           .post('/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(undo)
-          .expect(200)
+          .expect(201)
           .end(err => { if (err) done(err) })
       })
     })
@@ -350,7 +358,7 @@ describe('outbox', function () {
           .post('/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(update)
-          .expect(200)
+          .expect(201)
         const result = await apex.store.db.collection('objects')
           .findOne({ id: sourceObj.id })
         delete result._id
@@ -366,7 +374,7 @@ describe('outbox', function () {
           .post('/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(update)
-          .expect(200)
+          .expect(201)
         const activities = await db.collection('streams').find({ type: 'Create', 'object.0.id': sourceObj.id }).toArray()
         expect(activities[0].object[0]).toEqual(expectedObj)
         expect(activities[1].object[0]).toEqual(expectedObj)
@@ -396,7 +404,7 @@ describe('outbox', function () {
           .post('/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(update)
-          .expect(200)
+          .expect(201)
           .end(function (err) {
             if (err) throw err
           })
@@ -427,7 +435,7 @@ describe('outbox', function () {
           .post('/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(update)
-          .expect(200)
+          .expect(201)
           .end(function (err) {
             if (err) throw err
           })
@@ -463,7 +471,7 @@ describe('outbox', function () {
           .post('/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(accept)
-          .expect(200)
+          .expect(201)
           .end(err => { if (err) done(err) })
       })
       it('publishes collection update', async function (done) {
@@ -508,7 +516,7 @@ describe('outbox', function () {
           .post('/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(accept)
-          .expect(200)
+          .expect(201)
           .end(err => { if (err) done(err) })
       })
     })
@@ -545,7 +553,7 @@ describe('outbox', function () {
           .post('/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(reject)
-          .expect(200)
+          .expect(201)
           .end(err => { if (err) done(err) })
       })
       it('publishes collection update', async function (done) {
@@ -589,7 +597,7 @@ describe('outbox', function () {
           .post('/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(reject)
-          .expect(200)
+          .expect(201)
           .end(err => { if (err) done(err) })
       })
     })
@@ -626,7 +634,7 @@ describe('outbox', function () {
           .post('/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(deleteAct)
-          .expect(200)
+          .expect(201)
           .end(err => { if (err) done(err) })
       })
       it('rejects if actor not owner', async function (done) {
@@ -656,7 +664,7 @@ describe('outbox', function () {
           .post('/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(deleteAct)
-          .expect(200)
+          .expect(201)
           .end(err => { if (err) done(err) })
       })
       it('replaces object in streams with tombstone', async function (done) {
@@ -681,7 +689,7 @@ describe('outbox', function () {
           .post('/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(deleteAct)
-          .expect(200)
+          .expect(201)
           .end(err => { if (err) done(err) })
       })
     })
@@ -707,7 +715,7 @@ describe('outbox', function () {
           .post('/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(announce)
-          .expect(200)
+          .expect(201)
           .end(err => { if (err) done(err) })
       })
     })
@@ -744,7 +752,7 @@ describe('outbox', function () {
           .post('/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(like)
-          .expect(200)
+          .expect(201)
           .end(err => { if (err) done(err) })
       })
       it('adds to liked collection', async function (done) {
@@ -758,7 +766,7 @@ describe('outbox', function () {
           .post('/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(like)
-          .expect(200)
+          .expect(201)
           .end(err => { if (err) done(err) })
       })
       it('rejects if no object', function (done) {
@@ -806,7 +814,7 @@ describe('outbox', function () {
           .post('/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(like)
-          .expect(200)
+          .expect(201)
           .end(err => { if (err) done(err) })
       })
     })
@@ -849,7 +857,7 @@ describe('outbox', function () {
           .post('/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(add)
-          .expect(200)
+          .expect(201)
           .end(err => { if (err) done(err) })
       })
       it('rejects missing target', async function (done) {
@@ -882,7 +890,7 @@ describe('outbox', function () {
           .post('/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(add)
-          .expect(200)
+          .expect(201)
           .end(err => { if (err) done(err) })
       })
     })
@@ -924,7 +932,7 @@ describe('outbox', function () {
           .post('/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(remove)
-          .expect(200)
+          .expect(201)
           .end(err => { if (err) done(err) })
       })
       it('rejects missing target', async function (done) {
@@ -958,7 +966,7 @@ describe('outbox', function () {
           .post('/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(remove)
-          .expect(200)
+          .expect(201)
           .end(err => { if (err) done(err) })
       })
     })
@@ -996,7 +1004,7 @@ describe('outbox', function () {
           .post('/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(block)
-          .expect(200)
+          .expect(201)
           .end(err => { if (err) done(err) })
       })
       it('adds to blocklist', async function (done) {
@@ -1009,7 +1017,7 @@ describe('outbox', function () {
           .post('/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(block)
-          .expect(200)
+          .expect(201)
           .end(err => { if (err) done(err) })
       })
     })
@@ -1044,7 +1052,7 @@ describe('outbox', function () {
         .post('/outbox/test')
         .set('Content-Type', 'application/activity+json')
         .send(arriveAct)
-        .expect(200)
+        .expect(201)
         .end(err => { if (err) done(err) })
     })
   })

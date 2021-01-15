@@ -76,7 +76,7 @@ describe('combined inbox/outbox flows', function () {
       .post('/outbox/test')
       .set('Content-Type', 'application/activity+json')
       .send(accept)
-      .expect(200)
+      .expect(201)
     expect((await apex.getFollowers(testUser, Infinity, true)).orderedItems)
       .toEqual(['https://mocked.com/u/mocked'])
     const note = {
@@ -88,6 +88,6 @@ describe('combined inbox/outbox flows', function () {
       .post('/outbox/test')
       .set('Content-Type', 'application/activity+json')
       .send(note)
-      .expect(200)
+      .expect(201)
   })
 })

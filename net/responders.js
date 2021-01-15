@@ -24,7 +24,11 @@ async function result (req, res) {
 }
 
 function status (req, res) {
-  res.status(res.locals.apex.status || 400)
+  const locals = res.locals.apex
+  if (locals.createdLocation) {
+    res.set('Location', locals.createdLocation)
+  }
+  res.status(locals.status ?? 400)
     .send(res.locals.apex.statusMessage || null)
 }
 
