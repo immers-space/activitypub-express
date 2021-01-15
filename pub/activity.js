@@ -26,7 +26,6 @@ async function buildActivity (type, actorId, to, etc = {}) {
   for (const key in collections) {
     activity[key] = [await this.buildCollection(collections[key], true, 0)]
   }
-  activity._meta = {}
   return activity
 }
 
