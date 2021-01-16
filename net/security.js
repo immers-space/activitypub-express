@@ -2,17 +2,25 @@
 const httpSignature = require('http-signature')
 // http communication middleware
 module.exports = {
+  requireAuthorized,
   requireAuthorizedOrPublic,
   verifyAuthorization,
   verifySignature
+}
+
+function requireAuthorized (req, res, next) {
+  const locals = res.locals.apex
+  if (!locals.authorized) {
+    return res.sendStatus(403)
+  }
+  return next()
 }
 
 function requireAuthorizedOrPublic (req, res, next) {
   const apex = req.app.locals.apex
   const locals = res.locals.apex
   if (locals.target && !(apex.isPublic(locals.target) || locals.authorized)) {
-    // will trigger responder not to send
-    locals.status = 403
+    return res.sendStatus(403)
   }
   return next()
 }

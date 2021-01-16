@@ -125,6 +125,8 @@ module.exports = {
     post: [
       validators.jsonld,
       validators.targetActorWithMeta,
+      security.verifyAuthorization,
+      security.requireAuthorized,
       validators.outboxCreate,
       validators.outboxActivityObject,
       validators.outboxActivity,

@@ -13,9 +13,13 @@ describe('combined inbox/outbox flows', function () {
     app = init.app
     apex = init.apex
     client = init.client
+    const auth = (req, res, next) => {
+      res.locals.apex.authorized = true
+      next()
+    }
     app.route('/outbox/:actor')
       .get(apex.net.outbox.get)
-      .post(apex.net.outbox.post)
+      .post(auth, apex.net.outbox.post)
     app.route('/inbox/:actor')
       .get(apex.net.inbox.get)
       .post(apex.net.inbox.post)
