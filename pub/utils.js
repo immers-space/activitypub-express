@@ -315,7 +315,7 @@ function validateOwner (object, actor) {
       return true
     }
     // custom collections
-    if (actor.streams && Object.values(actor.streams).includes(object.id)) {
+    if (actor.streams?.[0] && Object.values(actor.streams[0]).includes(object.id)) {
       return true
     }
   }

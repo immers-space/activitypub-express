@@ -75,13 +75,16 @@ describe('outbox', function () {
     app = init.app
     apex = init.apex
     client = init.client
+    const auth = (req, res, next) => {
+      res.locals.apex.authorized = true
+      next()
+    }
     app.route('/outbox/:actor')
       .get(apex.net.outbox.get)
       .post(apex.net.outbox.post)
-    app.get('/authorized/outbox/:actor', (req, res, next) => {
-      res.locals.apex.authorized = true
-      next()
-    }, apex.net.outbox.get)
+    app.route('/authorized/outbox/:actor')
+      .get(auth, apex.net.outbox.get)
+      .post(auth, apex.net.outbox.post)
   })
   beforeEach(function () {
     // don't let failed deliveries pollute later tests
@@ -92,14 +95,14 @@ describe('outbox', function () {
     // validators jsonld
     it('ignores invalid body types', function (done) {
       request(app)
-        .post('/outbox/test')
+        .post('/authorized/outbox/test')
         .send({})
         .expect(404, done)
     })
     // validators activity
     it('errors invalid activities', function (done) {
       request(app)
-        .post('/outbox/test')
+        .post('/authorized/outbox/test')
         .set('Content-Type', 'application/activity+json')
         .send({ actor: 'bob', '@context': 'https://www.w3.org/ns/activitystreams' })
         .expect(400, 'Invalid activity', done)
@@ -107,18 +110,26 @@ describe('outbox', function () {
     // activity getTargetActor
     it('errors on unknown actor', function (done) {
       request(app)
-        .post('/outbox/noone')
+        .post('/authorized/outbox/noone')
         .set('Content-Type', 'application/activity+json')
         .send(activity)
         .expect(404, '\'noone\' not found on this instance', done)
     })
+    it('responds 201 with Location header', function () {
+      return request(app)
+        .post('/authorized/outbox/test')
+        .set('Content-Type', 'application/activity+json')
+        .send(activity)
+        .expect(201)
+        .expect('Location', /^https:\/\/localhost\/s\/[A-Za-z0-9-]+$/)
+    })
     // activity save
     it('formats & saves activity in stream', function (done) {
       request(app)
-        .post('/outbox/test')
+        .post('/authorized/outbox/test')
         .set('Content-Type', 'application/activity+json')
         .send(activity)
-        .expect(200)
+        .expect(201)
         .then(() => {
           return apex.store.db
             .collection('streams')
@@ -135,10 +146,10 @@ describe('outbox', function () {
     })
     it('saves object from activity', function (done) {
       request(app)
-        .post('/outbox/test')
+        .post('/authorized/outbox/test')
         .set('Content-Type', 'application/activity+json')
         .send(activity)
-        .expect(200)
+        .expect(201)
         .then(() => {
           return apex.store.db
             .collection('objects')
@@ -158,10 +169,10 @@ describe('outbox', function () {
       const bareObj = merge({}, activity.object)
       bareObj['@context'] = 'https://www.w3.org/ns/activitystreams'
       request(app)
-        .post('/outbox/test')
+        .post('/authorized/outbox/test')
         .set('Content-Type', 'application/activity+json')
         .send(bareObj)
-        .expect(200)
+        .expect(201)
         .then(() => {
           return apex.store.db
             .collection('streams')
@@ -207,10 +218,10 @@ describe('outbox', function () {
           done()
         })
       request(app)
-        .post('/outbox/test')
+        .post('/authorized/outbox/test')
         .set('Content-Type', 'application/activity+json')
         .send(act)
-        .expect(200)
+        .expect(201)
         .end(function (err) {
           if (err) throw err
         })
@@ -229,10 +240,10 @@ describe('outbox', function () {
         done()
       })
       request(app)
-        .post('/outbox/test')
+        .post('/authorized/outbox/test')
         .set('Content-Type', 'application/activity+json')
         .send(act)
-        .expect(200)
+        .expect(201)
         .end(function (err) {
           if (err) throw err
         })
@@ -247,10 +258,10 @@ describe('outbox', function () {
         done()
       })
       request(app)
-        .post('/outbox/test')
+        .post('/authorized/outbox/test')
         .set('Content-Type', 'application/activity+json')
         .send(activity)
-        .expect(200)
+        .expect(201)
         .end(err => { if (err) done(err) })
     })
     describe('undo', function () {
@@ -273,17 +284,17 @@ describe('outbox', function () {
           done()
         })
         request(app)
-          .post('/outbox/test')
+          .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(undo)
-          .expect(200)
+          .expect(201)
           .end(err => { if (err) done(err) })
       })
       it('rejects undo with owner mismatch', async function (done) {
         undone.actor = ['https://ignore.com/bob']
         await apex.store.saveActivity(undone)
         request(app)
-          .post('/outbox/test')
+          .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(undo)
           .expect(403, done)
@@ -291,10 +302,10 @@ describe('outbox', function () {
       it('removes undone activity', async function () {
         await apex.store.saveActivity(undone)
         await request(app)
-          .post('/outbox/test')
+          .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(undo)
-          .expect(200)
+          .expect(201)
         const result = await apex.store.getActivity(undone.id)
         expect(result).toBeFalsy()
       })
@@ -311,18 +322,21 @@ describe('outbox', function () {
           .reply(200, { id: mockedUser, inbox: 'https://mocked.com/inbox/mocked' })
         nock('https://mocked.com')
           .post('/inbox/mocked').reply(200)
-          .on('request', (req, interceptor, body) => {
+          .on('request', async (req, interceptor, body) => {
             const sentActivity = JSON.parse(body)
+            // update activity appears in outbox
+            const update = await apex.store.getActivity(sentActivity.id, true)
+            expect(update._meta.collection).toContain(testUser.outbox[0])
             expect(sentActivity.type).toBe('Update')
             expect(sentActivity.object.id).toBe(testUser.liked[0])
             expect(sentActivity.object.totalItems).toBe(0)
             done()
           })
         request(app)
-          .post('/outbox/test')
+          .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(undo)
-          .expect(200)
+          .expect(201)
           .end(err => { if (err) done(err) })
       })
     })
@@ -344,10 +358,10 @@ describe('outbox', function () {
       })
       it('updates target object', async function () {
         await request(app)
-          .post('/outbox/test')
+          .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(update)
-          .expect(200)
+          .expect(201)
         const result = await apex.store.db.collection('objects')
           .findOne({ id: sourceObj.id })
         delete result._id
@@ -360,10 +374,10 @@ describe('outbox', function () {
           await apex.buildActivity('Create', 'https://localhost/u/test', sourceObj.to, { object: sourceObj })
         ])
         await request(app)
-          .post('/outbox/test')
+          .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(update)
-          .expect(200)
+          .expect(201)
         const activities = await db.collection('streams').find({ type: 'Create', 'object.0.id': sourceObj.id }).toArray()
         expect(activities[0].object[0]).toEqual(expectedObj)
         expect(activities[1].object[0]).toEqual(expectedObj)
@@ -390,10 +404,10 @@ describe('outbox', function () {
             done()
           })
         request(app)
-          .post('/outbox/test')
+          .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(update)
-          .expect(200)
+          .expect(201)
           .end(function (err) {
             if (err) throw err
           })
@@ -421,10 +435,10 @@ describe('outbox', function () {
             done()
           })
         request(app)
-          .post('/outbox/test')
+          .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(update)
-          .expect(200)
+          .expect(201)
           .end(function (err) {
             if (err) throw err
           })
@@ -457,10 +471,10 @@ describe('outbox', function () {
           done()
         })
         request(app)
-          .post('/outbox/test')
+          .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(accept)
-          .expect(200)
+          .expect(201)
           .end(err => { if (err) done(err) })
       })
       it('publishes collection update', async function (done) {
@@ -471,11 +485,14 @@ describe('outbox', function () {
         nock('https://mocked.com')
           .post('/inbox/mocked').reply(200) // accept activity delivery
           .post('/inbox/mocked').reply(200)
-          .on('request', (req, interceptor, body) => {
-            // correctly formed activity sent
+          .on('request', async (req, interceptor, body) => {
             const sentActivity = JSON.parse(body)
             if (sentActivity.type === 'Accept') return
             expect(sentActivity.id).toContain('https://localhost')
+            // update activity appears in outbox
+            const update = await apex.store.getActivity(sentActivity.id, true)
+            expect(update._meta.collection).toContain(testUser.outbox[0])
+            // correctly formed activity sent
             delete sentActivity.id
             delete sentActivity.likes
             delete sentActivity.shares
@@ -499,10 +516,10 @@ describe('outbox', function () {
         accept.to = mockedUser
         await apex.store.saveActivity(follow)
         request(app)
-          .post('/outbox/test')
+          .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(accept)
-          .expect(200)
+          .expect(201)
           .end(err => { if (err) done(err) })
       })
     })
@@ -536,10 +553,10 @@ describe('outbox', function () {
           done()
         })
         request(app)
-          .post('/outbox/test')
+          .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(reject)
-          .expect(200)
+          .expect(201)
           .end(err => { if (err) done(err) })
       })
       it('publishes collection update', async function (done) {
@@ -580,10 +597,10 @@ describe('outbox', function () {
         otherFollow.actor = [mockedUser]
         await apex.store.saveActivity(otherFollow)
         request(app)
-          .post('/outbox/test')
+          .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(reject)
-          .expect(200)
+          .expect(201)
           .end(err => { if (err) done(err) })
       })
     })
@@ -617,17 +634,17 @@ describe('outbox', function () {
           done()
         })
         request(app)
-          .post('/outbox/test')
+          .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(deleteAct)
-          .expect(200)
+          .expect(201)
           .end(err => { if (err) done(err) })
       })
       it('rejects if actor not owner', async function (done) {
         toDelete.attributedTo = ['https://localhost/u/sally']
         await apex.store.saveObject(toDelete)
         request(app)
-          .post('/outbox/test')
+          .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(deleteAct)
           .expect(403, done)
@@ -647,10 +664,10 @@ describe('outbox', function () {
           done()
         })
         request(app)
-          .post('/outbox/test')
+          .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(deleteAct)
-          .expect(200)
+          .expect(201)
           .end(err => { if (err) done(err) })
       })
       it('replaces object in streams with tombstone', async function (done) {
@@ -672,10 +689,10 @@ describe('outbox', function () {
           done()
         })
         request(app)
-          .post('/outbox/test')
+          .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(deleteAct)
-          .expect(200)
+          .expect(201)
           .end(err => { if (err) done(err) })
       })
     })
@@ -691,17 +708,17 @@ describe('outbox', function () {
       })
       it('does not denormalize object in delivered activity', async function (done) {
         await apex.store.saveActivity(announceable)
-        spyOn(apex, 'addToOutbox')
+        spyOn(apex, 'publishActivity')
         app.once('apex-outbox', function () {
-          expect(apex.addToOutbox.calls.argsFor(0)[1].object)
+          expect(apex.publishActivity.calls.argsFor(0)[1].object)
             .toEqual([announceable.id])
           done()
         })
         request(app)
-          .post('/outbox/test')
+          .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(announce)
-          .expect(200)
+          .expect(201)
           .end(err => { if (err) done(err) })
       })
     })
@@ -735,10 +752,10 @@ describe('outbox', function () {
           done()
         })
         request(app)
-          .post('/outbox/test')
+          .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(like)
-          .expect(200)
+          .expect(201)
           .end(err => { if (err) done(err) })
       })
       it('adds to liked collection', async function (done) {
@@ -749,16 +766,16 @@ describe('outbox', function () {
           done()
         })
         request(app)
-          .post('/outbox/test')
+          .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(like)
-          .expect(200)
+          .expect(201)
           .end(err => { if (err) done(err) })
       })
       it('rejects if no object', function (done) {
         delete like.object
         request(app)
-          .post('/outbox/test')
+          .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(like)
           .expect(400, done)
@@ -797,10 +814,10 @@ describe('outbox', function () {
         spyOn(apex, 'address').and.callFake(async () => ['https://mocked.com/inbox/mocked'])
         await apex.store.saveActivity(likeable)
         request(app)
-          .post('/outbox/test')
+          .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(like)
-          .expect(200)
+          .expect(201)
           .end(err => { if (err) done(err) })
       })
     })
@@ -840,17 +857,17 @@ describe('outbox', function () {
           done()
         })
         request(app)
-          .post('/outbox/test')
+          .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(add)
-          .expect(200)
+          .expect(201)
           .end(err => { if (err) done(err) })
       })
       it('rejects missing target', async function (done) {
         delete add.target
         await apex.store.saveActivity(addable)
         request(app)
-          .post('/outbox/test')
+          .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(add)
           .expect(400, done)
@@ -859,7 +876,7 @@ describe('outbox', function () {
         add.target = 'https://localhost/u/bob/c/bobs-stuff'
         await apex.store.saveActivity(addable)
         request(app)
-          .post('/outbox/test')
+          .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(add)
           .expect(403, done)
@@ -873,10 +890,10 @@ describe('outbox', function () {
           done()
         })
         request(app)
-          .post('/outbox/test')
+          .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(add)
-          .expect(200)
+          .expect(201)
           .end(err => { if (err) done(err) })
       })
     })
@@ -915,17 +932,17 @@ describe('outbox', function () {
           done()
         })
         request(app)
-          .post('/outbox/test')
+          .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(remove)
-          .expect(200)
+          .expect(201)
           .end(err => { if (err) done(err) })
       })
       it('rejects missing target', async function (done) {
         delete remove.target
         await apex.store.saveActivity(added)
         request(app)
-          .post('/outbox/test')
+          .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(remove)
           .expect(400, done)
@@ -934,7 +951,7 @@ describe('outbox', function () {
         remove.target = 'https://localhost/u/bob/c/bobs-stuff'
         await apex.store.saveActivity(added)
         request(app)
-          .post('/outbox/test')
+          .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(remove)
           .expect(403, done)
@@ -949,10 +966,10 @@ describe('outbox', function () {
           done()
         })
         request(app)
-          .post('/outbox/test')
+          .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(remove)
-          .expect(200)
+          .expect(201)
           .end(err => { if (err) done(err) })
       })
     })
@@ -973,7 +990,12 @@ describe('outbox', function () {
           delete msg.activity.shares
           delete msg.activity.published
           expect(msg.activity).toEqual({
-            _meta: { collection: [apex.utils.nameToBlockedIRI(testUser.preferredUsername)] },
+            _meta: {
+              collection: [
+                testUser.outbox[0],
+                apex.utils.nameToBlockedIRI(testUser.preferredUsername)
+              ]
+            },
             type: 'Block',
             actor: [testUser.id],
             object: [block.object]
@@ -982,10 +1004,10 @@ describe('outbox', function () {
           done()
         })
         request(app)
-          .post('/outbox/test')
+          .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(block)
-          .expect(200)
+          .expect(201)
           .end(err => { if (err) done(err) })
       })
       it('adds to blocklist', async function (done) {
@@ -995,10 +1017,10 @@ describe('outbox', function () {
           done()
         })
         request(app)
-          .post('/outbox/test')
+          .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(block)
-          .expect(200)
+          .expect(201)
           .end(err => { if (err) done(err) })
       })
     })
@@ -1030,10 +1052,10 @@ describe('outbox', function () {
         done()
       })
       request(app)
-        .post('/outbox/test')
+        .post('/authorized/outbox/test')
         .set('Content-Type', 'application/activity+json')
         .send(arriveAct)
-        .expect(200)
+        .expect(201)
         .end(err => { if (err) done(err) })
     })
   })

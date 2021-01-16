@@ -22,10 +22,6 @@ global.initApex = async function initApex () {
   const app = express()
   const apex = ActivitypubExpress({
     domain: 'localhost',
-    context: [
-      'https://www.w3.org/ns/activitystreams',
-      'https://w3id.org/security/v1'
-    ],
     actorParam: 'actor',
     objectParam: 'id',
     activityParam: 'id',

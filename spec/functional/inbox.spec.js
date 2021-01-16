@@ -380,10 +380,13 @@ describe('inbox', function () {
           .reply(200, { id: mockedUser, inbox: 'https://mocked.com/inbox/mocked' })
         nock('https://mocked.com').post('/inbox/mocked')
           .reply(200)
-          .on('request', (req, interceptor, body) => {
-            // correctly formed activity sent
+          .on('request', async (req, interceptor, body) => {
             const sentActivity = JSON.parse(body)
             expect(sentActivity.id).toContain('https://localhost')
+            // update activity appears in outbox
+            const update = await apex.store.getActivity(sentActivity.id, true)
+            expect(update._meta.collection).toContain(testUser.outbox[0])
+            // correctly formed activity sent
             delete sentActivity.id
             delete sentActivity.likes
             delete sentActivity.shares
@@ -493,8 +496,11 @@ describe('inbox', function () {
           .reply(200, { id: mockedUser, inbox: 'https://mocked.com/inbox/mocked' })
         nock('https://mocked.com')
           .post('/inbox/mocked').reply(200)
-          .on('request', (req, interceptor, body) => {
+          .on('request', async (req, interceptor, body) => {
             const sentActivity = JSON.parse(body)
+            // update activity appears in outbox
+            const update = await apex.store.getActivity(sentActivity.id, true)
+            expect(update._meta.collection).toContain(testUser.outbox[0])
             expect(sentActivity.type).toBe('Update')
             expect(sentActivity.object.id).toBe(testUser.followers[0])
             expect(sentActivity.object.totalItems).toBe(0)

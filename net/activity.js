@@ -4,7 +4,7 @@
 // updates also get their objects denormalized during validation
 const denormalizeObject = [
   // object objects
-  'create', 'follow', 'block',
+  'create',
   // activity objects
   'announce', 'like', 'add', 'reject'
 ]
@@ -24,7 +24,7 @@ module.exports = {
     }
     apex.store.saveActivity(activity).then(saveResult => {
       resLocal.isNewActivity = !!saveResult
-      if (!saveResult && !resLocal.skipOutbox) {
+      if (!saveResult) {
         const newTarget = activity._meta.collection[0]
         return apex.store
           .updateActivityMeta(activity, 'collection', newTarget)
@@ -64,7 +64,7 @@ module.exports = {
       .filter(addr => ['followers', 'collections'].includes(apex.utils.iriToCollectionInfo(addr)?.name))
     if (audience.length) {
       resLocal.postWork
-        .push(() => apex.addToOutbox(resLocal.target, activity, audience))
+        .push(() => apex.publishActivity(resLocal.target, activity, audience))
     }
     next()
   },
@@ -207,11 +207,8 @@ module.exports = {
     const actor = resLocal.target
     let activity = req.body
     let object = resLocal.object
-    resLocal.status = 200
-    if (!resLocal.isNewActivity) {
-      // ignore duplicate deliveries
-      return next()
-    }
+    resLocal.status = 201
+    resLocal.createdLocation = activity.id
 
     switch (activity.type.toLowerCase()) {
       case 'accept':
@@ -298,10 +295,10 @@ module.exports = {
       // configure event hook to be triggered after response sent
       resLocal.eventMessage = { actor, activity, object }
       resLocal.eventName = 'apex-outbox'
-      if (!resLocal.skipOutbox) {
+      if (!resLocal.doNotPublish) {
         // local activity object may have been updated (e.g. denormalized object);
         // send original req.body to outbox
-        resLocal.postWork.unshift(() => apex.addToOutbox(actor, req.body))
+        resLocal.postWork.unshift(() => apex.publishActivity(actor, req.body))
       }
       next()
     }).catch(next)

@@ -25,7 +25,9 @@ module.exports = function (settings) {
   }
   apex.settings = settings
   apex.domain = settings.domain
-  apex.context = settings.context || pub.consts.ASContext
+  apex.context = settings.context
+    ? pub.consts.ASContext.concat(settings.context)
+    : pub.consts.ASContext
   apex.net = net
   apex.store = settings.store || new ApexStore()
   apex.actorParam = settings.actorParam
