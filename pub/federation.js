@@ -92,7 +92,9 @@ async function queueForDelivery (actor, activity, addresses) {
 }
 
 function startDelivery () {
-  if (isDelivering) return
+  if (isDelivering || this.offlineMode) {
+    return
+  }
   return this.runDelivery()
 }
 

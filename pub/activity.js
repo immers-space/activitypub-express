@@ -42,6 +42,11 @@ async function buildTombstone (object) {
 }
 // TODO: track errors during address resolution for redelivery attempts
 async function address (activity, sender, audienceOverride) {
+  // ensure blocklist is available (e.g. if called outside of route)
+  if (!sender._local?.blockList) {
+    sender._local = sender._local ?? {}
+    sender._local.blockList = (await this.getBlocked(sender, Infinity, true)).orderedItems
+  }
   let audience
   if (audienceOverride) {
     audience = audienceOverride
@@ -66,7 +71,7 @@ async function address (activity, sender, audienceOverride) {
       if (!sender.preferredUsername.includes(miscCol.actor)) {
         return null
       }
-      return this.getAdded(t, Infinity).then(col => {
+      return this.getAdded(t, Infinity, true).then(col => {
         col.orderedItems = col.orderedItems.reduce((actors, activity) => {
           return actors.concat(
             activity.actor,
