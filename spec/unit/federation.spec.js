@@ -111,11 +111,18 @@ describe('federation', function () {
       body = await apex.toJSONLD(act)
       bodyString = apex.stringifyPublicJSONLD(body)
       addresses = ['https://mocked.com/bob/inbox', 'https://ignore.com/sally/inbox']
+      apex.offlineMode = false
     })
     it('starts delivery process after queueing', async function () {
       spyOn(apex, 'runDelivery')
       await apex.queueForDelivery(testUser, body, addresses)
       expect(apex.runDelivery).toHaveBeenCalled()
+    })
+    it('does not start delivery in offline mode', async function () {
+      spyOn(apex, 'runDelivery')
+      apex.offlineMode = true
+      await apex.queueForDelivery(testUser, body, addresses)
+      expect(apex.runDelivery).not.toHaveBeenCalled()
     })
     it('continues delivering until queue is empty', async function (done) {
       spyOn(apex, 'deliver').and.resolveTo({ statusCode: 200 })

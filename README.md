@@ -136,6 +136,7 @@ logger | Object with `info`, `warn`, `error` methods to replace `console`
 store | Replace the default storage model & database backend with your own (see `store/interface.js` for API)
 threadDepth | Controls how far up apex will follow links in incoming activities in order to display the conversation thread & check for inbox forwarding needs  (default 10)
 systemUser | Actor object representing system and used for signing GETs (see below)
+offlineMode | Disable delivery. Useful for running migrations and queueing deliveries to be sent when app is running
 
 Blocked, rejections, and rejected: these routes must be defined in order to track
 these items internally for each actor, but they do not need to be exposed endpoints

@@ -39,6 +39,7 @@ module.exports = function (settings) {
   apex.threadDepth = settings.threadDepth || 10
   apex.systemUser = settings.systemUser
   apex.logger = settings.logger || console
+  apex.offlineMode = settings.offlineMode
   apex.utils = {
     usernameToIRI: apex.idToIRIFactory(apex.domain, settings.routes.actor, apex.actorParam),
     objectIdToIRI: apex.idToIRIFactory(apex.domain, settings.routes.object, apex.objectParam),
