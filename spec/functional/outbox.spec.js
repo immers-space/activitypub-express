@@ -227,13 +227,18 @@ describe('outbox', function () {
         })
     })
     it('does not deliver to blocked actors', async function (done) {
-      const deliverSpy = spyOn(apex, 'deliver')
+      const deliverSpy = spyOn(apex, 'queueForDelivery')
       const act = merge({}, activity)
-      act.to = act.object.to = 'https://localhost/u/blocked'
+      act.to = act.object.to = ['https://localhost/u/blocked']
       const block = merge({}, activityNormalized)
       block.type = 'Block'
       block.object = ['https://localhost/u/blocked']
+      delete block.audience // not public
       block._meta = { collection: [apex.utils.nameToBlockedIRI(testUser.preferredUsername)] }
+      await apex.store.saveObject({
+        id: 'https://localhost/u/blocked',
+        inbox: 'https://localhost/u/blocked/inbox'
+      })
       await apex.store.saveActivity(block)
       app.once('apex-outbox', msg => {
         expect(deliverSpy).not.toHaveBeenCalled()
@@ -761,7 +766,7 @@ describe('outbox', function () {
       it('adds to liked collection', async function (done) {
         await apex.store.saveActivity(likeable)
         app.once('apex-outbox', async function (msg) {
-          const liked = await apex.getLiked(testUser, Infinity)
+          const liked = await apex.getLiked(testUser, Infinity, true)
           expect(liked.orderedItems).toContain(likeable.id)
           done()
         })
@@ -884,7 +889,7 @@ describe('outbox', function () {
       it('adds to collection', async function (done) {
         await apex.store.saveActivity(addable)
         app.once('apex-outbox', async function (msg) {
-          const added = await apex.getAdded(testUser, 'testcol', Infinity)
+          const added = await apex.getAdded(testUser, 'testcol', Infinity, true)
           delete added.orderedItems[0]._id
           expect(added.orderedItems[0]).toEqual(addable)
           done()
@@ -961,7 +966,7 @@ describe('outbox', function () {
         const addedCol = await apex.getAdded(testUser, 'test')
         expect(addedCol.totalItems).toEqual([1])
         app.once('apex-outbox', async function (msg) {
-          const addedCol = await apex.getAdded(testUser, 'test', Infinity)
+          const addedCol = await apex.getAdded(testUser, 'test', Infinity, true)
           expect(addedCol.orderedItems).toEqual([])
           done()
         })

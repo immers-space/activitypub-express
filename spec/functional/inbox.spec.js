@@ -221,6 +221,7 @@ describe('inbox', function () {
       const block = merge({}, activityNormalized)
       block.type = 'Block'
       block.object = ['https://ignore.com/u/chud']
+      delete block.audience // not public
       block._meta = { collection: [apex.utils.nameToBlockedIRI(testUser.preferredUsername)] }
       await apex.store.saveActivity(block)
       const act = merge({}, activity)
@@ -232,7 +233,7 @@ describe('inbox', function () {
         .expect(200)
         .end(async (err) => {
           if (err) return done(err)
-          const inbox = await apex.getInbox(testUser, Infinity)
+          const inbox = await apex.getInbox(testUser, Infinity, true)
           expect(inbox.orderedItems.length).toBe(0)
           done()
         })

@@ -66,7 +66,7 @@ async function address (activity, sender, audienceOverride) {
       if (!sender.preferredUsername.includes(miscCol.actor)) {
         return null
       }
-      return this.getAdded(t, Infinity).then(col => {
+      return this.getAdded(t, Infinity, true).then(col => {
         col.orderedItems = col.orderedItems.reduce((actors, activity) => {
           return actors.concat(
             activity.actor,
