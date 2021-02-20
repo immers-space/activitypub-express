@@ -146,18 +146,34 @@ class ApexStore extends IApexStore {
   }
 
   getStream (collectionId, limit, after) {
+    const pipeline = []
     const filter = { '_meta.collection': collectionId }
     if (after) {
       filter._id = { $lt: new mongo.ObjectId(after) }
     }
-    const query = this.db
-      .collection('streams')
-      .find(filter)
-      .sort({ _id: -1 })
-      .project({ _meta: 0, 'object._id': 0, 'object._meta': 0 })
+    pipeline.push({ $match: filter })
+    pipeline.push({ $sort: { _id: -1 } })
     if (limit) {
-      query.limit(limit)
+      pipeline.push({ $limit: limit })
     }
+    pipeline.push({
+      $lookup: {
+        from: 'objects',
+        localField: 'actor',
+        foreignField: 'id',
+        as: 'actor'
+      }
+    }, {
+      $project: {
+        _meta: 0,
+        'object._id': 0,
+        'object._meta': 0,
+        'actor._meta': 0,
+        'actor._id': 0
+      }
+    })
+
+    const query = this.db.collection('streams').aggregate(pipeline)
     return query.toArray().then(stream => unescape(stream))
   }
 
