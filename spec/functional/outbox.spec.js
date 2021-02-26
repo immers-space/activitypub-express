@@ -486,7 +486,7 @@ describe('outbox', function () {
         const mockedUser = 'https://mocked.com/user/mocked'
         nock('https://mocked.com')
           .get('/user/mocked')
-          .reply(200, { id: mockedUser, inbox: 'https://mocked.com/inbox/mocked' })
+          .reply(200, { id: mockedUser, type: 'Actor', inbox: 'https://mocked.com/inbox/mocked' })
         nock('https://mocked.com')
           .post('/inbox/mocked').reply(200) // accept activity delivery
           .post('/inbox/mocked').reply(200)
@@ -567,13 +567,10 @@ describe('outbox', function () {
       it('publishes collection update', async function (done) {
         const mockedUser = 'https://mocked.com/user/mocked'
         nock('https://mocked.com')
-          .get('/user/mocked')
-          .reply(200, { id: mockedUser, inbox: 'https://mocked.com/inbox/mocked' })
-        nock('https://mocked.com')
           .post('/inbox/mocked').reply(200)
           .on('request', (req, interceptor, body) => {
-            // correctly formed activity sent
             const sentActivity = JSON.parse(body)
+            // ignore initial activity
             if (sentActivity.type === 'Reject') return
             expect(sentActivity.id).toContain('https://localhost')
             delete sentActivity.id
@@ -595,6 +592,7 @@ describe('outbox', function () {
             })
             done()
           })
+        await apex.store.saveObject({ id: mockedUser, type: 'Actor', inbox: ['https://mocked.com/inbox/mocked'] })
         await apex.store.saveActivity(follow)
         // actor needs one follower remaining to deliver collection udpate
         const otherFollow = merge({}, follow)
@@ -767,7 +765,7 @@ describe('outbox', function () {
         await apex.store.saveActivity(likeable)
         app.once('apex-outbox', async function (msg) {
           const liked = await apex.getLiked(testUser, Infinity, true)
-          expect(liked.orderedItems).toContain(likeable.id)
+          expect(liked.orderedItems).toEqual([likeable])
           done()
         })
         request(app)
@@ -891,7 +889,10 @@ describe('outbox', function () {
         app.once('apex-outbox', async function (msg) {
           const added = await apex.getAdded(testUser, 'testcol', Infinity, true)
           delete added.orderedItems[0]._id
-          expect(added.orderedItems[0]).toEqual(addable)
+          const standard = apex.mergeJSONLD(addable, { actor: [testUser] })
+          delete standard.actor[0]._meta
+          delete standard.actor[0]._local
+          expect(added.orderedItems[0]).toEqual(standard)
           done()
         })
         request(app)
@@ -1068,12 +1069,14 @@ describe('outbox', function () {
     const fakeId = 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3'
     const fakeOId = 'https://localhost/o/a29a6843-9feb-4c74-a7f7-081b9c9201d3'
     let outbox
+    let testActor
     beforeEach(async function () {
       outbox = [1, 2, 3, 4].map(i => {
         const a = Object.assign({}, activity, { id: `${fakeId}${i}`, _meta: { collection: ['https://localhost/outbox/test'] } })
         a.object = Object.assign({}, a.object, { id: `${fakeOId}${i}` })
         return a
       })
+      testActor = await global.toExternalJSONLD(apex, testUser, true)
       delete outbox[3].audience
       delete outbox[3].object.audience
       await apex.store.db
@@ -1108,7 +1111,7 @@ describe('outbox', function () {
           id: `${fakeId}${i}`,
           to: 'https://ignore.com/u/ignored',
           audience: 'as:Public',
-          actor: 'https://localhost/u/test',
+          actor: testActor,
           object: {
             type: 'Note',
             id: `${fakeOId}${i}`,
@@ -1140,7 +1143,7 @@ describe('outbox', function () {
             type: 'Create',
             id: `${fakeId}4`,
             to: 'https://ignore.com/u/ignored',
-            actor: 'https://localhost/u/test',
+            actor: testActor,
             object: {
               type: 'Note',
               id: `${fakeOId}4`,
@@ -1163,7 +1166,7 @@ describe('outbox', function () {
           id: `${fakeId}${1}`,
           to: 'https://ignore.com/u/ignored',
           audience: 'as:Public',
-          actor: 'https://localhost/u/test',
+          actor: testActor,
           object: {
             type: 'Note',
             id: `${fakeOId}${1}`,

@@ -145,11 +145,14 @@ class ApexStore extends IApexStore {
       .replaceOne({ documentUrl }, context, { forceServerObjectId: true, upsert: true })
   }
 
-  getStream (collectionId, limit, after) {
+  getStream (collectionId, limit, after, blockList) {
     const pipeline = []
     const filter = { '_meta.collection': collectionId }
     if (after) {
       filter._id = { $lt: new mongo.ObjectId(after) }
+    }
+    if (blockList?.length) {
+      filter.actor = { $nin: blockList }
     }
     pipeline.push({ $match: filter })
     pipeline.push({ $sort: { _id: -1 } })
@@ -163,6 +166,9 @@ class ApexStore extends IApexStore {
         foreignField: 'id',
         as: 'actor'
       }
+    }, {
+      // filter if missing actor
+      $match: { actor: { $ne: [] } }
     }, {
       $project: {
         _meta: 0,

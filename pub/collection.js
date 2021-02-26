@@ -59,7 +59,7 @@ async function getCollection (collectionId, page, remapper, includePrivate, bloc
     after = null
     limit = null
   }
-  let stream = await this.store.getStream(collectionId, limit, after)
+  let stream = await this.store.getStream(collectionId, limit, after, blockList)
   const pageObj = await this.buildCollectionPage(
     collectionId,
     page,
@@ -68,9 +68,6 @@ async function getCollection (collectionId, page, remapper, includePrivate, bloc
     // you can pass large blocks of filtered activities
     stream[stream.length - 1]?._id
   )
-  if (blockList) {
-    stream = stream.filter(act => !overlaps(blockList, act.actor))
-  }
   if (!includePrivate) {
     stream = stream.filter(act => this.isPublic(act))
   }
@@ -90,7 +87,7 @@ function getOutbox (actor, page, includePrivate) {
 }
 
 function getFollowers (actor, page, includePrivate) {
-  return this.getCollection(actor.followers[0], page, this.actorIdFromActivity, includePrivate, actor._local.blockList)
+  return this.getCollection(actor.followers[0], page, actorFromActivity, includePrivate, actor._local.blockList)
 }
 
 function getFollowing (actor, page, includePrivate) {
@@ -98,15 +95,15 @@ function getFollowing (actor, page, includePrivate) {
 }
 
 function getLiked (actor, page, includePrivate) {
-  return this.getCollection(actor.liked[0], page, this.objectIdFromActivity, includePrivate)
+  return this.getCollection(actor.liked[0], page, objectFromActivity, includePrivate)
 }
 
 function getShares (object, page, includePrivate) {
-  return this.getCollection(object.shares[0], page, idRemapper, includePrivate)
+  return this.getCollection(object.shares[0], page, null, includePrivate)
 }
 
 function getLikes (object, page, includePrivate) {
-  return this.getCollection(object.likes[0], page, idRemapper, includePrivate)
+  return this.getCollection(object.likes[0], page, null, includePrivate)
 }
 
 function getAdded (actor, colId, page, includePrivate) {
@@ -147,4 +144,10 @@ async function updateCollection (collectionId) {
 // non-exported utils
 function idRemapper (object) {
   return object.id
+}
+function actorFromActivity (activity) {
+  return activity.actor[0]
+}
+function objectFromActivity (activity) {
+  return activity.object[0]
 }

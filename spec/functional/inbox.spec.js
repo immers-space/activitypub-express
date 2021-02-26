@@ -241,7 +241,7 @@ describe('inbox', function () {
     it('forwards from inbox', async function (done) {
       const mockedUser = 'https://mocked.com/u/mocked'
       spyOn(apex, 'getFollowers').and
-        .resolveTo({ orderedItems: [mockedUser] })
+        .resolveTo({ orderedItems: [{ id: mockedUser, type: 'Actor', inbox: ['https://mocked.com/inbox/mocked'] }] })
       await apex.store.saveActivity(activityNormalized)
       const reply = await apex.buildActivity(
         'Create',
@@ -250,9 +250,6 @@ describe('inbox', function () {
         { object: { id: 'https://ignore.com/o/abc123', type: 'Note', inReplyTo: activityNormalized.id } }
       )
       reply.id = 'https://ignore.com/s/123abc'
-      nock('https://mocked.com')
-        .get('/u/mocked')
-        .reply(200, { id: mockedUser, inbox: 'https://mocked.com/inbox/mocked' })
       nock('https://mocked.com').post('/inbox/mocked')
         .reply(200)
         .on('request', (req, interceptor, body) => {
@@ -378,7 +375,7 @@ describe('inbox', function () {
         const mockedUser = 'https://mocked.com/user/mocked'
         nock('https://mocked.com')
           .get('/user/mocked')
-          .reply(200, { id: mockedUser, inbox: 'https://mocked.com/inbox/mocked' })
+          .reply(200, { id: mockedUser, type: 'Actor', inbox: 'https://mocked.com/inbox/mocked' })
         nock('https://mocked.com').post('/inbox/mocked')
           .reply(200)
           .on('request', async (req, interceptor, body) => {
@@ -1201,12 +1198,14 @@ describe('inbox', function () {
   })
   describe('get', function () {
     let inbox
+    let testActor
     beforeEach(async function () {
       inbox = []
       const meta = { collection: ['https://localhost/inbox/test'] }
       ;[1, 2, 3, 4].forEach(i => {
         inbox.push(merge.all([{}, activityNormalized, { id: `${activity.id}${i}`, _meta: meta }]))
       })
+      testActor = await global.toExternalJSONLD(apex, testUser, true)
       // remove public address from last item
       delete inbox[3].audience
       delete inbox[3].object[0].audience
@@ -1243,7 +1242,7 @@ describe('inbox', function () {
           id: `https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3${i}`,
           to: 'https://localhost/u/test',
           audience: 'as:Public',
-          actor: 'https://localhost/u/test',
+          actor: testActor,
           object: {
             type: 'Note',
             id: 'https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19',
@@ -1286,7 +1285,7 @@ describe('inbox', function () {
             type: 'Create',
             id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d34',
             to: 'https://localhost/u/test',
-            actor: 'https://localhost/u/test',
+            actor: testActor,
             object: {
               type: 'Note',
               id: 'https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19',
@@ -1333,7 +1332,7 @@ describe('inbox', function () {
           id: `https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3${i}`,
           to: 'https://localhost/u/test',
           audience: 'as:Public',
-          actor: 'https://localhost/u/test',
+          actor: testActor,
           object: {
             type: 'Note',
             id: 'https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19',

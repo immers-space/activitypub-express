@@ -66,3 +66,11 @@ function skipTransient (key, value) {
   }
   return value
 }
+
+global.toExternalJSONLD = async function (apex, value, noContext) {
+  value = JSON.parse(apex.stringifyPublicJSONLD(await apex.toJSONLD(value)))
+  if (noContext) {
+    delete value['@context']
+  }
+  return value
+}
