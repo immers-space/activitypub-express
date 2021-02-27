@@ -42,7 +42,7 @@ describe('combined inbox/outbox flows', function () {
     delete follow._meta
     nock('https://mocked.com')
       .get('/u/mocked')
-      .reply(200, { id: 'https://mocked.com/u/mocked', inbox: 'https://mocked.com/u/mocked/inbox' })
+      .reply(200, { id: 'https://mocked.com/u/mocked', type: 'Actor', inbox: 'https://mocked.com/u/mocked/inbox' })
     // accept & update delivery
     nock('https://mocked.com')
       .post('/u/mocked/inbox')
@@ -82,7 +82,7 @@ describe('combined inbox/outbox flows', function () {
       .send(accept)
       .expect(201)
     expect((await apex.getFollowers(testUser, Infinity, true)).orderedItems)
-      .toEqual(['https://mocked.com/u/mocked'])
+      .toEqual([{ id: 'https://mocked.com/u/mocked', type: 'Actor', inbox: ['https://mocked.com/u/mocked/inbox'] }])
     const note = {
       type: 'Note',
       content: 'Hello world',

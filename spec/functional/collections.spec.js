@@ -6,6 +6,11 @@ describe('collections', function () {
   let app
   let apex
   let client
+  const actors = [
+    { id: 'https://ignore.com/bob', inbox: 'https://ignore.com/bob/in' },
+    { id: 'https://ignore.com/mary', inbox: 'https://ignore.com/mary/in' },
+    { id: 'https://ignore.com/sue', inbox: 'https://ignore.com/sue/in' }
+  ]
   beforeAll(async function () {
     const init = await global.initApex()
     testUser = init.testUser
@@ -23,23 +28,27 @@ describe('collections', function () {
     app.get('/s/:id/likes', apex.net.likes.get)
     app.get('/u/:actor/c/:id', apex.net.collections.get)
   })
-  beforeEach(function () {
-    return global.resetDb(apex, client, testUser)
+  beforeEach(async function () {
+    await global.resetDb(apex, client, testUser)
+    for (const actor of actors) {
+      await apex.store.saveObject(actor)
+    }
   })
   describe('followers', function () {
     let firstActivity
     beforeEach(async function () {
-      let followers = ['https://ignore.com/bob', 'https://ignore.com/mary', 'https://ignore.com/sue']
-        .map(followerId => {
+      let followers = actors
+        .map(follower => {
           return apex
-            .buildActivity('Follow', followerId, testUser.id, { object: testUser.id })
+            .buildActivity('Follow', follower.id, testUser.id, { object: testUser.id })
         })
       followers = await Promise.all(followers)
       followers.forEach(f => apex.addMeta(f, 'collection', testUser.inbox[0]))
+      // simulate accepting 2 of the 3
       apex.addMeta(followers[0], 'collection', testUser.followers[0])
       apex.addMeta(followers[2], 'collection', testUser.followers[0])
-      for (const follower of followers) {
-        await apex.store.saveActivity(follower)
+      for (const follow of followers) {
+        await apex.store.saveActivity(follow)
       }
       firstActivity = await apex.store.db.collection('streams')
         .findOne({}, { sort: { _id: 1 } })
@@ -72,7 +81,7 @@ describe('collections', function () {
             id: 'https://localhost/followers/test?page=true',
             type: 'OrderedCollectionPage',
             partOf: 'https://localhost/followers/test',
-            orderedItems: ['https://ignore.com/sue', 'https://ignore.com/bob'],
+            orderedItems: [actors[2], actors[0]],
             next: `https://localhost/followers/test?page=${firstActivity._id}`
 
           }
@@ -217,8 +226,10 @@ describe('collections', function () {
           .get(`${act.id}/shares?page=true`.replace('https://localhost', ''))
           .set('Accept', 'application/activity+json')
           .expect(200)
-          .end(function (err, res) {
-            expect(res.body.orderedItems).toEqual([announce.id])
+          .end(async function (err, res) {
+            const standard = await global.toExternalJSONLD(apex, announce, true)
+            standard.actor = actors.find(act => act.id === announce.actor[0])
+            expect(res.body.orderedItems).toEqual([standard])
             done(err)
           })
       })
@@ -252,8 +263,10 @@ describe('collections', function () {
           .get(`${act.id}/likes?page=true`.replace('https://localhost', ''))
           .set('Accept', 'application/activity+json')
           .expect(200)
-          .end(function (err, res) {
-            expect(res.body.orderedItems).toEqual([like.id])
+          .end(async function (err, res) {
+            const standard = await global.toExternalJSONLD(apex, like, true)
+            standard.actor = actors.find(act => act.id === like.actor[0])
+            expect(res.body.orderedItems).toEqual([standard])
             done(err)
           })
       })
@@ -270,9 +283,8 @@ describe('collections', function () {
         }
       })
       // convert to output format for test standard
-      const actOut = await apex.toJSONLD(act)
-      delete actOut._meta
-      delete actOut['@context']
+      const actOut = await global
+        .toExternalJSONLD(apex, apex.mergeJSONLD(act, { actor: [testUser] }), true)
       apex.addMeta(act, 'collection', col)
       await apex.store.saveActivity(act)
       request(app)
