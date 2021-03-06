@@ -359,23 +359,27 @@ describe('outbox', function () {
           object: mockedUser,
           to: mockedUser
         }
+        let sentActivity
         nock('https://mocked.com')
           .get('/user/mocked')
           .reply(200, { id: mockedUser, inbox: 'https://mocked.com/inbox/mocked' })
         nock('https://mocked.com')
           .post('/inbox/mocked').reply(200)
-          .on('request', async (req, interceptor, body) => {
-            const sentActivity = JSON.parse(body)
-            // user id is replaced with related follow activity
-            expect(sentActivity.object.id).toBe(undone.id)
-            // follows updated
-            expect((await apex.getFollowing(testUser, Infinity, true)).orderedItems)
-              .toEqual([])
-            done()
+          .on('request', (req, interceptor, body) => {
+            sentActivity = JSON.parse(body)
           })
         // ignore update
         nock('https://mocked.com')
           .post('/inbox/mocked').reply(200)
+
+        app.once('apex-outbox', async () => {
+          // user id is replaced with related follow activity
+          expect(sentActivity.object.id).toBe(undone.id)
+          // follows updated
+          expect((await apex.getFollowing(testUser, Infinity, true)).orderedItems)
+            .toEqual([])
+          done()
+        })
         request(app)
           .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
@@ -648,20 +652,27 @@ describe('outbox', function () {
       it('rejects prior follow if object is actor', async function (done) {
         const mockedUser = 'https://mocked.com/user/mocked'
         const mockedUserObj = { id: mockedUser, type: 'Actor', inbox: ['https://mocked.com/inbox/mocked'] }
+        let sentActivity
         nock('https://mocked.com')
           .get('/user/mocked').reply(200, mockedUserObj)
         nock('https://mocked.com')
           .post('/inbox/mocked').reply(200)
           .on('request', (req, interceptor, body) => {
-            const sentActivity = JSON.parse(body)
-            expect(sentActivity.object.id).toBe(follow.id)
-            done()
+            sentActivity = JSON.parse(body)
           })
         await apex.store.saveObject(mockedUserObj)
         follow.actor = [mockedUser]
         await apex.store.saveActivity(follow)
         reject.object = mockedUser
         reject.to = mockedUser
+        app.once('apex-outbox', async () => {
+          expect(sentActivity.object.id).toBe(follow.id)
+          expect((await apex.getFollowers(testUser, Infinity, true)).orderedItems)
+            .toEqual([])
+          done()
+        })
+        expect((await apex.getFollowers(testUser, Infinity, true)).orderedItems)
+          .toEqual([mockedUserObj])
         request(app)
           .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
