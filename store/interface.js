@@ -15,7 +15,15 @@ module.exports = class IApexStore {
     throw new Error('Not implemented')
   }
 
-  getActivity (id) {
+  getActivity (id, includeMeta) {
+    throw new Error('Not implemented')
+  }
+
+  findActivityByCollectionAndObjectId (collection, objectId, includeMeta) {
+    throw new Error('Not implemented')
+  }
+
+  findActivityByCollectionAndActorId (collection, actorId, includeMeta) {
     throw new Error('Not implemented')
   }
 

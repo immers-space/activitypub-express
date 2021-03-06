@@ -134,6 +134,24 @@ class ApexStore extends IApexStore {
       .then(act => unescape(act))
   }
 
+  findActivityByCollectionAndObjectId (collection, objectId, includeMeta) {
+    return this.db.collection('streams')
+      .find({ '_meta.collection': collection, object: objectId })
+      .limit(1)
+      .project(includeMeta ? this.metaProj : this.projection)
+      .next()
+      .then(act => unescape(act))
+  }
+
+  findActivityByCollectionAndActorId (collection, actorId, includeMeta) {
+    return this.db.collection('streams')
+      .find({ '_meta.collection': collection, actor: actorId })
+      .limit(1)
+      .project(includeMeta ? this.metaProj : this.projection)
+      .next()
+      .then(act => unescape(act))
+  }
+
   getContext (documentUrl) {
     return this.db.collection('contexts')
       .findOne({ documentUrl }, { projection: { _id: 0 } })

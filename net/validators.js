@@ -297,8 +297,27 @@ function outboxActivityObject (req, res, next) {
     object = activity.object[0]
     object.id = apex.utils.objectIdToIRI()
   }
-  Promise.resolve(object).then(obj => {
+  Promise.resolve(object).then(async obj => {
     resLocal.object = obj
+    // for unfollow, clients dont have easy access to old follow activitiy ids,
+    // so they can send an actor id and server will find related follow
+    if (!obj && type === 'undo') {
+      const actorId = apex.objectIdFromActivity(activity)
+      const follow = await apex.store
+        .findActivityByCollectionAndObjectId(resLocal.target.following[0], actorId, true)
+      if (follow) {
+        activity.object = [follow]
+        resLocal.object = follow
+      }
+    } else if (!obj && type === 'reject') {
+      const actorId = apex.objectIdFromActivity(activity)
+      const follow = await apex.store
+        .findActivityByCollectionAndActorId(resLocal.target.followers[0], actorId, true)
+      if (follow) {
+        activity.object = [follow]
+        resLocal.object = follow
+      }
+    }
     next()
   }).catch(err => {
     apex.logger.warn('Error resolving outbox activity object', err.message)
