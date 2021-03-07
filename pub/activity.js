@@ -229,7 +229,10 @@ async function resolveActivity (id, includeMeta) {
     // resolve remote activity object
     activity = await this.requestObject(id)
   }
-  // cache
-  await this.store.saveActivity(activity)
-  return activity
+  // avoid saving non-acticity objects to streams collection
+  // if they are encountered during activity validation
+  if (this.validateActivity(activity)) {
+    await this.store.saveActivity(activity)
+    return activity
+  }
 }

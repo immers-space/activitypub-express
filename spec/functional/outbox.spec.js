@@ -344,6 +344,49 @@ describe('outbox', function () {
           .expect(201)
           .end(err => { if (err) done(err) })
       })
+      it('unfollows if object is actor', async function (done) {
+        const mockedUser = 'https://mocked.com/user/mocked'
+        undone.type = 'Follow'
+        undone.object = [mockedUser]
+        apex.addMeta(undone, 'collection', testUser.following[0])
+        undone.to = [mockedUser]
+        await apex.store.saveActivity(undone)
+        expect((await apex.getFollowing(testUser, Infinity, true)).orderedItems)
+          .toEqual([mockedUser])
+        undo = {
+          type: 'Undo',
+          actor: testUser.id,
+          object: mockedUser,
+          to: mockedUser
+        }
+        let sentActivity
+        nock('https://mocked.com')
+          .get('/user/mocked')
+          .reply(200, { id: mockedUser, inbox: 'https://mocked.com/inbox/mocked' })
+        nock('https://mocked.com')
+          .post('/inbox/mocked').reply(200)
+          .on('request', (req, interceptor, body) => {
+            sentActivity = JSON.parse(body)
+          })
+        // ignore update
+        nock('https://mocked.com')
+          .post('/inbox/mocked').reply(200)
+
+        app.once('apex-outbox', async () => {
+          // user id is replaced with related follow activity
+          expect(sentActivity.object.id).toBe(undone.id)
+          // follows updated
+          expect((await apex.getFollowing(testUser, Infinity, true)).orderedItems)
+            .toEqual([])
+          done()
+        })
+        request(app)
+          .post('/authorized/outbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(undo)
+          .expect(201)
+          .end(err => { if (err) done(err) })
+      })
     })
     describe('update', function () {
       let sourceObj
@@ -599,6 +642,37 @@ describe('outbox', function () {
         otherFollow.id = apex.utils.activityIdToIRI()
         otherFollow.actor = [mockedUser]
         await apex.store.saveActivity(otherFollow)
+        request(app)
+          .post('/authorized/outbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(reject)
+          .expect(201)
+          .end(err => { if (err) done(err) })
+      })
+      it('rejects prior follow if object is actor', async function (done) {
+        const mockedUser = 'https://mocked.com/user/mocked'
+        const mockedUserObj = { id: mockedUser, type: 'Actor', inbox: ['https://mocked.com/inbox/mocked'] }
+        let sentActivity
+        nock('https://mocked.com')
+          .get('/user/mocked').reply(200, mockedUserObj)
+        nock('https://mocked.com')
+          .post('/inbox/mocked').reply(200)
+          .on('request', (req, interceptor, body) => {
+            sentActivity = JSON.parse(body)
+          })
+        await apex.store.saveObject(mockedUserObj)
+        follow.actor = [mockedUser]
+        await apex.store.saveActivity(follow)
+        reject.object = mockedUser
+        reject.to = mockedUser
+        app.once('apex-outbox', async () => {
+          expect(sentActivity.object.id).toBe(follow.id)
+          expect((await apex.getFollowers(testUser, Infinity, true)).orderedItems)
+            .toEqual([])
+          done()
+        })
+        expect((await apex.getFollowers(testUser, Infinity, true)).orderedItems)
+          .toEqual([mockedUserObj])
         request(app)
           .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
