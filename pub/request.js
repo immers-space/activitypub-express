@@ -93,7 +93,7 @@ const reqSpec = {
   },
   mastodonCompatible: true,
   httpSignature: {
-    key: '-----BEGIN RSA PRIVATE KEY-----MIIEpAIB...',
+    key: 'your private key string here',
     keyId: 'key-1',
   },
   body: 'some body here'
