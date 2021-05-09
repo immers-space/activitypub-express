@@ -11,7 +11,7 @@ module.exports = {
   runDelivery,
   startDelivery
 }
-
+const maxTimeout = Math.pow(2, 31) - 1
 let isDelivering = false
 let nextDelivery = null
 
@@ -107,7 +107,7 @@ async function runDelivery () {
   }
   // only future-dated items left, resume then
   if (toDeliver.waitUntil) {
-    const wait = toDeliver.waitUntil.getTime() - Date.now()
+    const wait = Math.min(toDeliver.waitUntil.getTime() - Date.now(), maxTimeout)
     nextDelivery = setTimeout(() => this.startDelivery(), wait)
     isDelivering = false
     return
