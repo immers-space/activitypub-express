@@ -1,6 +1,5 @@
 'use strict'
-const request = require('request-promise-native')
-const crypto = require('crypto')
+const request = require('./request')
 
 // federation communication utilities
 module.exports = {
@@ -15,24 +14,28 @@ const maxTimeout = Math.pow(2, 31) - 1
 let isDelivering = false
 let nextDelivery = null
 
-function requestObject (id) {
+async function requestObject (id) {
   if (this.isProductionEnv() && this.isLocalhostIRI(id)) {
     return null
   }
   const req = {
     url: id,
+    method: 'GET',
     headers: { Accept: 'application/activity+json' },
-    json: true
   }
   if (this.systemUser) {
     req.httpSignature = {
       key: this.systemUser._meta.privateKey,
       keyId: this.systemUser.id,
-      headers: ['(request-target)', 'host', 'date'],
-      authorizationHeaderName: 'Signature'
+      // headers: ['(request-target)', 'host', 'date'],
+      // authorizationHeaderName: 'Signature'
     }
   }
-  return request(req).then(this.fromJSONLD)
+  return request(req)
+          .then(({body}) => this.fromJSONLD(body))
+          .catch((error) => {
+            console.error(error)
+          })
 }
 
 const refProps = ['inReplyTo', 'object', 'target', 'tag']
@@ -59,25 +62,20 @@ function deliver (actorId, activity, address, signingKey) {
   if (this.isProductionEnv() && this.isLocalhostIRI(address)) {
     return null
   }
-  // digest header added for Mastodon 3.2.1 compatibility
-  const digest = crypto.createHash('sha256')
-    .update(activity)
-    .digest('base64')
+
   return request({
     method: 'POST',
     url: address,
     headers: {
       'Content-Type': this.consts.jsonldOutgoingType,
-      Digest: `SHA-256=${digest}`
     },
+    mastodonCompatible: true,
     httpSignature: {
       key: signingKey,
       keyId: actorId,
-      headers: ['(request-target)', 'host', 'date', 'digest'],
-      authorizationHeaderName: 'Signature'
+      // includeHeaders: ['(request-target)', 'host', 'date', 'digest'],
+      // authorizationHeaderName: 'Signature'
     },
-    resolveWithFullResponse: true,
-    simple: false,
     body: activity
   })
 }
@@ -118,10 +116,11 @@ async function runDelivery () {
   try {
     const { actorId, body, address, signingKey } = toDeliver
     const result = await this.deliver(actorId, body, address, signingKey)
-    this.logger.info('delivery:', address, result.statusCode)
-    if (result.statusCode >= 500) {
+    const statusCode = result.statusCode || result.res.statusCode
+    this.logger.info('delivery:', address, statusCode)
+    if (statusCode >= 500) {
       // 5xx errors will get requeued
-      throw new Error(`Request status ${result.statusCode}`)
+      throw new Error(`Request status ${statusCode}`)
     }
   } catch (err) {
     this.logger.warn(`Delivery error ${err.message}, requeuing`)
