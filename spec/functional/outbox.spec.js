@@ -525,6 +525,26 @@ describe('outbox', function () {
           .expect(201)
           .end(err => { if (err) done(err) })
       })
+      it('handles accept of follow without to field', async function (done) {
+        delete follow.to
+        await apex.store.saveActivity(follow)
+        app.once('apex-outbox', msg => {
+          expect(msg.actor).toEqual(testUser)
+          const exp = merge({ _meta: { collection: ['https://localhost/outbox/test'] } }, activityNormalized)
+          exp.type = 'Accept'
+          exp.object = [follow.id]
+          expect(global.stripIds(msg.activity)).toEqual(exp)
+          follow._meta.collection.push(testUser.followers[0])
+          expect(msg.object).toEqual(follow)
+          done()
+        })
+        request(app)
+          .post('/authorized/outbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(accept)
+          .expect(201)
+          .end(err => { if (err) done(err) })
+      })
       it('publishes collection update', async function (done) {
         const mockedUser = 'https://mocked.com/user/mocked'
         nock('https://mocked.com')

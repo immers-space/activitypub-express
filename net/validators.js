@@ -116,14 +116,13 @@ function inboxActivity (req, res, next) {
       return next()
     }
   } else if (type === 'accept') {
-    // the activity being accepted was sent to the actor trying to accept it
-    if (!object.to.includes(actor.id)) {
-      resLocal.status = 403
-      return next()
-    }
     // for follows, also confirm the follow object was the actor trying to accept it
     const isFollow = object.type.toLowerCase() === 'follow'
     if (isFollow && !apex.validateTarget(object, actor.id)) {
+      resLocal.status = 403
+      return next()
+    } else if (!isFollow && !object.to?.includes(actor.id)) {
+      // the activity being accepted was sent to the actor trying to accept it
       resLocal.status = 403
       return next()
     }
@@ -360,14 +359,13 @@ function outboxActivity (req, res, next) {
     return next()
   }
   if (type === 'accept') {
-    // the activity being accepted was sent to the actor trying to accept it
-    if (!object.to.includes(actor.id)) {
-      resLocal.status = 403
-      return next()
-    }
-    // for follows, also confirm the follow object was the actor trying to accept it
+    // for follows, confirm the follow object was the actor trying to accept it
     const isFollow = object.type.toLowerCase() === 'follow'
     if (isFollow && !apex.validateTarget(object, actor.id)) {
+      resLocal.status = 403
+      return next()
+    } else if (!isFollow && !object.to?.includes(actor.id)) {
+      // for other accepts, check the activity being accepted was sent to the actor trying to accept it
       resLocal.status = 403
       return next()
     }
