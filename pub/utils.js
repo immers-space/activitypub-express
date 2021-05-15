@@ -351,12 +351,13 @@ async function jsonldContextLoader (url, options) {
   const context = await nodeDocumentLoader(url)
   if (context && context.document) {
     try {
+      // save original url in case of redirects
+      context.documentUrl = url
       await this.store.saveContext(context)
     } catch (err) {
       this.logger.error('Error saving jsonld contact cache', err.message)
     }
   }
-  // call the default documentLoader
   return context
 }
 
