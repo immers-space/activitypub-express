@@ -1,4 +1,6 @@
 'use strict'
+const fs = require('fs')
+const path = require('path')
 const jsonld = require('jsonld')
 const merge = require('deepmerge')
 const actorStreamNames = ['inbox', 'outbox', 'following', 'followers', 'liked', 'blocked', 'rejected', 'rejections']
@@ -336,10 +338,27 @@ function validateTarget (object, targetId, prop = 'object') {
   return false
 }
 
+// keep main contexts in memory for speedy access
+const coreContexts = {
+  'https://w3id.org/security/v1': {
+    contextUrl: null,
+    documentUrl: 'https://w3id.org/security/v1',
+    document: JSON.parse(fs.readFileSync(path.resolve(__dirname, '../vocab/security.json')))
+  },
+  'https://www.w3.org/ns/activitystreams': {
+    contextUrl: null,
+    documentUrl: 'https://www.w3.org/ns/activitystreams',
+    document: JSON.parse(fs.readFileSync(path.resolve(__dirname, '../vocab/as.json')))
+  }
+}
 // cached JSONLD contexts to reduce requests an eliminate
 // failures caused when context servers are unavailable
 const nodeDocumentLoader = jsonld.documentLoaders.node()
+
 async function jsonldContextLoader (url, options) {
+  if (coreContexts[url]) {
+    return coreContexts[url]
+  }
   try {
     const cached = await this.store.getContext(url)
     if (cached) {

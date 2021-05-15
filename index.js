@@ -56,7 +56,9 @@ module.exports = function (settings) {
   function onFinishedHandler (err, res) {
     if (err) return
     const apexLocal = res.locals.apex
-    Promise.all(apexLocal.postWork.map(task => task.call(res)))
+    // execute postWork tasks in sequence (not parallel)
+    apexLocal.postWork
+      .reduce((acc, task) => acc.then(() => task(res)), Promise.resolve())
       .then(() => {
         if (apexLocal.eventName) {
           res.app.emit(apexLocal.eventName, apexLocal.eventMessage)
