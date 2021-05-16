@@ -40,6 +40,7 @@ module.exports = function (settings) {
   apex.systemUser = settings.systemUser
   apex.logger = settings.logger || console
   apex.offlineMode = settings.offlineMode
+  apex.requestTimeout = settings.requestTimeout ?? 5000
   apex.utils = {
     usernameToIRI: apex.idToIRIFactory(apex.domain, settings.routes.actor, apex.actorParam),
     objectIdToIRI: apex.idToIRIFactory(apex.domain, settings.routes.object, apex.objectParam),
