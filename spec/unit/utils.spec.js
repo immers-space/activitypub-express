@@ -57,7 +57,7 @@ describe('utils', function () {
         contextUrl: null
       })
     })
-    it('fetches and caches new contexts', async function () {
+    it('caches redirected contexts by original url', async function () {
       nock('https://mocked.com')
         .get('/context/v1')
         .reply(302, undefined, {
