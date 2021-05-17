@@ -331,7 +331,23 @@ describe('inbox', function () {
           .expect(200)
           .end(err => { if (err) done(err) })
       })
+      it('handles accept to follow without a to field', async function (done) {
+        delete follow.to
+        await apex.store.saveActivity(follow)
+        app.once('apex-inbox', msg => {
+          expect(msg.object.id).toEqual(follow.id)
+          expect(msg.object._meta.collection).toContain(testUser.following[0])
+          done()
+        })
+        request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(accept)
+          .expect(200)
+          .end(err => { if (err) done(err) })
+      })
       it('rejects accept from non-recipients of original activity', async function (done) {
+        follow.type = 'Offer'
         follow.to = ['https://ignore.com/sally']
         await apex.store.saveActivity(follow)
         app.once('apex-inbox', msg => {

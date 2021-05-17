@@ -22,7 +22,8 @@ function requestObject (id) {
   const req = {
     url: id,
     headers: { Accept: 'application/activity+json' },
-    json: true
+    json: true,
+    timeout: this.requestTimeout
   }
   if (this.systemUser) {
     req.httpSignature = {
@@ -78,6 +79,7 @@ function deliver (actorId, activity, address, signingKey) {
     },
     resolveWithFullResponse: true,
     simple: false,
+    timeout: this.requestTimeout,
     body: activity
   })
 }

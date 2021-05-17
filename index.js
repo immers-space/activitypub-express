@@ -40,6 +40,7 @@ module.exports = function (settings) {
   apex.systemUser = settings.systemUser
   apex.logger = settings.logger || console
   apex.offlineMode = settings.offlineMode
+  apex.requestTimeout = settings.requestTimeout ?? 5000
   apex.utils = {
     usernameToIRI: apex.idToIRIFactory(apex.domain, settings.routes.actor, apex.actorParam),
     objectIdToIRI: apex.idToIRIFactory(apex.domain, settings.routes.object, apex.objectParam),
@@ -56,7 +57,9 @@ module.exports = function (settings) {
   function onFinishedHandler (err, res) {
     if (err) return
     const apexLocal = res.locals.apex
-    Promise.all(apexLocal.postWork.map(task => task.call(res)))
+    // execute postWork tasks in sequence (not parallel)
+    apexLocal.postWork
+      .reduce((acc, task) => acc.then(() => task(res)), Promise.resolve())
       .then(() => {
         if (apexLocal.eventName) {
           res.app.emit(apexLocal.eventName, apexLocal.eventMessage)

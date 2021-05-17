@@ -57,6 +57,34 @@ describe('utils', function () {
         contextUrl: null
       })
     })
+    it('caches redirected contexts by original url', async function () {
+      nock('https://mocked.com')
+        .get('/context/v1')
+        .reply(302, undefined, {
+          Location: 'http://redirect.com/context/v1'
+        })
+      nock('http://redirect.com')
+        .get('/context/v1')
+        .reply(200, context)
+      const doc = {
+        '@context': 'https://mocked.com/context/v1',
+        id: 'https://mocked.com/s/abc123',
+        customProp: 'https://mocked.com/s/123abc'
+      }
+      const ld = await apex.toJSONLD(doc)
+      expect(ld).toEqual({
+        '@context': apex.context,
+        id: 'https://mocked.com/s/abc123',
+        'https://mocked.com/context/v1#customProp': {
+          id: 'https://mocked.com/s/123abc'
+        }
+      })
+      expect(await apex.store.getContext('https://mocked.com/context/v1')).toEqual({
+        documentUrl: 'https://mocked.com/context/v1',
+        document: JSON.stringify(context),
+        contextUrl: null
+      })
+    })
     it('uses cached context', async function () {
       await apex.store.saveContext({
         documentUrl: 'https://mocked.com/context/v1',
