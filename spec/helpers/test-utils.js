@@ -17,10 +17,15 @@ global.initApex = async function initApex () {
     collections: '/u/:actor/c/:id',
     blocked: '/u/:actor/blocked',
     rejections: '/u/:actor/rejections',
-    rejected: '/u/:actor/rejected'
+    rejected: '/u/:actor/rejected',
+    nodeinfo: '/nodeinfo'
   }
   const app = express()
   const apex = ActivitypubExpress({
+    name: 'Apex Test Suite',
+    version: process.env.npm_package_version,
+    openRegistrations: false,
+    nodeInfoMetadata: { foo: 'bar' },
     domain: 'localhost',
     actorParam: 'actor',
     objectParam: 'id',
@@ -29,6 +34,13 @@ global.initApex = async function initApex () {
     endpoints: {
       uploadMedia: 'https://localhost/upload',
       oauthAuthorizationEndpoint: 'https://localhost/auth/authorize'
+    },
+    info: {
+      softwareName: 'ActivityPub Express',
+      version: '2.3.0',
+      metadata: {
+        foo: 'bar'
+      }
     }
   })
 

@@ -39,6 +39,10 @@ module.exports = class IApexStore {
     throw new Error('Not implemented')
   }
 
+  getUsercount () {
+    throw new Error('Not implemented')
+  }
+
   saveContext (context) {
     throw new Error('Not implemented')
   }

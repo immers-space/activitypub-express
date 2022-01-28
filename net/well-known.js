@@ -2,8 +2,40 @@
 const acctReg = /acct:[@~]?([^@]+)@?(.*)/
 
 module.exports = {
+  respondNodeInfo,
+  respondNodeInfoLocation,
   parseWebfinger,
   respondWebfinger
+}
+
+async function respondNodeInfo (req, res, next) {
+  const apex = req.app.locals.apex
+  try {
+    const version = req.params.version || '2.1'
+    if (version[0] !== '2') {
+      return res.status(404).send('Only nodeinfo 2.x supported')
+    }
+    res.json(await apex.generateNodeInfo(version))
+  } catch (err) {
+    console.error('Error generating nodeInfo', err.message)
+    res.sendStatus(500)
+  }
+}
+
+function respondNodeInfoLocation (req, res, next) {
+  const apex = req.app.locals.apex
+  res.json({
+    links: [
+      {
+        rel: 'http://nodeinfo.diaspora.software/ns/schema/2.1',
+        href: `https://${apex.domain}/nodeinfo/2.1`
+      },
+      {
+        rel: 'http://nodeinfo.diaspora.software/ns/schema/2.0',
+        href: `https://${apex.domain}/nodeinfo/2.0`
+      }
+    ]
+  })
 }
 
 async function parseWebfinger (req, res, next) {

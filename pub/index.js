@@ -7,5 +7,6 @@ module.exports = {
   ...require('./collection'),
   ...require('./federation'),
   ...require('./object'),
-  ...require('./utils')
+  ...require('./utils'),
+  ...require('./nodeinfo')
 }

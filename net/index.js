@@ -166,5 +166,11 @@ module.exports = {
       validators.targetActor,
       wellKnown.respondWebfinger
     ]
+  },
+  nodeInfo: {
+    get: [wellKnown.respondNodeInfo]
+  },
+  nodeInfoLocation: {
+    get: [wellKnown.respondNodeInfoLocation]
   }
 }

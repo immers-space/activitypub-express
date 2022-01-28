@@ -6,6 +6,7 @@ const IApexStore = require('./interface')
 function escapeClone (obj) {
   return escape(merge({}, obj))
 }
+const localUserQuery = { type: 'Person', '_meta.privateKey': { $exists: true } }
 
 class ApexStore extends IApexStore {
   constructor () {
@@ -75,6 +76,8 @@ class ApexStore extends IApexStore {
       .createIndex({ id: 1 }, { unique: true, name: 'objects-primary' })
     await db.collection('deliveryQueue')
       .createIndex({ after: 1, _id: 1 }, { name: 'delivery-dequeue' })
+    await db.collection('objects')
+      .createIndex({ id: 1, type: 1 }, { name: 'local-user-count', partialFilterExpression: localUserQuery })
     // TODO: index stream.object.id for updates
     // also need partial index on stream.object.object.id for object updates when
     // type is  'announce', 'like', 'add', 'reject' (denormalized collection types)
@@ -205,6 +208,12 @@ class ApexStore extends IApexStore {
     return this.db
       .collection('streams')
       .countDocuments({ '_meta.collection': collectionId })
+  }
+
+  getUserCount () {
+    return this.db
+      .collection('objects')
+      .countDocuments(localUserQuery, { hint: 'local-user-count' })
   }
 
   async saveActivity (activity) {

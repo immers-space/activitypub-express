@@ -43,6 +43,8 @@ const routes = {
   likes: '/s/:id/likes'
 }
 const apex = ActivitypubExpress({
+  name: 'Apex Example',
+  version: '1.0.0',
   domain: 'localhost',
   actorParam: 'actor',
   objectParam: 'id',
@@ -68,6 +70,8 @@ app.get(routes.activity, apex.net.activityStream.get)
 app.get(routes.shares, apex.net.shares.get)
 app.get(routes.likes, apex.net.likes.get)
 app.get('/.well-known/webfinger', apex.net.webfinger.get)
+app.get('/.well-known/nodeinfo', apex.net.nodeInfoLocation.get)
+app.get('/nodeinfo/:version', apex.net.nodeInfo.get)
 // custom side-effects for your app
 app.on('apex-outbox', msg => {
   if (msg.activity.type === 'Create') {
@@ -107,6 +111,8 @@ app.use(apex)
 Option | Description
 --- | ---
 **Required** |
+name | String. Name of your app to list in nodeinfo
+version | String. Version of your app to list in nodeinfo
 domain | String. Hostname for your app
 actorParam | String. Express route parameter used for actor name
 objectParam | String. Express route parameter used for object id
@@ -138,6 +144,8 @@ threadDepth | Controls how far up apex will follow links in incoming activities 
 systemUser | Actor object representing system and used for signing GETs (see below)
 offlineMode | Disable delivery. Useful for running migrations and queueing deliveries to be sent when app is running
 requestTimeout | Timeout for requests to other servers, ms (default 5000)
+openRegistrations | Advertise via nodeinfo if an instance allows instant registration (default false)
+nodeInfoMetadata | Object of additional data to provde in nodeinfo reponses
 
 Blocked, rejections, and rejected: these routes must be defined in order to track
 these items internally for each actor, but they do not need to be exposed endpoints
@@ -252,6 +260,7 @@ A: Run `npm dedupe` to ensure `request` library is using the patched version of 
     * [x] webfinger
     * [x] json-ld
       * [x] Context cache
+    * [x] nodeinfo
     * [ ] Linked data signatures
   * [x] Storage model (denormalized MongoDB)
     * [ ] Index coverage for all queries
