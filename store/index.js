@@ -158,10 +158,18 @@ class ApexStore extends IApexStore {
   getContext (documentUrl) {
     return this.db.collection('contexts')
       .findOne({ documentUrl }, { projection: { _id: 0 } })
+      .then(context => {
+        context.document = JSON.parse(context.document)
+        return context
+      })
   }
 
-  saveContext (context) {
-    const { documentUrl } = context
+  saveContext ({ contextUrl, documentUrl, document }) {
+    const context = {
+      contextUrl,
+      documentUrl,
+      document: typeof document === 'object' ? JSON.stringify(document) : document
+    }
     return this.db.collection('contexts')
       .replaceOne({ documentUrl }, context, { forceServerObjectId: true, upsert: true })
   }
