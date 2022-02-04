@@ -53,7 +53,7 @@ describe('utils', function () {
       })
       expect(await apex.store.getContext('https://mocked.com/context/v1')).toEqual({
         documentUrl: 'https://mocked.com/context/v1',
-        document: JSON.stringify(context),
+        document: context,
         contextUrl: null
       })
     })
@@ -81,7 +81,7 @@ describe('utils', function () {
       })
       expect(await apex.store.getContext('https://mocked.com/context/v1')).toEqual({
         documentUrl: 'https://mocked.com/context/v1',
-        document: JSON.stringify(context),
+        document: context,
         contextUrl: null
       })
     })

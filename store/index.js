@@ -53,7 +53,7 @@ class ApexStore extends IApexStore {
     delivery.after = new Date(nextTime)
     const result = await this.db.collection('deliveryQueue')
       .insertOne(delivery, { forceServerObjectId: true })
-    return result.insertedCount
+    return result.acknowledged
   }
 
   async setup (initialUser) {
@@ -87,7 +87,7 @@ class ApexStore extends IApexStore {
         initialUser,
         {
           upsert: true,
-          returnOriginal: false
+          returnDocument: 'after'
         }
       )
     }
@@ -108,10 +108,10 @@ class ApexStore extends IApexStore {
     return this.db.collection('objects')
       .insertOne(escapeClone(object), { forceServerObjectId: true })
       .then(result => {
-        return !!result.insertedCount
+        return !!result.acknowledged
       })
       .catch(err => {
-        if (!(err.code === 11000 && err.name === 'MongoError')) {
+        if (!(err.code === 11000 && err.name === 'MongoServerError')) {
           throw err
         }
         return false
@@ -158,10 +158,18 @@ class ApexStore extends IApexStore {
   getContext (documentUrl) {
     return this.db.collection('contexts')
       .findOne({ documentUrl }, { projection: { _id: 0 } })
+      .then(context => {
+        context.document = JSON.parse(context.document)
+        return context
+      })
   }
 
-  saveContext (context) {
-    const { documentUrl } = context
+  saveContext ({ contextUrl, documentUrl, document }) {
+    const context = {
+      contextUrl,
+      documentUrl,
+      document: typeof document === 'object' ? JSON.stringify(document) : document
+    }
     return this.db.collection('contexts')
       .replaceOne({ documentUrl }, context, { forceServerObjectId: true, upsert: true })
   }
@@ -221,10 +229,10 @@ class ApexStore extends IApexStore {
     try {
       const insertResult = await this.db.collection('streams')
         .insertOne(escapeClone(activity), { forceServerObjectId: true })
-      inserted = insertResult.insertedCount
+      inserted = insertResult.acknowledged
     } catch (err) {
       // if duplicate key error, ignore and return undefined
-      if (err.name !== 'MongoError' || err.code !== 11000) throw (err)
+      if (err.name !== 'MongoServerError' || err.code !== 11000) throw (err)
     }
     return inserted
   }
@@ -244,7 +252,7 @@ class ApexStore extends IApexStore {
     } else {
       result = await this.db.collection('streams')
         .findOneAndUpdate(query, this.objectToUpdateDoc(activity), {
-          returnOriginal: false,
+          returnDocument: 'after',
           projection: this.metaProj
         })
       activity = result?.value ?? activity
@@ -264,7 +272,7 @@ class ApexStore extends IApexStore {
     }
     const q = { id: activity.id }
     const result = await this.db.collection('streams')
-      .findOneAndUpdate(q, op, { projection: this.metaProj, returnOriginal: false })
+      .findOneAndUpdate(q, op, { projection: this.metaProj, returnDocument: 'after' })
     if (!result.ok || !result.value) {
       throw new Error('Error updating activity meta: not found')
     }
@@ -315,7 +323,7 @@ class ApexStore extends IApexStore {
     }
     return this.db.collection('objects')
       .findOneAndUpdate(q, this.objectToUpdateDoc(object), {
-        returnOriginal: false,
+        returnDocument: 'after',
         projection: this.projection
       })
       .then(result => result.value)

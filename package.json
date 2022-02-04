@@ -28,21 +28,21 @@
   "homepage": "https://github.com/wmurphyrd/activitypub-express#readme",
   "dependencies": {
     "deepmerge": "^4.2.2",
-    "express": "^4.17.1",
+    "express": "^4.17.2",
     "http-signature": "github:wmurphyrd/node-http-signature#9c02eeb",
-    "jsonld": "^3.2.0",
+    "jsonld": "^5.2.0",
     "mongo-escape": "^2.0.6",
-    "mongodb": "^3.6.3",
+    "mongodb": "^4.3.1",
     "on-finished": "^2.3.0",
     "overlaps": "^1.0.0",
-    "request": "^2.88.0",
-    "request-promise-native": "^1.0.7"
+    "request": "^2.88.2",
+    "request-promise-native": "^1.0.9"
   },
   "devDependencies": {
     "jasmine": "^3.5.0",
     "jasmine-spec-reporter": "^4.2.1",
-    "nock": "^12.0.3",
-    "standard": "^16.0.3",
-    "supertest": "^4.0.2"
+    "nock": "^13.2.4",
+    "standard": "^16.0.4",
+    "supertest": "^6.2.2"
   }
 }
