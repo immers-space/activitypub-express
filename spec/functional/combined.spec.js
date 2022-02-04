@@ -88,6 +88,8 @@ describe('combined inbox/outbox flows', function () {
       content: 'Hello world',
       to: testUser.followers
     }
+    // try to avoid race between background update and the note sent next
+    await new Promise(resolve => setTimeout(resolve, 50))
     await request(app)
       .post('/outbox/test')
       .set('Content-Type', 'application/activity+json')

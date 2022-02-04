@@ -32,7 +32,7 @@
     "http-signature": "github:wmurphyrd/node-http-signature#9c02eeb",
     "jsonld": "^5.2.0",
     "mongo-escape": "^2.0.6",
-    "mongodb": "^3.6.3",
+    "mongodb": "^4.3.1",
     "on-finished": "^2.3.0",
     "overlaps": "^1.0.0",
     "request": "^2.88.2",
