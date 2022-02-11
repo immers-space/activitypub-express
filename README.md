@@ -1,6 +1,11 @@
 # activitypub-express
 
-[![Build Status](https://travis-ci.com/immers-space/activitypub-express.svg?branch=master)](https://travis-ci.com/immers-space/activitypub-express)
+[![npm](https://img.shields.io/npm/v/activitypub-express)](https://npmjs.com/activitypub-express)
+[![npm](https://img.shields.io/npm/dw/activitypub-express)](https://npmjs.com/activitypub-express)
+[![Build Status](https://app.travis-ci.com/immers-space/activitypub-express.svg?branch=master)](https://travis-ci.com/github/immers-space/activitypub-express)
+[![Matrix](https://img.shields.io/matrix/immers-space:matrix.org?label=Matrix%20chat)](https://matrix.to/#/#immers-space:matrix.org)
+[![Open Collective](https://opencollective.com/immers-space/tiers/badge.svg)](https://opencollective.com/immers-space)
+
 
 Modular implementation of the ActivityPub decentralized social networking protocol,
 written for NodeJS as ExpressJS middleware.
