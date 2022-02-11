@@ -1,6 +1,7 @@
 /* global describe, beforeAll, beforeEach, it, expect */
 const express = require('express')
 const request = require('supertest')
+const nock = require('nock')
 
 describe('resources', function () {
   let testUser
@@ -17,6 +18,7 @@ describe('resources', function () {
     router.get('/u/:actor', apex.net.actor.get)
     router.get('/o/:id', apex.net.object.get)
     router.get('/s/:id', apex.net.activityStream.get)
+    router.post('/proxy', apex.net.proxy.post)
     app.use(router)
     app.use('/authorized', (req, res, next) => {
       req.user = { username: 'test' }
@@ -53,7 +55,8 @@ describe('resources', function () {
             endpoints: {
               id: 'https://localhost/u/test#endpoints',
               uploadMedia: 'https://localhost/upload',
-              oauthAuthorizationEndpoint: 'https://localhost/auth/authorize'
+              oauthAuthorizationEndpoint: 'https://localhost/auth/authorize',
+              proxyUrl: 'https://localhost/proxy'
             }
           }
           expect(res.body).toEqual(standard)
@@ -261,6 +264,37 @@ describe('resources', function () {
           })
           done(err)
         })
+    })
+  })
+  describe('proxy remote objects', function () {
+    it('fetches the remote resouce', function (done) {
+      nock('https://mocked.com')
+        .get('/abc123')
+        .reply(200, { id: 'https://mocked.com/abc123', type: 'Note', summary: 'I am a remote resource' })
+      request(app)
+        .post('/proxy')
+        .type('form')
+        .send({ id: 'https://mocked.com/abc123' })
+        .set('Accept', apex.consts.jsonldTypes[0])
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body).toEqual({
+            '@context': ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1'],
+            id: 'https://mocked.com/abc123',
+            type: 'Note',
+            summary: 'I am a remote resource'
+          })
+          done(err)
+        })
+    })
+    it('handles invalid request', function () {
+      return request(app)
+        .post('/proxy')
+        .type('form')
+        // property should be id
+        .send({ foo: 'https://mocked.com/abc123' })
+        .set('Accept', apex.consts.jsonldTypes[0])
+        .expect(400)
     })
   })
 })

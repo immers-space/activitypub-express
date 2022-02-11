@@ -49,11 +49,18 @@ const apex = ActivitypubExpress({
   actorParam: 'actor',
   objectParam: 'id',
   activityParam: 'id',
-  routes
+  routes,
+  endpoints: {
+    proxyUrl: 'https://localhost/proxy'
+  }
 })
 const client = new MongoClient('mongodb://localhost:27017', { useUnifiedTopology: true, useNewUrlParser: true })
 
-app.use(express.json({ type: apex.consts.jsonldTypes }), apex)
+app.use(
+  express.json({ type: apex.consts.jsonldTypes }),
+  express.urlencoded({ extended: true }),
+  apex
+)
 // define routes using prepacakged middleware collections
 app.route(routes.inbox)
   .get(apex.net.inbox.get)
@@ -72,6 +79,7 @@ app.get(routes.likes, apex.net.likes.get)
 app.get('/.well-known/webfinger', apex.net.webfinger.get)
 app.get('/.well-known/nodeinfo', apex.net.nodeInfoLocation.get)
 app.get('/nodeinfo/:version', apex.net.nodeInfo.get)
+app.post('/proxy', apex.net.proxy.post)
 // custom side-effects for your app
 app.on('apex-outbox', msg => {
   if (msg.activity.type === 'Create') {
@@ -199,7 +207,7 @@ A: Run `npm dedupe` to ensure `request` library is using the patched version of 
         * [x] Shares
       * [x] Misc collections (of activities)
       * [x] Pagination
-    * [ ] Relay requests for remote objects
+    * [x] Relay requests for remote objects
     * [x] Response code 410 for Tombstones
   * [x] Security
     * [x] Permission-based filtering

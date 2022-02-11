@@ -23,12 +23,14 @@ describe('actor utils', function () {
       expect(testUser.endpoints).toEqual([{
         id: 'https://localhost/u/test#endpoints',
         uploadMedia: ['https://localhost/upload'],
-        oauthAuthorizationEndpoint: ['https://localhost/auth/authorize']
+        oauthAuthorizationEndpoint: ['https://localhost/auth/authorize'],
+        proxyUrl: ['https://localhost/proxy']
       }])
       expect((await apex.toJSONLD(testUser)).endpoints).toEqual({
         id: 'https://localhost/u/test#endpoints',
         uploadMedia: 'https://localhost/upload',
-        oauthAuthorizationEndpoint: 'https://localhost/auth/authorize'
+        oauthAuthorizationEndpoint: 'https://localhost/auth/authorize',
+        proxyUrl: 'https://localhost/proxy'
       })
     })
   })

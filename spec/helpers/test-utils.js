@@ -33,7 +33,8 @@ global.initApex = async function initApex () {
     routes,
     endpoints: {
       uploadMedia: 'https://localhost/upload',
-      oauthAuthorizationEndpoint: 'https://localhost/auth/authorize'
+      oauthAuthorizationEndpoint: 'https://localhost/auth/authorize',
+      proxyUrl: 'https://localhost/proxy'
     },
     info: {
       softwareName: 'ActivityPub Express',
@@ -44,7 +45,11 @@ global.initApex = async function initApex () {
     }
   })
 
-  app.use(express.json({ type: apex.consts.jsonldTypes }), apex)
+  app.use(
+    express.json({ type: apex.consts.jsonldTypes }),
+    express.urlencoded({ extended: true }),
+    apex
+  )
   app.use(function (err, req, res, next) {
     console.log(err)
     next(err)

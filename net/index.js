@@ -172,5 +172,12 @@ module.exports = {
   },
   nodeInfoLocation: {
     get: [wellKnown.respondNodeInfoLocation]
+  },
+  proxy: {
+    post: [
+      validators.jsonld,
+      validators.targetProxied,
+      responders.target
+    ]
   }
 }
