@@ -56,7 +56,7 @@ const apex = ActivitypubExpress({
   activityParam: 'id',
   routes
 })
-const client = new MongoClient('mongodb://localhost:27017', { useUnifiedTopology: true, useNewUrlParser: true })
+const client = new MongoClient('mongodb://localhost:27017')
 
 app.use(express.json({ type: apex.consts.jsonldTypes }), apex)
 // define routes using prepacakged middleware collections
@@ -89,7 +89,7 @@ app.on('apex-inbox', msg => {
   }
 })
 
-client.connect({ useNewUrlParser: true })
+client.connect()
   .then(() => {
     apex.store.db = client.db('DB_NAME')
     return apex.store.setup()
