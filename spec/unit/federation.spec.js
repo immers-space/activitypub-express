@@ -172,12 +172,6 @@ describe('federation', function () {
       )
       await apex.queueForDelivery(testUser, body, addresses)
       setTimeout(() => {
-        expect(apex.deliver).toHaveBeenCalledTimes(4)
-      }, 25)
-      setTimeout(() => {
-        expect(apex.deliver).toHaveBeenCalledTimes(4)
-      }, 99)
-      setTimeout(() => {
         expect(apex.deliver).toHaveBeenCalledTimes(5)
         done()
       }, 150)
@@ -194,12 +188,8 @@ describe('federation', function () {
       )
       await apex.queueForDelivery(testUser, body, addresses)
       setTimeout(() => {
-        expect(apex.deliver).toHaveBeenCalledTimes(4)
         apex.queueForDelivery(testUser, body, addresses.slice(0, 1))
       }, 20)
-      setTimeout(() => {
-        expect(apex.deliver).toHaveBeenCalledTimes(5)
-      }, 50)
       setTimeout(() => {
         expect(apex.deliver).toHaveBeenCalledTimes(6)
         expect(apex.deliver.calls.mostRecent().args).toEqual([
