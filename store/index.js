@@ -159,7 +159,9 @@ class ApexStore extends IApexStore {
     return this.db.collection('contexts')
       .findOne({ documentUrl }, { projection: { _id: 0 } })
       .then(context => {
-        context.document = JSON.parse(context.document)
+        if (context) {
+          context.document = JSON.parse(context.document)
+        }
         return context
       })
   }
