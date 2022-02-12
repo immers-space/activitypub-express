@@ -11,7 +11,8 @@ module.exports = {
   targetActivity,
   targetActor,
   targetActorWithMeta,
-  targetObject
+  targetObject,
+  targetProxied
 }
 
 const needsResolveObject = ['block', 'create', 'follow']
@@ -139,7 +140,9 @@ async function jsonld (req, res, next) {
   const apex = req.app.locals.apex
   const jsonldAccepted = req.accepts(apex.consts.jsonldTypes)
   // rule out */* requests
-  if (req.method === 'GET' && !req.accepts('text/html') && jsonldAccepted) {
+  const isJsonLdGet = req.method === 'GET' && !req.accepts('text/html') && jsonldAccepted
+  const isJsonLdProxy = req.method === 'POST' && jsonldAccepted && req.is(apex.consts.formUrlType)
+  if (isJsonLdGet || isJsonLdProxy) {
     res.locals.apex.responseType = jsonldAccepted
     return next()
   }
@@ -234,6 +237,20 @@ async function targetObject (req, res, next) {
     return res.status(404).send(`'${oid}' not found`)
   }
   res.locals.apex.target = obj
+  next()
+}
+
+async function targetProxied (req, res, next) {
+  const apex = req.app.locals.apex
+  const locals = res.locals.apex
+  if (!req.body?.id) {
+    locals.status = 400
+    locals.statusMessage = 'Proxy requests is missing "id" parameter in form body'
+    return next()
+  }
+  try {
+    locals.target = await apex.resolveUnknown(req.body.id)
+  } catch (err) { return next(err) }
   next()
 }
 

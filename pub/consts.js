@@ -3,6 +3,7 @@ module.exports = {
     'https://www.w3.org/ns/activitystreams',
     'https://w3id.org/security/v1'
   ],
+  formUrlType: 'application/x-www-form-urlencoded',
   jsonldTypes: [
     'application/ld+json',
     'application/activity+json'

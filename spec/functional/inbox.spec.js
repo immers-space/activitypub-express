@@ -1159,7 +1159,7 @@ describe('inbox', function () {
     describe('asynchronicity', function () {
       it('adds to each collection in rapid, duplicate delivery', async function () {
         const users = await Promise.all(
-          [1, 2, 3, 4].map(async i => {
+          [1, 2, 3].map(async i => {
             const user = await apex.createActor(`test${i}`, `Test ${i}`)
             await apex.store.saveObject(user)
             return user
