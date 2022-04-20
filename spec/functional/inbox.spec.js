@@ -498,6 +498,13 @@ describe('inbox', function () {
         expect(result).toBeFalsy()
         done()
       })
+      it('succeeds if the undone activity is already deleted', function () {
+        return request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(undo)
+          .expect(200)
+      })
       it('publishes followers collection updates', async function (done) {
         const mockedUser = 'https://mocked.com/user/mocked'
         undone.type = 'Follow'

@@ -23,7 +23,8 @@ const obxNeedsLocalObject = ['delete', 'update']
 const needsInlineObject = ['update']
 const obxNeedsInlineObject = ['create']
 const requiresObject = ['create', 'delete', 'follow', 'update']
-const requiresActivityObject = ['add', 'accept', 'announce', 'like', 'reject', 'remove', 'undo']
+const requiresActivityObject = ['add', 'accept', 'announce', 'like', 'reject', 'remove']
+const obxRequiresActivityObject = ['add', 'accept', 'announce', 'like', 'reject', 'remove', 'undo']
 const requiresObjectOwnership = ['delete', 'undo', 'update']
 const requiresTarget = ['add', 'remove']
 
@@ -101,7 +102,7 @@ function inboxActivity (req, res, next) {
     resLocal.statusMessage = `Object requried for ${activity.type} activity`
     return next()
   }
-  if (requiresObjectOwnership.includes(type) && !apex.validateOwner(object, actor)) {
+  if (requiresObjectOwnership.includes(type) && object && !apex.validateOwner(object, actor)) {
     resLocal.status = 403
     return next()
   }
@@ -115,6 +116,13 @@ function inboxActivity (req, res, next) {
       resLocal.status = 400
       resLocal.statusMessage = 'Activities cannot be deleted, use Undo'
       return next()
+    }
+  } else if (type === 'undo' && object) {
+    // only validate object if it was found, undo should succeed
+    // if be processed after object was deleted
+    if (!apex.validateActivity(object)) {
+      resLocal.status = 400
+      resLocal.statusMessage = 'Undo can only be used on activities, use Delete'
     }
   } else if (type === 'accept') {
     // for follows, also confirm the follow object was the actor trying to accept it
@@ -356,7 +364,7 @@ function outboxActivity (req, res, next) {
   }
   const type = activity.type.toLowerCase()
   activity.id = apex.utils.activityIdToIRI()
-  if (requiresActivityObject.includes(type) && !apex.validateActivity(object)) {
+  if (obxRequiresActivityObject.includes(type) && !apex.validateActivity(object)) {
     resLocal.status = 400
     resLocal.statusMessage = `Activity type object requried for ${activity.type} activity`
     return next()
