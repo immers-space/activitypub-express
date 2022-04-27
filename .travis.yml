@@ -7,3 +7,7 @@ cache: npm
 
 services:
   - mongodb
+
+jobs:
+  - script: 'npm test'
+  - script: 'npm run coverage'

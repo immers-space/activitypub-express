@@ -1,0 +1,6 @@
+{
+  "exclude": [
+    "store/interface.js",
+    "spec/"
+  ]
+}
