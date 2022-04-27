@@ -19,6 +19,39 @@ describe('utils', function () {
   beforeEach(function () {
     return global.resetDb(apex, client, testUser)
   })
+  describe('jsonld processing', function () {
+    it('handles context arrays with language tag', async function () {
+      const processed = await apex.fromJSONLD({
+        '@context': [
+          'https://www.w3.org/ns/activitystreams',
+          {
+            '@language': 'und'
+          }
+        ],
+        // simple string
+        name: 'Username',
+        // language mappable string
+        preferredUsername: 'Display name',
+        type: 'Person'
+      })
+      expect(processed.name).toEqual(['Username'])
+      expect(processed.preferredUsername).toEqual(['Display name'])
+    })
+    it('handles single contexts with language tag', async function () {
+      const processed = await apex.fromJSONLD({
+        '@context': {
+          '@language': 'und'
+        },
+        // simple string
+        'https://www.w3.org/ns/activitystreams#name': 'Username',
+        // language mappable string
+        'https://www.w3.org/ns/activitystreams#preferredUsername': 'Display name',
+        type: 'Person'
+      })
+      expect(processed.name).toEqual(['Username'])
+      expect(processed.preferredUsername).toEqual(['Display name'])
+    })
+  })
   describe('jsonld context caching', function () {
     let context
     beforeEach(function () {

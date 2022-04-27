@@ -1,3 +1,7 @@
+## Unreleased
+
+* Ignore incoming JSON-LD default language to fix processing for activities coming from Pleroma
+
 ## v3.1.1
 
 * Fix inbox undo not succeeding if the object was already deleted
