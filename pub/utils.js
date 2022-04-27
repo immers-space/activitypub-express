@@ -166,6 +166,21 @@ async function fromJSONLD (obj) {
   if (!('@context' in obj)) {
     // if context is missing, try filling in ours
     opts.expandContext = this.context
+  } else if (Array.isArray(obj['@context'])) {
+    /*
+      default language tags alter the structure of the processed
+      jsonld, replacing some strings (preferredUsername) with
+      objects and renaming some keys (summary->summaryMap),
+      so just strip them for now so we can be compatible with
+      pleroma
+    */
+    obj['@context'].forEach(ctx => {
+      if (ctx['@language']) {
+        ctx['@language'] = null
+      }
+    })
+  } else if (obj['@context']['@language']) {
+    obj['@context']['@language'] = null
   }
   const compact = await jsonld.compact(obj, this.context, opts)
   // strip context and graph wrapper for easier access
