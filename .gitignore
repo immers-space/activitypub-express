@@ -2,3 +2,5 @@ node_modules
 *.code-workspace
 .vscode
 .npmrc
+coverage
+.nyc_output
