@@ -1,4 +1,4 @@
-## Unreleased
+## v3.1.2
 
 * Ignore incoming JSON-LD default language to fix processing for activities coming from Pleroma
 
