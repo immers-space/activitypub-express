@@ -387,6 +387,34 @@ describe('outbox', function () {
           .expect(201)
           .end(err => { if (err) done(err) })
       })
+      it('unblocks if object is blocked actor', async function (done) {
+        const mockedUser = 'https://mocked.com/user/mocked'
+        undone.type = 'Block'
+        undone.object = [mockedUser]
+        apex.addMeta(undone, 'collection', apex.utils.nameToBlockedIRI(testUser.preferredUsername))
+        undone.to = [mockedUser]
+        await apex.store.saveActivity(undone)
+        expect((await apex.getBlocked(testUser, Infinity, true)).orderedItems)
+          .toEqual([mockedUser])
+        undo = {
+          type: 'Undo',
+          actor: testUser.id,
+          object: mockedUser,
+          to: mockedUser
+        }
+        app.once('apex-outbox', async () => {
+          // blocklist updated
+          expect((await apex.getBlocked(testUser, Infinity, true)).orderedItems)
+            .toEqual([])
+          done()
+        })
+        request(app)
+          .post('/authorized/outbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(undo)
+          .expect(201)
+          .end(err => { if (err) done(err) })
+      })
     })
     describe('update', function () {
       let sourceObj
