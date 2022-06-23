@@ -1,3 +1,7 @@
+## Unreleased
+
+* Undo activity can now take a blocked user IRI as its object and will resolve to that block activity to allow easily unblocking withough knowing the original block activity IRI
+
 ## v3.1.2
 
 * Ignore incoming JSON-LD default language to fix processing for activities coming from Pleroma

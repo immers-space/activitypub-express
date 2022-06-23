@@ -323,10 +323,18 @@ function outboxActivityObject (req, res, next) {
   }
   Promise.resolve(object).then(async obj => {
     resLocal.object = obj
-    // for unfollow, clients dont have easy access to old follow activitiy ids,
-    // so they can send an actor id and server will find related follow
-    if (!obj && type === 'undo') {
-      const actorId = apex.objectIdFromActivity(activity)
+    // for unfollow/unblock, clients dont have easy access to old activitiy ids,
+    // so they can send an actor id and server will find related follow/block
+    const actorId = apex.objectIdFromActivity(activity)
+    if (!obj && type === 'undo' && resLocal.target._local.blockList.includes(actorId)) {
+      const blockedCollection = apex.utils.nameToBlockedIRI(resLocal.target.preferredUsername)
+      const block = await apex.store
+        .findActivityByCollectionAndObjectId(blockedCollection, actorId, true)
+      if (block) {
+        activity.object = [block]
+        resLocal.object = block
+      }
+    } else if (!obj && type === 'undo') {
       const follow = await apex.store
         .findActivityByCollectionAndObjectId(resLocal.target.following[0], actorId, true)
       if (follow) {
@@ -334,7 +342,6 @@ function outboxActivityObject (req, res, next) {
         resLocal.object = follow
       }
     } else if (!obj && type === 'reject') {
-      const actorId = apex.objectIdFromActivity(activity)
       const follow = await apex.store
         .findActivityByCollectionAndActorId(resLocal.target.followers[0], actorId, true)
       if (follow) {
