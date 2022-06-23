@@ -1,6 +1,6 @@
 {
   "name": "activitypub-express",
-  "version": "3.1.2",
+  "version": "3.2.0",
   "description": "Modular ActivityPub implementation as Express middleware to easily add decentralization and federation to Node apps",
   "main": "index.js",
   "engines": {
