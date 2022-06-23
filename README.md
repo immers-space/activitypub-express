@@ -320,11 +320,12 @@ Override this by setting `response.locals.apex.authorizedUserId` to an actor IRI
 if the `authorizedUserId` is the item's owner.
 Override this by setting `response.locals.apex.authorized` to `true` (allow) or `false` (deny)
 
-* Client-to-server unfollow: to remove an actor from followers, an "Undo" must be sent with
-the object being the prior outgoing "Follow" and likewise to remove from following a "Reject"
-must be sent with object being the prior incoming "Follow." As these past activity ids are
-not readily available to clients, the client may send the undo or reject with an Actor id as
-the object, and the server will find the related Follow and substitute it before publishing.
+* Client-to-server unfollow and unblock:
+to remove an actor from followers, following, or blocked, an "Undo" must be sent with
+the object being the prior outgoing Follow/Accept/Block. As these past activity ids are
+not readily available to clients, the client may send the undo (unfollow/unblock) or
+reject (remove from followers) with an Actor IRI as
+the object, and the server will find the related Follow/Accept/Block and substitute it before publishing.
 
 ### Federation notes
 
