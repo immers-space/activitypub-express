@@ -1,4 +1,4 @@
-## Unreleased
+## v3.2.0 (2022-06-23)
 
 * Undo activity can now take a blocked user IRI as its object and will resolve to that block activity to allow easily unblocking withough knowing the original block activity IRI
 
