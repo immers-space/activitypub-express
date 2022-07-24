@@ -2,7 +2,9 @@ const { MongoClient } = require("mongodb");
 const express = require("express");
 const ActivitypubExpress = require("../../index");
 
-global.initApex = async function initApex() {
+const exported = {};
+
+exported.initApex = async function initApex() {
   const routes = {
     actor: "/u/:actor",
     object: "/o/:id",
@@ -63,7 +65,7 @@ global.initApex = async function initApex() {
   return { app, apex, client, testUser, routes };
 };
 
-global.resetDb = async function (apex, client, testUser) {
+exported.resetDb = async function (apex, client, testUser) {
   // reset db for each test
   await client.db("apexTestingTempDb").dropDatabase();
   apex.store.db = client.db("apexTestingTempDb");
@@ -72,8 +74,12 @@ global.resetDb = async function (apex, client, testUser) {
   testUser._local = { blockList: [] };
 };
 
+exported.teardown = async function (client) {
+  await client.close();
+};
+
 // remove properties from object that may differ for each test run
-global.stripIds = function (obj) {
+exported.stripIds = function (obj) {
   return JSON.parse(JSON.stringify(obj, skipTransient));
 };
 
@@ -84,10 +90,12 @@ function skipTransient(key, value) {
   return value;
 }
 
-global.toExternalJSONLD = async function (apex, value, noContext) {
+exported.toExternalJSONLD = async function (apex, value, noContext) {
   value = JSON.parse(apex.stringifyPublicJSONLD(await apex.toJSONLD(value)));
   if (noContext) {
     delete value["@context"];
   }
   return value;
 };
+
+module.exports = exported;
