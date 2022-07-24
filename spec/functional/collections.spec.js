@@ -108,7 +108,7 @@ describe('collections', function () {
       firstActivity = await apex.store.db.collection('streams')
         .findOne({}, { sort: { _id: 1 } })
     })
-    it('returns following collection', async function (done) {
+    it('returns following collection', function (done) {
       request(app)
         .get('/following/test')
         .set('Accept', 'application/activity+json')
@@ -125,7 +125,7 @@ describe('collections', function () {
           done(err)
         })
     })
-    it('page returns accepted following', async function (done) {
+    it('page returns accepted following', function (done) {
       request(app)
         .get('/following/test?page=true')
         .set('Accept', 'application/activity+json')
@@ -160,7 +160,7 @@ describe('collections', function () {
       firstActivity = await apex.store.db.collection('streams')
         .findOne({}, { sort: { _id: 1 } })
     })
-    it('returns liked collection', async function (done) {
+    it('returns liked collection', function (done) {
       request(app)
         .get('/liked/test')
         .set('Accept', 'application/activity+json')
@@ -177,7 +177,7 @@ describe('collections', function () {
           done(err)
         })
     })
-    it('page returns liked objects', async function (done) {
+    it('page returns liked objects', function (done) {
       request(app)
         .get('/liked/test?page=true')
         .set('Accept', 'application/activity+json')
@@ -208,7 +208,7 @@ describe('collections', function () {
         })
         expect(act.shares).toEqual([await apex.getShares(act)])
       })
-      it('get page returns announces for activity', async function (done) {
+      it('get page returns announces for activity', async function () {
         const act = await apex.buildActivity('Create', testUser.id, testUser.followers, {
           object: {
             id: apex.utils.objectIdToIRI(),
@@ -222,16 +222,20 @@ describe('collections', function () {
         await apex.addMeta(announce, 'collection', apex.objectIdFromValue(act.shares))
         await apex.store.saveActivity(act)
         await apex.store.saveActivity(announce)
-        request(app)
-          .get(`${act.id}/shares?page=true`.replace('https://localhost', ''))
-          .set('Accept', 'application/activity+json')
-          .expect(200)
-          .end(async function (err, res) {
-            const standard = await global.toExternalJSONLD(apex, announce, true)
-            standard.actor = actors.find(act => act.id === announce.actor[0])
-            expect(res.body.orderedItems).toEqual([standard])
-            done(err)
-          })
+        try {
+          await request(app)
+            .get(`${act.id}/shares?page=true`.replace('https://localhost', ''))
+            .set('Accept', 'application/activity+json')
+            .expect(200)
+            .end(async function (err, res) {
+              const standard = await global.toExternalJSONLD(apex, announce, true)
+              standard.actor = actors.find(act => act.id === announce.actor[0])
+              expect(res.body.orderedItems).toEqual([standard])
+              throw err
+            })
+        } catch (e) {
+          throw e
+        }
       })
     })
     describe('likes', function () {
@@ -245,7 +249,7 @@ describe('collections', function () {
         })
         expect(act.likes).toEqual([await apex.getLikes(act)])
       })
-      it('returns likes for activity', async function (done) {
+      it('returns likes for activity', async function () {
         const act = await apex.buildActivity('Create', testUser.id, testUser.followers, {
           object: {
             id: apex.utils.objectIdToIRI(),
@@ -259,21 +263,25 @@ describe('collections', function () {
         await apex.addMeta(like, 'collection', apex.objectIdFromValue(act.likes))
         await apex.store.saveActivity(act)
         await apex.store.saveActivity(like)
-        request(app)
-          .get(`${act.id}/likes?page=true`.replace('https://localhost', ''))
-          .set('Accept', 'application/activity+json')
-          .expect(200)
-          .end(async function (err, res) {
-            const standard = await global.toExternalJSONLD(apex, like, true)
-            standard.actor = actors.find(act => act.id === like.actor[0])
-            expect(res.body.orderedItems).toEqual([standard])
-            done(err)
-          })
+        try {
+          request(app)
+            .get(`${act.id}/likes?page=true`.replace('https://localhost', ''))
+            .set('Accept', 'application/activity+json')
+            .expect(200)
+            .end(async function (err, res) {
+              const standard = await global.toExternalJSONLD(apex, like, true)
+              standard.actor = actors.find(act => act.id === like.actor[0])
+              expect(res.body.orderedItems).toEqual([standard])
+              throw err
+            })
+        } catch (e) {
+          throw e
+        }
       })
     })
   })
   describe('misc collections', function () {
-    it('gets collection items', async function (done) {
+    it('gets collection items', async function () {
       const col = `${testUser.id}/c/cool-stuff`
       const act = await apex.buildActivity('Create', testUser.id, testUser.followers, {
         object: {
@@ -287,14 +295,18 @@ describe('collections', function () {
         .toExternalJSONLD(apex, apex.mergeJSONLD(act, { actor: [testUser] }), true)
       apex.addMeta(act, 'collection', col)
       await apex.store.saveActivity(act)
-      request(app)
-        .get(`${col.replace('https://localhost', '')}?page=true`)
-        .set('Accept', 'application/activity+json')
-        .expect(200)
-        .end(function (err, res) {
-          expect(res.body.orderedItems).toEqual([actOut])
-          done(err)
-        })
+      try {
+        await request(app)
+          .get(`${col.replace('https://localhost', '')}?page=true`)
+          .set('Accept', 'application/activity+json')
+          .expect(200)
+          .end(function (err, res) {
+            expect(res.body.orderedItems).toEqual([actOut])
+            throw err
+          })
+      } catch (e) {
+        throw e
+      }
     })
   })
   describe('internal special collections', function () {
