@@ -55,7 +55,7 @@ global.initApex = async function initApex () {
     next(err)
   })
 
-  const client = new MongoClient('mongodb://localhost:27017')
+  const client = new MongoClient('mongodb://root:example@localhost:27017')
   await client.connect()
   apex.store.db = client.db('apexTestingTempDb')
   const testUser = await apex.createActor('test', 'test', 'test user')
