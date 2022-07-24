@@ -1,27 +1,33 @@
-const crypto = require('crypto')
-const { promisify } = require('util')
+const crypto = require("crypto");
+const { promisify } = require("util");
 
-const generateKeyPairPromise = promisify(crypto.generateKeyPair)
+const generateKeyPairPromise = promisify(crypto.generateKeyPair);
 
 module.exports = {
-  createActor
-}
+  createActor,
+};
 
-async function createActor (username, displayName, summary, icon, type = 'Person') {
-  username = username.toLowerCase()
-  const id = this.utils.usernameToIRI(username)
-  const routes = this.utils.nameToActorStreams(username)
-  const pair = await generateKeyPairPromise('rsa', {
+async function createActor(
+  username,
+  displayName,
+  summary,
+  icon,
+  type = "Person"
+) {
+  username = username.toLowerCase();
+  const id = this.utils.usernameToIRI(username);
+  const routes = this.utils.nameToActorStreams(username);
+  const pair = await generateKeyPairPromise("rsa", {
     modulusLength: 4096,
     publicKeyEncoding: {
-      type: 'spki',
-      format: 'pem'
+      type: "spki",
+      format: "pem",
     },
     privateKeyEncoding: {
-      type: 'pkcs8',
-      format: 'pem'
-    }
-  })
+      type: "pkcs8",
+      format: "pem",
+    },
+  });
   let actor = {
     id,
     type,
@@ -36,19 +42,19 @@ async function createActor (username, displayName, summary, icon, type = 'Person
     publicKey: {
       id: `${id}#main-key`,
       owner: id,
-      publicKeyPem: pair.publicKey
-    }
-  }
+      publicKeyPem: pair.publicKey,
+    },
+  };
   if (icon) {
-    actor.icon = icon
+    actor.icon = icon;
   }
   if (this.settings.endpoints) {
     actor.endpoints = {
       id: `${id}#endpoints`,
-      ...this.settings.endpoints
-    }
+      ...this.settings.endpoints,
+    };
   }
-  actor = await this.fromJSONLD(actor)
-  actor._meta = { privateKey: pair.privateKey }
-  return actor
+  actor = await this.fromJSONLD(actor);
+  actor._meta = { privateKey: pair.privateKey };
+  return actor;
 }

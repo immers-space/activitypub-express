@@ -8,6 +8,7 @@
   },
   "scripts": {
     "test": "jasmine",
+    "format": "prettier --write net/ pub/ spec/ store/ vocab/",
     "coverage": "nyc npm test && nyc report --reporter=text-lcov | coveralls"
   },
   "repository": {
@@ -45,6 +46,7 @@
     "jasmine-spec-reporter": "^4.2.1",
     "nock": "^13.2.4",
     "nyc": "^15.1.0",
+    "prettier": "^2.7.1",
     "standard": "^17.0.0",
     "supertest": "^6.2.3"
   }
