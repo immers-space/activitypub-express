@@ -56,46 +56,40 @@ describe("collections", function () {
         .collection("streams")
         .findOne({}, { sort: { _id: 1 } });
     });
-    it("returns followers collection", function (done) {
-      request(app)
+    it("returns followers collection", async function () {
+      const res = await request(app)
         .get("/followers/test")
         .set("Accept", "application/activity+json")
-        .expect(200)
-        .end(function (err, res) {
-          const standard = {
-            "@context": [
-              "https://www.w3.org/ns/activitystreams",
-              "https://w3id.org/security/v1",
-            ],
-            id: "https://localhost/followers/test",
-            type: "OrderedCollection",
-            totalItems: 2,
-            first: "https://localhost/followers/test?page=true",
-          };
-          expect(res.body).toEqual(standard);
-          done(err);
-        });
+        .expect(200);
+      const standard = {
+        "@context": [
+          "https://www.w3.org/ns/activitystreams",
+          "https://w3id.org/security/v1",
+        ],
+        id: "https://localhost/followers/test",
+        type: "OrderedCollection",
+        totalItems: 2,
+        first: "https://localhost/followers/test?page=true",
+      };
+      expect(res.body).toEqual(standard);
     });
-    it("page returns accepted followers", function (done) {
-      request(app)
+    it("page returns accepted followers", async function () {
+      const res = await request(app)
         .get("/followers/test?page=true")
         .set("Accept", "application/activity+json")
-        .expect(200)
-        .end(function (err, res) {
-          const standard = {
-            "@context": [
-              "https://www.w3.org/ns/activitystreams",
-              "https://w3id.org/security/v1",
-            ],
-            id: "https://localhost/followers/test?page=true",
-            type: "OrderedCollectionPage",
-            partOf: "https://localhost/followers/test",
-            orderedItems: [actors[2], actors[0]],
-            next: `https://localhost/followers/test?page=${firstActivity._id}`,
-          };
-          expect(res.body).toEqual(standard);
-          done(err);
-        });
+        .expect(200);
+      const standard = {
+        "@context": [
+          "https://www.w3.org/ns/activitystreams",
+          "https://w3id.org/security/v1",
+        ],
+        id: "https://localhost/followers/test?page=true",
+        type: "OrderedCollectionPage",
+        partOf: "https://localhost/followers/test",
+        orderedItems: [actors[2], actors[0]],
+        next: `https://localhost/followers/test?page=${firstActivity._id}`,
+      };
+      expect(res.body).toEqual(standard);
     });
   });
   describe("following", function () {
@@ -121,46 +115,40 @@ describe("collections", function () {
         .collection("streams")
         .findOne({}, { sort: { _id: 1 } });
     });
-    it("returns following collection", function (done) {
-      request(app)
+    it("returns following collection", async function () {
+      const res = await request(app)
         .get("/following/test")
         .set("Accept", "application/activity+json")
-        .expect(200)
-        .end(function (err, res) {
-          const standard = {
-            "@context": [
-              "https://www.w3.org/ns/activitystreams",
-              "https://w3id.org/security/v1",
-            ],
-            id: "https://localhost/following/test",
-            type: "OrderedCollection",
-            totalItems: 2,
-            first: "https://localhost/following/test?page=true",
-          };
-          expect(res.body).toEqual(standard);
-          done(err);
-        });
+        .expect(200);
+      const standard = {
+        "@context": [
+          "https://www.w3.org/ns/activitystreams",
+          "https://w3id.org/security/v1",
+        ],
+        id: "https://localhost/following/test",
+        type: "OrderedCollection",
+        totalItems: 2,
+        first: "https://localhost/following/test?page=true",
+      };
+      expect(res.body).toEqual(standard);
     });
-    it("page returns accepted following", function (done) {
-      request(app)
+    it("page returns accepted following", async function () {
+      const res = await request(app)
         .get("/following/test?page=true")
         .set("Accept", "application/activity+json")
-        .expect(200)
-        .end(function (err, res) {
-          const standard = {
-            "@context": [
-              "https://www.w3.org/ns/activitystreams",
-              "https://w3id.org/security/v1",
-            ],
-            id: "https://localhost/following/test?page=true",
-            type: "OrderedCollectionPage",
-            partOf: "https://localhost/following/test",
-            orderedItems: ["https://ignore.com/sue", "https://ignore.com/bob"],
-            next: `https://localhost/following/test?page=${firstActivity._id}`,
-          };
-          expect(res.body).toEqual(standard);
-          done(err);
-        });
+        .expect(200);
+      const standard = {
+        "@context": [
+          "https://www.w3.org/ns/activitystreams",
+          "https://w3id.org/security/v1",
+        ],
+        id: "https://localhost/following/test?page=true",
+        type: "OrderedCollectionPage",
+        partOf: "https://localhost/following/test",
+        orderedItems: ["https://ignore.com/sue", "https://ignore.com/bob"],
+        next: `https://localhost/following/test?page=${firstActivity._id}`,
+      };
+      expect(res.body).toEqual(standard);
     });
   });
   describe("liked collection", function () {
@@ -187,50 +175,44 @@ describe("collections", function () {
         .collection("streams")
         .findOne({}, { sort: { _id: 1 } });
     });
-    it("returns liked collection", function (done) {
-      request(app)
+    it("returns liked collection", async function () {
+      const res = await request(app)
         .get("/liked/test")
         .set("Accept", "application/activity+json")
-        .expect(200)
-        .end(function (err, res) {
-          const standard = {
-            "@context": [
-              "https://www.w3.org/ns/activitystreams",
-              "https://w3id.org/security/v1",
-            ],
-            id: "https://localhost/liked/test",
-            type: "OrderedCollection",
-            totalItems: 3,
-            first: "https://localhost/liked/test?page=true",
-          };
-          expect(res.body).toEqual(standard);
-          done(err);
-        });
+        .expect(200);
+      const standard = {
+        "@context": [
+          "https://www.w3.org/ns/activitystreams",
+          "https://w3id.org/security/v1",
+        ],
+        id: "https://localhost/liked/test",
+        type: "OrderedCollection",
+        totalItems: 3,
+        first: "https://localhost/liked/test?page=true",
+      };
+      expect(res.body).toEqual(standard);
     });
-    it("page returns liked objects", function (done) {
-      request(app)
+    it("page returns liked objects", async function () {
+      const res = await request(app)
         .get("/liked/test?page=true")
         .set("Accept", "application/activity+json")
-        .expect(200)
-        .end(function (err, res) {
-          const standard = {
-            "@context": [
-              "https://www.w3.org/ns/activitystreams",
-              "https://w3id.org/security/v1",
-            ],
-            id: "https://localhost/liked/test?page=true",
-            type: "OrderedCollectionPage",
-            partOf: "https://localhost/liked/test",
-            next: `https://localhost/liked/test?page=${firstActivity._id}`,
-            orderedItems: [
-              "https://ignore.com/s/3",
-              "https://ignore.com/s/2",
-              "https://ignore.com/s/1",
-            ],
-          };
-          expect(res.body).toEqual(standard);
-          done(err);
-        });
+        .expect(200);
+      const standard = {
+        "@context": [
+          "https://www.w3.org/ns/activitystreams",
+          "https://w3id.org/security/v1",
+        ],
+        id: "https://localhost/liked/test?page=true",
+        type: "OrderedCollectionPage",
+        partOf: "https://localhost/liked/test",
+        next: `https://localhost/liked/test?page=${firstActivity._id}`,
+        orderedItems: [
+          "https://ignore.com/s/3",
+          "https://ignore.com/s/2",
+          "https://ignore.com/s/1",
+        ],
+      };
+      expect(res.body).toEqual(standard);
     });
   });
   describe("activity special collections", function () {
@@ -279,22 +261,13 @@ describe("collections", function () {
         await apex.store.saveActivity(act);
         await apex.store.saveActivity(announce);
         try {
-          await request(app)
+          const res = await request(app)
             .get(`${act.id}/shares?page=true`.replace("https://localhost", ""))
             .set("Accept", "application/activity+json")
-            .expect(200)
-            .end(async function (err, res) {
-              const standard = await global.toExternalJSONLD(
-                apex,
-                announce,
-                true
-              );
-              standard.actor = actors.find(
-                (act) => act.id === announce.actor[0]
-              );
-              expect(res.body.orderedItems).toEqual([standard]);
-              throw err;
-            });
+            .expect(200);
+          const standard = await global.toExternalJSONLD(apex, announce, true);
+          standard.actor = actors.find((act) => act.id === announce.actor[0]);
+          expect(res.body.orderedItems).toEqual([standard]);
         } catch (e) {
           throw e;
         }
@@ -384,18 +357,11 @@ describe("collections", function () {
       );
       apex.addMeta(act, "collection", col);
       await apex.store.saveActivity(act);
-      try {
-        await request(app)
-          .get(`${col.replace("https://localhost", "")}?page=true`)
-          .set("Accept", "application/activity+json")
-          .expect(200)
-          .end(function (err, res) {
-            expect(res.body.orderedItems).toEqual([actOut]);
-            throw err;
-          });
-      } catch (e) {
-        throw e;
-      }
+      const res = await request(app)
+        .get(`${col.replace("https://localhost", "")}?page=true`)
+        .set("Accept", "application/activity+json")
+        .expect(200);
+      expect(res.body.orderedItems).toEqual([actOut]);
     });
   });
   describe("internal special collections", function () {
