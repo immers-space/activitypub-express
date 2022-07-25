@@ -1,5 +1,6 @@
 /* global describe, beforeAll, beforeEach, it, expect */
 const request = require("supertest");
+const TestUtils = require("../helpers/test-utils");
 
 describe("collections", function () {
   let testUser;
@@ -12,7 +13,7 @@ describe("collections", function () {
     { id: "https://ignore.com/sue", inbox: "https://ignore.com/sue/in" },
   ];
   beforeAll(async function () {
-    const init = await global.initApex();
+    const init = await TestUtils.initApex();
     testUser = init.testUser;
     app = init.app;
     apex = init.apex;
@@ -28,8 +29,11 @@ describe("collections", function () {
     app.get("/s/:id/likes", apex.net.likes.get);
     app.get("/u/:actor/c/:id", apex.net.collections.get);
   });
+  afterAll(async () => {
+    await TestUtils.teardown(client);
+  });
   beforeEach(async function () {
-    await global.resetDb(apex, client, testUser);
+    await TestUtils.resetDb(apex, client, testUser);
     for (const actor of actors) {
       await apex.store.saveObject(actor);
     }
@@ -265,7 +269,11 @@ describe("collections", function () {
             .get(`${act.id}/shares?page=true`.replace("https://localhost", ""))
             .set("Accept", "application/activity+json")
             .expect(200);
-          const standard = await global.toExternalJSONLD(apex, announce, true);
+          const standard = await TestUtils.toExternalJSONLD(
+            apex,
+            announce,
+            true
+          );
           standard.actor = actors.find((act) => act.id === announce.actor[0]);
           expect(res.body.orderedItems).toEqual([standard]);
         } catch (e) {
@@ -317,20 +325,13 @@ describe("collections", function () {
         );
         await apex.store.saveActivity(act);
         await apex.store.saveActivity(like);
-        try {
-          request(app)
-            .get(`${act.id}/likes?page=true`.replace("https://localhost", ""))
-            .set("Accept", "application/activity+json")
-            .expect(200)
-            .end(async function (err, res) {
-              const standard = await global.toExternalJSONLD(apex, like, true);
-              standard.actor = actors.find((act) => act.id === like.actor[0]);
-              expect(res.body.orderedItems).toEqual([standard]);
-              throw err;
-            });
-        } catch (e) {
-          throw e;
-        }
+        const res = await request(app)
+          .get(`${act.id}/likes?page=true`.replace("https://localhost", ""))
+          .set("Accept", "application/activity+json")
+          .expect(200);
+        const standard = await TestUtils.toExternalJSONLD(apex, like, true);
+        standard.actor = actors.find((act) => act.id === like.actor[0]);
+        expect(res.body.orderedItems).toEqual([standard]);
       });
     });
   });
@@ -350,7 +351,7 @@ describe("collections", function () {
         }
       );
       // convert to output format for test standard
-      const actOut = await global.toExternalJSONLD(
+      const actOut = await TestUtils.toExternalJSONLD(
         apex,
         apex.mergeJSONLD(act, { actor: [testUser] }),
         true
