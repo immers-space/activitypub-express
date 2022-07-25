@@ -29,6 +29,7 @@
   },
   "homepage": "https://github.com/wmurphyrd/activitypub-express#readme",
   "dependencies": {
+    "debug": "^4.3.4",
     "deepmerge": "^4.2.2",
     "express": "^4.18.0",
     "http-signature": "github:wmurphyrd/node-http-signature#9c02eeb",

@@ -1,5 +1,7 @@
 "use strict";
 
+const debug = require("debug")("apex:net:activity");
+
 // For collection display, store with objects resolved
 // updates also get their objects denormalized during validation
 const denormalizeObject = [
@@ -14,6 +16,7 @@ const denormalizeObject = [
 
 module.exports = {
   save(req, res, next) {
+    debug("save");
     if (!res.locals.apex.activity || !res.locals.apex.target) {
       return next();
     }
@@ -49,6 +52,7 @@ module.exports = {
       .catch(next);
   },
   forwardFromInbox(req, res, next) {
+    debug("forwardFromInbox");
     const apex = req.app.locals.apex;
     const resLocal = res.locals.apex;
     const activity = req.body;
@@ -90,6 +94,7 @@ module.exports = {
     next();
   },
   inboxSideEffects(req, res, next) {
+    debug("inboxSideEffects");
     if (!(res.locals.apex.activity && res.locals.apex.actor)) {
       return next();
     }
@@ -269,6 +274,7 @@ module.exports = {
       .catch(next);
   },
   outboxSideEffects(req, res, next) {
+    debug("outboxSideEffects");
     if (!res.locals.apex.target || !res.locals.apex.activity) {
       return next();
     }
@@ -419,6 +425,7 @@ module.exports = {
       .catch(next);
   },
   resolveThread(req, res, next) {
+    debug("resolveThread");
     const apex = req.app.locals.apex;
     const resLocal = res.locals.apex;
     if (!resLocal.activity) {

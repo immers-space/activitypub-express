@@ -1,5 +1,7 @@
 "use strict";
 
+const debug = require("debug")("apex:net:responders");
+
 module.exports = {
   result,
   status,
@@ -8,6 +10,7 @@ module.exports = {
 
 // sends other output as jsonld
 async function result(req, res) {
+  debug("result");
   const apex = req.app.locals.apex;
   const locals = res.locals.apex;
   const result = locals.result;
@@ -23,6 +26,7 @@ async function result(req, res) {
 }
 
 function status(req, res) {
+  debug("status");
   const locals = res.locals.apex;
   if (locals.createdLocation) {
     res.set("Location", locals.createdLocation);
@@ -32,6 +36,7 @@ function status(req, res) {
 
 // sends the target object as jsonld
 async function target(req, res) {
+  debug("target");
   const apex = req.app.locals.apex;
   const locals = res.locals.apex;
   const target = locals.target;

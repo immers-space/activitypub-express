@@ -1,6 +1,7 @@
-/* global describe, beforeAll, beforeEach, it, expect, spyOn */
+/* global describe, beforeAll, beforeEach, it, expect, jest */
 const request = require("supertest");
 const nock = require("nock");
+const TestUtils = require("../helpers/test-utils");
 
 describe("combined inbox/outbox flows", function () {
   let testUser;
@@ -8,7 +9,7 @@ describe("combined inbox/outbox flows", function () {
   let apex;
   let client;
   beforeAll(async function () {
-    const init = await global.initApex();
+    const init = await TestUtils.initApex();
     testUser = init.testUser;
     app = init.app;
     apex = init.apex;
@@ -30,13 +31,16 @@ describe("combined inbox/outbox flows", function () {
     //   next()
     // }, apex.net.outbox.get)
   });
+  afterAll(async () => {
+    await TestUtils.teardown(client);
+  });
   beforeEach(function () {
     // don't let failed deliveries pollute later tests
-    spyOn(apex.store, "deliveryRequeue").and.resolveTo(undefined);
-    return global.resetDb(apex, client, testUser);
+    jest.spyOn(apex.store, "deliveryRequeue").mockResolvedValue(undefined);
+    return TestUtils.resetDb(apex, client, testUser);
   });
 
-  it("adds followers and delivers to them", async function (done) {
+  it("adds followers and delivers to them", async function () {
     const follow = await apex.buildActivity(
       "Follow",
       "https://mocked.com/u/mocked",
@@ -46,16 +50,20 @@ describe("combined inbox/outbox flows", function () {
       }
     );
     delete follow._meta;
-    nock("https://mocked.com")
-      .get("/u/mocked")
-      .reply(200, {
-        id: "https://mocked.com/u/mocked",
-        type: "Actor",
-        inbox: "https://mocked.com/u/mocked/inbox",
-      });
+    nock("https://mocked.com").get("/u/mocked").reply(200, {
+      id: "https://mocked.com/u/mocked",
+      type: "Actor",
+      inbox: "https://mocked.com/u/mocked/inbox",
+    });
     // accept & update delivery
     nock("https://mocked.com").post("/u/mocked/inbox").reply(200);
     nock("https://mocked.com").post("/u/mocked/inbox").reply(200);
+
+    let deliveryMade;
+    const deliveryPromise = new Promise((resolve) => {
+      deliveryMade = resolve;
+    });
+
     // create delivery
     nock("https://mocked.com")
       .post("/u/mocked/inbox")
@@ -65,7 +73,7 @@ describe("combined inbox/outbox flows", function () {
         expect(activity.type).toEqual("Create");
         expect(activity.object.type).toEqual("Note");
         expect(activity.object.content).toEqual("Hello world");
-        done();
+        setTimeout(() => deliveryMade(), 10);
       });
     let followResolve;
     const followId = new Promise((resolve) => {
@@ -113,5 +121,7 @@ describe("combined inbox/outbox flows", function () {
       .set("Content-Type", "application/activity+json")
       .send(note)
       .expect(201);
+
+    await deliveryPromise;
   });
 });

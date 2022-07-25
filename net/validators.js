@@ -1,5 +1,7 @@
 "use strict";
 
+const debug = require("debug")("apex:net:validators");
+
 module.exports = {
   activityObject,
   actor,
@@ -51,6 +53,7 @@ const requiresObjectOwnership = ["delete", "undo", "update"];
 const requiresTarget = ["add", "remove"];
 
 function activityObject(req, res, next) {
+  debug("activityObject");
   const apex = req.app.locals.apex;
   const resLocal = res.locals.apex;
   const activity = req.body;
@@ -83,6 +86,7 @@ function activityObject(req, res, next) {
 // confirm activity actor is sender and not blocked
 // TODO: alternative authorization via JSON-LD signatures for forwarding
 function actor(req, res, next) {
+  debug("actor");
   if (!res.locals.apex.sender || !res.locals.apex.target) return next();
   const apex = req.app.locals.apex;
   const resLocal = res.locals.apex;
@@ -107,6 +111,7 @@ function actor(req, res, next) {
 }
 
 function inboxActivity(req, res, next) {
+  debug("inboxActivity");
   if (!res.locals.apex.target || !res.locals.apex.actor) return next();
   const apex = req.app.locals.apex;
   const resLocal = res.locals.apex;
@@ -182,6 +187,7 @@ function inboxActivity(req, res, next) {
 }
 
 async function jsonld(req, res, next) {
+  debug("jsonld");
   const apex = req.app.locals.apex;
   const jsonldAccepted = req.accepts(apex.consts.jsonldTypes);
   // rule out */* requests
@@ -211,6 +217,7 @@ async function jsonld(req, res, next) {
 }
 
 async function targetActivity(req, res, next) {
+  debug(this.name);
   const apex = req.app.locals.apex;
   const aid = req.params[apex.activityParam];
   const activityIRI = apex.utils.activityIdToIRI(aid);
@@ -228,6 +235,7 @@ async function targetActivity(req, res, next) {
 }
 
 async function targetActor(req, res, next) {
+  debug("targetActor");
   const apex = req.app.locals.apex;
   const actor = req.params[apex.actorParam];
   const actorIRI = apex.utils.usernameToIRI(actor);
@@ -251,6 +259,7 @@ async function targetActor(req, res, next) {
 // help prevent accidental disclosure of actor private keys by only
 // including them when explicitly requested
 function targetActorWithMeta(req, res, next) {
+  debug("targetActorWithMeta");
   const apex = req.app.locals.apex;
   const resLocal = res.locals.apex;
   const actor = req.params[apex.actorParam];
@@ -281,6 +290,7 @@ function targetActorWithMeta(req, res, next) {
 }
 
 async function targetObject(req, res, next) {
+  debug("targetObject");
   const apex = req.app.locals.apex;
   const oid = req.params[apex.objectParam];
   const objIRI = apex.utils.objectIdToIRI(oid);
@@ -298,6 +308,7 @@ async function targetObject(req, res, next) {
 }
 
 async function targetProxied(req, res, next) {
+  debug("targetProxied");
   const apex = req.app.locals.apex;
   const locals = res.locals.apex;
   if (!req.body?.id) {
@@ -315,6 +326,7 @@ async function targetProxied(req, res, next) {
 }
 
 function outboxCreate(req, res, next) {
+  debug("outboxCreate");
   if (!res.locals.apex.target) {
     return next();
   }
@@ -358,6 +370,7 @@ function outboxCreate(req, res, next) {
 }
 
 function outboxActivityObject(req, res, next) {
+  debug("outboxActivityObject");
   const apex = req.app.locals.apex;
   const resLocal = res.locals.apex;
   const activity = req.body;
@@ -433,6 +446,7 @@ function outboxActivityObject(req, res, next) {
     });
 }
 function outboxActivity(req, res, next) {
+  debug(this.name);
   if (!res.locals.apex.target) {
     return next();
   }
