@@ -27,7 +27,15 @@ module.exports = class IApexStore {
     throw new Error('Not implemented')
   }
 
-  getStream (collectionId, limit, after) {
+  /**
+   * Return a specific collection (stream of activitites), e.g. a user's inbox
+   * @param  {string} collectionId - collection identifier
+   * @param  {number} limit - max number of activities to return
+   * @param  {string} after - id to begin querying after (i.e. last item of last page)
+   * @param  {any} [query] - additional query/aggregation
+   * @returns Promse<object[]>
+   */
+  getStream (collectionId, limit, after, query) {
     throw new Error('Not implemented')
   }
 
