@@ -71,6 +71,12 @@ class ApexStore extends IApexStore {
     }, {
       name: 'collections'
     })
+    // updates of objects embedded in streams
+    await db.collection('streams').createIndex({
+      'object.id': 1
+    }, {
+      name: 'stream-object-updates'
+    })
     // object lookup
     await db.collection('objects')
       .createIndex({ id: 1 }, { unique: true, name: 'objects-primary' })
@@ -78,7 +84,6 @@ class ApexStore extends IApexStore {
       .createIndex({ after: 1, _id: 1 }, { name: 'delivery-dequeue' })
     await db.collection('objects')
       .createIndex({ id: 1, type: 1 }, { name: 'local-user-count', partialFilterExpression: localUserQuery })
-    // TODO: index stream.object.id for updates
     // also need partial index on stream.object.object.id for object updates when
     // type is  'announce', 'like', 'add', 'reject' (denormalized collection types)
     if (initialUser) {
