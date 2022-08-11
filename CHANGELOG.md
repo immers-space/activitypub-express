@@ -2,6 +2,7 @@
 
 # Added
 
+* New index on `streams.object.id` to cover Update on embedded objects (expect a one-time slow startup to build the index)
 * getCollection gains optional `query` argument which is passsed
 through to store.getStream to allow additional filtering or
 aggregation to be applied
