@@ -180,7 +180,8 @@ class ApexStore extends IApexStore {
    * Return a specific collection (stream of activitites), e.g. a user's inbox
    * @param  {string} collectionId - _meta.collection identifier
    * @param  {number} limit - max number of activities to return
-   * @param  {string} after - mongodb _id to begin querying after (i.e. last item of last page)
+   * @param  {string} [after] - mongodb _id to begin querying after (i.e. last item of last page)
+   * @param  {string[]} [blockList] - list of ids of actors whose activities should be excluded
    * @param  {object[]} [query] - additional aggretation pipeline stages to include
    * @returns {Promise<object[]>}
    */

@@ -68,4 +68,32 @@ describe('default store', function () {
       })
     })
   })
+  describe('getStream', function () {
+    it('applies optional query argument to aggregation pipeline', async function () {
+      const create = await apex.buildActivity('Create', testUser.id, [testUser.id], {
+        object: [{
+          id: 'https://localhost/o/abc123',
+          attributedTo: testUser.id,
+          type: 'Note',
+          content: 'Hello'
+        }]
+      })
+      apex.addMeta(create, 'collection', testUser.outbox[0])
+      await apex.store.saveActivity(create)
+      const arrive = await apex.buildActivity('Arrive', testUser.id, [testUser.id], {
+        target: [{
+          id: 'https://localhost/o/immer',
+          type: 'Place',
+          url: 'https://localhost'
+        }]
+      })
+      apex.addMeta(arrive, 'collection', testUser.outbox[0])
+      await apex.store.saveActivity(arrive)
+      const filtered = await apex.store.getStream(testUser.outbox[0], 10, null, null, [{ $match: { type: 'Arrive' }}])
+      expect(filtered.length).toBe(1)
+      expect(filtered[0].type).toBe('Arrive')
+      const unfiltered = await apex.store.getStream(testUser.outbox[0], 10)
+      expect(unfiltered.length).toBe(2)
+    })
+  })
 })
