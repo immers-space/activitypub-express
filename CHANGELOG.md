@@ -1,4 +1,4 @@
-## Unreleased
+## v3.3.0 (2022-08-11)
 
 # Added
 
