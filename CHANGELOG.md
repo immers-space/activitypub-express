@@ -1,3 +1,10 @@
+## Unreleased
+
+# Added
+
+* getCollection gains optional `query` argument which is passsed
+through to store.getStream to allow additional filtering or
+aggregation to be applied
 ## v3.2.0 (2022-06-23)
 
 * Undo activity can now take a blocked user IRI as its object and will resolve to that block activity to allow easily unblocking withough knowing the original block activity IRI

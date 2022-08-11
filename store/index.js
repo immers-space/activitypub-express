@@ -176,7 +176,16 @@ class ApexStore extends IApexStore {
       .replaceOne({ documentUrl }, context, { forceServerObjectId: true, upsert: true })
   }
 
-  getStream (collectionId, limit, after, blockList) {
+  /**
+   * Return a specific collection (stream of activitites), e.g. a user's inbox
+   * @param  {string} collectionId - _meta.collection identifier
+   * @param  {number} limit - max number of activities to return
+   * @param  {string} [after] - mongodb _id to begin querying after (i.e. last item of last page)
+   * @param  {string[]} [blockList] - list of ids of actors whose activities should be excluded
+   * @param  {object[]} [query] - additional aggretation pipeline stages to include
+   * @returns {Promise<object[]>}
+   */
+  getStream (collectionId, limit, after, blockList, query) {
     const pipeline = []
     const filter = { '_meta.collection': collectionId }
     if (after) {
@@ -186,6 +195,9 @@ class ApexStore extends IApexStore {
       filter.actor = { $nin: blockList }
     }
     pipeline.push({ $match: filter })
+    if (query) {
+      pipeline.push(...query)
+    }
     pipeline.push({ $sort: { _id: -1 } })
     if (limit) {
       pipeline.push({ $limit: limit })
@@ -210,8 +222,8 @@ class ApexStore extends IApexStore {
       }
     })
 
-    const query = this.db.collection('streams').aggregate(pipeline)
-    return query.toArray().then(stream => unescape(stream))
+    const result = this.db.collection('streams').aggregate(pipeline)
+    return result.toArray().then(stream => unescape(stream))
   }
 
   getStreamCount (collectionId) {
