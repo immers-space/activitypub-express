@@ -1,3 +1,12 @@
+## v4.0.0 (2022-11-02)
+
+### Changed
+
+* lockfile udpated to v2 and engines minimum to node 16/npm 7
+* http-signatures fork dependency changed to explicitly use https instead of ssh so package can be installed in CI with npm >=7
+
+This version may still work with node 14/npm 6, but marking change as breaking because it sometimes fails to handle v2 lockfiles correctly
+
 ## v3.3.0 (2022-08-11)
 
 # Added
