@@ -355,16 +355,8 @@ class ApexStore extends IApexStore {
       { $set: { 'object.$[element]': object } },
       { arrayFilters: [{ 'element.id': object.id }] }
     )
-    // these activities have an activity as their object which may in turn
-    // include the object being updated
-    await this.db.collection('streams').updateMany(
-      {
-        type: { $in: ['Announce', 'Like', 'Add', 'Reject'] },
-        'object.object.id': object.id
-      },
-      { $set: { 'object.$[].object.$[element]': object } },
-      { arrayFilters: [{ 'element.id': object.id }] }
-    )
+    // does not update object.object.id, e.g. an announce of a create with an embedded object.
+    // Too much db work and in practice these don't generally come in as doubly nested
     if (object._meta?.privateKey) {
       // just in case actor keypairs are updated while deliveries are queued
       await this.db.collection('deliveryQueue').updateMany(
