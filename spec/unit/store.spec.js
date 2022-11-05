@@ -14,7 +14,7 @@ describe('default store', function () {
     return global.resetDb(apex, client, testUser)
   })
   describe('denormalized updates', function () {
-    it('udpates doubly nested objects', async function () {
+    it('updates nested objects', async function () {
       const create = await apex.buildActivity('Create', testUser.id, [testUser.id], {
         object: [{
           id: 'https://localhost/o/abc123',
@@ -30,10 +30,6 @@ describe('default store', function () {
       })
       await apex.store.saveActivity(create)
       await apex.store.saveObject(create.object[0])
-      const announce = await apex.buildActivity('Announce', testUser.id, [testUser.id], {
-        object: [create]
-      })
-      await apex.store.saveActivity(announce)
       const updated = {
         id: 'https://localhost/o/abc123',
         type: 'Note',
@@ -49,8 +45,6 @@ describe('default store', function () {
       await apex.store.updateObject(updated, testUser.id, true)
       const newCreate = await apex.store.getActivity(create.id)
       expect(newCreate.object).toEqual([updated, notUpdated])
-      const newAnnounce = await apex.store.getActivity(announce.id)
-      expect(newAnnounce.object[0].object).toEqual([updated, notUpdated])
     })
     it('updates queued signing keys', async function () {
       await apex.store
@@ -89,7 +83,7 @@ describe('default store', function () {
       })
       apex.addMeta(arrive, 'collection', testUser.outbox[0])
       await apex.store.saveActivity(arrive)
-      const filtered = await apex.store.getStream(testUser.outbox[0], 10, null, null, [{ $match: { type: 'Arrive' }}])
+      const filtered = await apex.store.getStream(testUser.outbox[0], 10, null, null, [{ $match: { type: 'Arrive' } }])
       expect(filtered.length).toBe(1)
       expect(filtered[0].type).toBe('Arrive')
       const unfiltered = await apex.store.getStream(testUser.outbox[0], 10)

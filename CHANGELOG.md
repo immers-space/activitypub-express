@@ -1,3 +1,9 @@
+## Unreleased
+
+### Changed
+
+* Update operations no longer try to update object.object.id (i.e. an Object of an Activity that is itself nested as the object of another activity). This un-indexed query was consuming a lot of cpu and always turned up empty anyway.
+
 ## v4.0.0 (2022-11-02)
 
 ### Changed
