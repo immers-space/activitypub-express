@@ -10,12 +10,12 @@
 
 Modular implementation of the ActivityPub decentralized social networking protocol,
 written for NodeJS as ExpressJS middleware.
-Includes a interchangable storage interface with a default MongoDB implemenation.
+Includes a interchangeable storage interface with a default MongoDB implementation.
 
 ## Installation
 
 In order for http request signing to function correctly, a patched version of the `http-signature`
-library is required. To ensure that `request` library is using the correct version for its subdependency,
+library is required. To ensure that the `request` library is using the correct version for its sub-dependency,
 you may need to dedupe after installation.
 
 ```
@@ -113,7 +113,7 @@ client.connect()
 ### ActivitypubExpress initializer
 
 Configures and returns an express middleware function that must be added to the route
-before any other apex midddleware. It needs to be configured with the routes you will use
+before any other apex middleware. It needs to be configured with the routes you will use
 in order to correctly generate IRIs and actor profiles
 
 ```
@@ -190,7 +190,7 @@ apex.createActor('system-user', 'System user', '', null, 'Service')
 
 Q: How do I resolve this error seen when receiving/delivering activities or running the federation tests: `Uncaught exception: InvalidHeaderError: bad param format`
 
-A: Run `npm dedupe` to ensure `request` library is using the patched version of `http-signature` library.
+A: Run `npm dedupe` to ensure that the `request` library is using the patched version of the `http-signature` library.
 
 ## Implementation status
 
@@ -278,7 +278,7 @@ A: Run `npm dedupe` to ensure `request` library is using the patched version of 
     * [ ] Linked data signatures
   * [x] Storage model (denormalized MongoDB)
     * [ ] Index coverage for all queries
-    * [ ] Fully interchangable with documented API
+    * [ ] Fully interchangeable with documented API
 
 ### Implementation notes
 
@@ -301,8 +301,8 @@ the followers (outbox) or following (inbox) collection.
 
 * Block: Activity is added to the actor's blocked collection.
 Per spec, future activities from blocked actors will be silently ignored.
-Additionally, past activitities will be filtered from display in the inbox and followers
-collections, but they are not permanetly deleted, so they would re-appear after undo of block.
+Additionally, past activities will be filtered from display in the inbox and followers
+collections, but they are not permanently deleted, so they would re-appear after undo of block.
 
 * Rate limits: not included in `activitpub-express`; should be handled in the specific implementation
 
@@ -329,8 +329,8 @@ the object, and the server will find the related Follow/Accept/Block and substit
 
 ### Federation notes
 
-* **http signaures**
-  * In production mode, incoming POST requests without valid http signaures will be
+* **http signatures**
+  * In production mode, incoming POST requests without valid http signatures will be
   rejected (401 if missing, 403 if invalid)
   * Outoing POST requests are signed ('(request-target)', 'host', 'date', 'digest')
   with the actor's keypair using the `Signature` header
@@ -344,7 +344,7 @@ the object, and the server will find the related Follow/Accept/Block and substit
   a collection changes.
   * If it is an actor collection (e.g. followers), the Update
   object will be the `OrderedCollection` itself. Other servers can verify ownership
-  by checking that Actor object of the sender contains a reference to
+  by checking that the `Actor` object of the sender contains a reference to
   the collection.
   * If it is an activity collection (likes/shares), the Update object
   will be the activity itself with the collection objects embedded.
