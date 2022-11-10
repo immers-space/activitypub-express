@@ -1,3 +1,9 @@
+## v4.1.1 (2022-22-09)
+
+### Fixed
+
+* Fixed not finding shared inbox endpoints due to looking in the wrong place
+
 ## v4.1.0 (2022-11-09)
 
 ### Added

@@ -49,7 +49,7 @@ describe('activity utils', function () {
       const actors = await Promise.all(
         ['bob', 'sally', 'sandro'].map(un => apex.createActor(un, un, 'actor'))
       )
-      actors[0].sharedInbox = actors[1].sharedInbox = ['https://test.com/sharedInbox']
+      actors[0].endpoints[0].sharedInbox = actors[1].endpoints[0].sharedInbox = ['https://test.com/sharedInbox']
       await Promise.all(actors.map(a => apex.store.saveObject(a)))
       const act = await apex
         .buildActivity('Create', testUser.id, actors.map(a => a.id))
