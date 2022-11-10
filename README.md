@@ -242,7 +242,7 @@ A: Run `npm dedupe` to ensure that the `request` library is using the patched ve
   * [x] Delivery
     * [x] Request signing
     * [x] Addressing
-      * [ ] Shared inbox optmization
+      * [x] Shared inbox optmization
       * [ ] Direct delivery to local inboxes
     * [x] Redelivery attempts
 * [ ] Client-to-server
