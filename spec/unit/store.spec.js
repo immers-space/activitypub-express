@@ -1,15 +1,15 @@
 /* global describe, beforeAll, beforeEach, it, expect */
 
-describe('default store', function () {
-  let testUser
-  let apex
-  let client
+describe("default store", function () {
+  let testUser;
+  let apex;
+  let client;
   beforeAll(async function () {
-    const init = await global.initApex()
-    testUser = init.testUser
-    apex = init.apex
-    client = init.client
-  })
+    const init = await global.initApex();
+    testUser = init.testUser;
+    apex = init.apex;
+    client = init.client;
+  });
   beforeEach(function () {
     return global.resetDb(apex, client, testUser)
   })
@@ -31,14 +31,14 @@ describe('default store', function () {
       await apex.store.saveActivity(create)
       await apex.store.saveObject(create.object[0])
       const updated = {
-        id: 'https://localhost/o/abc123',
-        type: 'Note',
+        id: "https://localhost/o/abc123",
+        type: "Note",
         attributedTo: [testUser.id],
-        content: ['Hello again']
-      }
+        content: ["Hello again"],
+      };
       const notUpdated = {
-        id: 'https://localhost/o/notupdated',
-        type: 'Note',
+        id: "https://localhost/o/notupdated",
+        type: "Note",
         attributedTo: [testUser.id],
         content: ['Goodbye']
       }
@@ -55,7 +55,7 @@ describe('default store', function () {
       delete updated.after
       expect(updated).toEqual({
         actorId: testUser.id,
-        body: 'hello',
+        body: "hello",
         address: testUser.inbox[0],
         attempt: 0,
         signingKey: 'newkey'

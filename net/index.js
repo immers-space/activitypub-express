@@ -1,11 +1,11 @@
-'use strict'
+"use strict";
 // express middleware
-const validators = require('./validators')
-const responders = require('./responders')
-const security = require('./security')
-const activity = require('./activity')
-const collection = require('./collection')
-const wellKnown = require('./well-known')
+const validators = require("./validators");
+const responders = require("./responders");
+const security = require("./security");
+const activity = require("./activity");
+const collection = require("./collection");
+const wellKnown = require("./well-known");
 
 module.exports = {
   validators,
@@ -21,11 +21,11 @@ module.exports = {
       validators.targetActivity,
       security.verifyAuthorization,
       security.requireAuthorizedOrPublic,
-      responders.target
-    ]
+      responders.target,
+    ],
   },
   actor: {
-    get: [validators.jsonld, validators.targetActor, responders.target]
+    get: [validators.jsonld, validators.targetActor, responders.target],
   },
   blocked: {
     get: [
@@ -33,8 +33,8 @@ module.exports = {
       validators.targetActor,
       security.verifyAuthorization,
       collection.blocked,
-      responders.result
-    ]
+      responders.result,
+    ],
   },
   collections: {
     get: [
@@ -42,8 +42,8 @@ module.exports = {
       validators.targetActor,
       security.verifyAuthorization,
       collection.added,
-      responders.result
-    ]
+      responders.result,
+    ],
   },
   followers: {
     get: [
@@ -51,8 +51,8 @@ module.exports = {
       validators.targetActorWithMeta,
       security.verifyAuthorization,
       collection.followers,
-      responders.result
-    ]
+      responders.result,
+    ],
   },
   following: {
     get: [
@@ -60,8 +60,8 @@ module.exports = {
       validators.targetActor,
       security.verifyAuthorization,
       collection.following,
-      responders.result
-    ]
+      responders.result,
+    ],
   },
   inbox: {
     post: [
@@ -75,15 +75,15 @@ module.exports = {
       activity.resolveThread,
       activity.inboxSideEffects,
       activity.forwardFromInbox,
-      responders.status
+      responders.status,
     ],
     get: [
       validators.jsonld,
       validators.targetActorWithMeta,
       security.verifyAuthorization,
       collection.inbox,
-      responders.result
-    ]
+      responders.result,
+    ],
   },
   liked: {
     get: [
@@ -91,8 +91,8 @@ module.exports = {
       validators.targetActor,
       security.verifyAuthorization,
       collection.liked,
-      responders.result
-    ]
+      responders.result,
+    ],
   },
   shares: {
     get: [
@@ -100,8 +100,8 @@ module.exports = {
       validators.targetActivity,
       security.verifyAuthorization,
       collection.shares,
-      responders.result
-    ]
+      responders.result,
+    ],
   },
   likes: {
     get: [
@@ -109,8 +109,8 @@ module.exports = {
       validators.targetActivity,
       security.verifyAuthorization,
       collection.likes,
-      responders.result
-    ]
+      responders.result,
+    ],
   },
   object: {
     get: [
@@ -118,8 +118,8 @@ module.exports = {
       validators.targetObject,
       security.verifyAuthorization,
       security.requireAuthorizedOrPublic,
-      responders.target
-    ]
+      responders.target,
+    ],
   },
   outbox: {
     post: [
@@ -132,15 +132,15 @@ module.exports = {
       validators.outboxActivity,
       activity.save,
       activity.outboxSideEffects,
-      responders.status
+      responders.status,
     ],
     get: [
       validators.jsonld,
       validators.targetActor,
       security.verifyAuthorization,
       collection.outbox,
-      responders.result
-    ]
+      responders.result,
+    ],
   },
   rejected: {
     get: [
@@ -148,8 +148,8 @@ module.exports = {
       validators.targetActor,
       security.verifyAuthorization,
       collection.rejected,
-      responders.result
-    ]
+      responders.result,
+    ],
   },
   rejections: {
     get: [
@@ -157,27 +157,23 @@ module.exports = {
       validators.targetActor,
       security.verifyAuthorization,
       collection.rejections,
-      responders.result
-    ]
+      responders.result,
+    ],
   },
   webfinger: {
     get: [
       wellKnown.parseWebfinger,
       validators.targetActor,
-      wellKnown.respondWebfinger
-    ]
+      wellKnown.respondWebfinger,
+    ],
   },
   nodeInfo: {
-    get: [wellKnown.respondNodeInfo]
+    get: [wellKnown.respondNodeInfo],
   },
   nodeInfoLocation: {
-    get: [wellKnown.respondNodeInfoLocation]
+    get: [wellKnown.respondNodeInfoLocation],
   },
   proxy: {
-    post: [
-      validators.jsonld,
-      validators.targetProxied,
-      responders.target
-    ]
-  }
-}
+    post: [validators.jsonld, validators.targetProxied, responders.target],
+  },
+};
