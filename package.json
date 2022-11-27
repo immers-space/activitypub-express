@@ -1,10 +1,11 @@
 {
   "name": "activitypub-express",
-  "version": "3.2.0",
+  "version": "4.1.1",
   "description": "Modular ActivityPub implementation as Express middleware to easily add decentralization and federation to Node apps",
   "main": "index.js",
   "engines": {
-    "node": ">=14.15"
+    "node": ">=16",
+    "npm": ">=7"
   },
   "scripts": {
     "test": "jasmine",
@@ -31,7 +32,7 @@
   "dependencies": {
     "deepmerge": "^4.2.2",
     "express": "^4.18.0",
-    "http-signature": "github:wmurphyrd/node-http-signature#9c02eeb",
+    "http-signature": "git+https://git@github.com/wmurphyrd/node-http-signature.git#9c02eeb",
     "jsonld": "^5.2.0",
     "mongo-escape": "^2.0.6",
     "mongodb": "^4.5.0",

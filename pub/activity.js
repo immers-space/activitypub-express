@@ -94,10 +94,10 @@ async function address(activity, sender, audienceOverride) {
   });
   audience = await Promise.allSettled(audience).then((results) => {
     const addresses = results
-      .filter((result) => result.status === "fulfilled" && result.value)
-      .map((result) => {
-        if (result.value.inbox) {
-          return result.value;
+      .filter(result => result.status === 'fulfilled' && result.value)
+      .map(result => {
+        if (result.value.inbox || result.value.endpoints?.[0]?.sharedInbox) {
+          return result.value
         }
         if (result.value.items) {
           return result.value.items.map((id) => this.resolveObject(id));
@@ -119,7 +119,7 @@ async function address(activity, sender, audienceOverride) {
       if (result.value.inbox[0] === sender.inbox[0]) return false;
       return true;
     })
-    .map((result) => result.value.inbox[0]);
+    .map(result => result.value.endpoints?.[0]?.sharedInbox?.[0] || result.value.inbox[0])
   // 7.1 de-dupe
   return Array.from(new Set(audience));
 }

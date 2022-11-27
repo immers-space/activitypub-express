@@ -1,7 +1,9 @@
-/* global describe, beforeAll, beforeEach, it, expect, spyOn */
-const request = require("supertest");
-const merge = require("deepmerge");
-const nock = require("nock");
+/* global describe, beforeAll, beforeEach, afterAll, it, expect, spyOn */
+const crypto = require('crypto')
+const httpSignature = require('http-signature')
+const request = require('supertest')
+const merge = require('deepmerge')
+const nock = require('nock')
 
 const activity = {
   "@context": "https://www.w3.org/ns/activitystreams",
@@ -1374,13 +1376,81 @@ describe("inbox", function () {
           .post("/inbox/test")
           .set("Content-Type", "application/activity+json")
           .send(like)
-          .expect(200);
-      });
-    });
-  });
-  describe("get", function () {
-    let inbox;
-    let testActor;
+          .expect(200)
+      })
+    })
+    describe('signature verification', function () {
+      beforeAll(() => {
+        app.set('env', 'production')
+      })
+      afterAll(function () {
+        app.set('env', 'development')
+      })
+      it('rejects missing signature', function () {
+        return request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(activity)
+          .expect(401)
+      })
+      it('rejects invalid signature', function () {
+        return request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .set('Date', new Date().toUTCString())
+          .set('Signature', 'keyId="https://localhost/u/test",algorithm="rsa-sha256",headers="(request-target) host date",signature="asfdlajsflkjasklgja="')
+          .send(activity)
+          .expect(403)
+      })
+      it('handles unverifiable delete', function () {
+        const act = merge({}, activity)
+        act.id = 'https://mocked.com/s/abc123'
+        act.actor = 'https://mocked.com/u/mocked'
+        act.object = act.actor
+        act.type = 'Delete'
+        nock('https://mocked.com')
+          .get('/u/mocked')
+          .reply(404)
+        return request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .set('Date', new Date().toUTCString())
+          .set('Signature', 'keyId="https://mocked.com/u/mocked",algorithm="rsa-sha256",headers="(request-target) host date",signature="asfdlajsflkjasklgja="')
+          .send(act)
+          .expect(200)
+      })
+      it('validates valid signature', async function () {
+        const recip = await apex.createActor('recipient', 'recipient')
+        await apex.store.saveObject(recip)
+        const body = apex.stringifyPublicJSONLD(activity)
+        const headers = {
+          digest: crypto.createHash('sha256').update(body).digest('base64'),
+          host: 'localhost'
+        }
+        httpSignature.signRequest({
+          getHeader: k => headers[k.toLowerCase()],
+          setHeader: (k, v) => (headers[k.toLowerCase()] = v),
+          method: 'POST',
+          path: '/inbox/recipient'
+        }, {
+          key: testUser._meta.privateKey,
+          keyId: testUser.id,
+          headers: ['(request-target)', 'host', 'date', 'digest'],
+          authorizationHeaderName: 'Signature'
+        })
+        const signedReq = request(app)
+          .post('/inbox/recipient')
+          .set('Content-Type', 'application/activity+json')
+        Object.entries(headers).forEach(([k, v]) => signedReq.set(k, v))
+        return signedReq
+          .send(body)
+          .expect(200)
+      })
+    })
+  })
+  describe('get', function () {
+    let inbox
+    let testActor
     beforeEach(async function () {
       inbox = [];
       const meta = { collection: ["https://localhost/inbox/test"] };

@@ -1,7 +1,5 @@
 "use strict";
 
-const overlaps = require("overlaps");
-
 module.exports = {
   buildCollection,
   buildCollectionPage,
@@ -38,19 +36,18 @@ async function buildCollectionPage(collectionId, page, isOrdered, lastItemId) {
   });
 }
 
-/* page: MongoDB _id of item to begin querying after (i.e. last item of last page) or
- *  one of two special values:
- *    'true' - get first page
- *    Infinity - get all items (internal use only)
+/**
+ * Get a collection object or collection page objct
+ * @param  {string} collectionId
+ * @param  {string | Infinity} [page] MongoDB _id of item to begin querying after (i.e. last item of last page)
+ *   or one of two special values: 'true' - get first page, Infinity - get all items (internal use only)
+ * @param  {function} [remapper]
+ * @param  {boolean} [includePrivate]
+ * @param  {string[]} [blockList]
+ * @param  {object[]} [query] - additional filtering/aggregation passed through to store.getStream
  */
-async function getCollection(
-  collectionId,
-  page,
-  remapper,
-  includePrivate,
-  blockList
-) {
-  collectionId = this.objectIdFromValue(collectionId);
+async function getCollection (collectionId, page, remapper, includePrivate, blockList, query) {
+  collectionId = this.objectIdFromValue(collectionId)
   if (!page) {
     // if page isn't specified, just collection description is served
     const totalItems = await this.store.getStreamCount(collectionId);
@@ -65,12 +62,7 @@ async function getCollection(
     after = null;
     limit = null;
   }
-  let stream = await this.store.getStream(
-    collectionId,
-    limit,
-    after,
-    blockList
-  );
+  let stream = await this.store.getStream(collectionId, limit, after, blockList, query)
   const pageObj = await this.buildCollectionPage(
     collectionId,
     page,
