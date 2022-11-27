@@ -25,12 +25,12 @@ describe("collections", function () {
     app.get("/followers/:actor", apex.net.followers.get);
     app.get("/following/:actor", apex.net.following.get);
     app.get("/liked/:actor", apex.net.liked.get);
+    app.get("/u/:actor/blocked", apex.net.blocked.get);
+    app.get("/u/:actor/rejected", apex.net.rejected.get);
+    app.get("/u/:actor/rejections", apex.net.rejections.get);
     app.get("/s/:id/shares", apex.net.shares.get);
     app.get("/s/:id/likes", apex.net.likes.get);
     app.get("/u/:actor/c/:id", apex.net.collections.get);
-  });
-  afterAll(async () => {
-    await TestUtils.teardown(client);
   });
   beforeEach(async function () {
     await TestUtils.resetDb(apex, client, testUser);
@@ -442,6 +442,66 @@ describe("collections", function () {
       }
       const rejected = await apex.getRejected(testUser, Infinity, true);
       expect(rejected.orderedItems).toEqual(follows.map((a) => a.id).reverse());
+    });
+    it("blocked c2s endpoint returns collection", async function (done) {
+      request(app)
+        .get("/u/test/blocked")
+        .set("Accept", "application/activity+json")
+        .expect(200)
+        .end(function (err, res) {
+          const standard = {
+            "@context": [
+              "https://www.w3.org/ns/activitystreams",
+              "https://w3id.org/security/v1",
+            ],
+            id: "https://localhost/u/test/blocked",
+            type: "OrderedCollection",
+            totalItems: 0,
+            first: "https://localhost/u/test/blocked?page=true",
+          };
+          expect(res.body).toEqual(standard);
+          done(err);
+        });
+    });
+    it("rejected c2s endpoint returns collection", async function (done) {
+      request(app)
+        .get("/u/test/rejected")
+        .set("Accept", "application/activity+json")
+        .expect(200)
+        .end(function (err, res) {
+          const standard = {
+            "@context": [
+              "https://www.w3.org/ns/activitystreams",
+              "https://w3id.org/security/v1",
+            ],
+            id: "https://localhost/u/test/rejected",
+            type: "OrderedCollection",
+            totalItems: 0,
+            first: "https://localhost/u/test/rejected?page=true",
+          };
+          expect(res.body).toEqual(standard);
+          done(err);
+        });
+    });
+    it("rejections c2s endpoint returns collection", async function (done) {
+      request(app)
+        .get("/u/test/rejections")
+        .set("Accept", "application/activity+json")
+        .expect(200)
+        .end(function (err, res) {
+          const standard = {
+            "@context": [
+              "https://www.w3.org/ns/activitystreams",
+              "https://w3id.org/security/v1",
+            ],
+            id: "https://localhost/u/test/rejections",
+            type: "OrderedCollection",
+            totalItems: 0,
+            first: "https://localhost/u/test/rejections?page=true",
+          };
+          expect(res.body).toEqual(standard);
+          done(err);
+        });
     });
   });
 });

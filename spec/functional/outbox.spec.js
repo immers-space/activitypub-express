@@ -87,14 +87,18 @@ describe("outbox", function () {
     // validators activity
     it("errors invalid activities", function (done) {
       request(app)
-        .post("/authorized/outbox/test")
-        .set("Content-Type", "application/activity+json")
-        .send({
-          actor: "bob",
-          "@context": "https://www.w3.org/ns/activitystreams",
-        })
-        .expect(400, "Invalid activity", done);
-    });
+        .post('/authorized/outbox/test')
+        .set('Content-Type', 'application/activity+json')
+        .send({ actor: 'bob', '@context': 'https://www.w3.org/ns/activitystreams' })
+        .expect(400, 'Invalid activity', done)
+    })
+    it('rejects unauthorized requests', function () {
+      return request(app)
+        .post('/outbox/test')
+        .set('Content-Type', 'application/activity+json')
+        .send(activity)
+        .expect(403)
+    })
     // activity getTargetActor
     it("errors on unknown actor", function (done) {
       request(app)

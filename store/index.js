@@ -69,38 +69,31 @@ class ApexStore extends IApexStore {
   async setup(initialUser) {
     const db = this.db;
     // inbox
-    await db.collection("streams").createIndex(
-      {
-        id: 1,
-      },
-      {
-        name: "streams-primary",
-        unique: true,
-      }
-    );
-    await db.collection("streams").createIndex(
-      {
-        "_meta.collection": 1,
-        _id: -1,
-      },
-      {
-        name: "collections",
-      }
-    );
+    await db.collection('streams').createIndex({
+      id: 1
+    }, {
+      name: 'streams-primary',
+      unique: true
+    })
+    await db.collection('streams').createIndex({
+      '_meta.collection': 1,
+      _id: -1
+    }, {
+      name: 'collections'
+    })
+    // updates of objects embedded in streams
+    await db.collection('streams').createIndex({
+      'object.id': 1
+    }, {
+      name: 'stream-object-updates'
+    })
     // object lookup
-    await db
-      .collection("objects")
-      .createIndex({ id: 1 }, { unique: true, name: "objects-primary" });
-    await db
-      .collection("deliveryQueue")
-      .createIndex({ after: 1, _id: 1 }, { name: "delivery-dequeue" });
-    await db
-      .collection("objects")
-      .createIndex(
-        { id: 1, type: 1 },
-        { name: "local-user-count", partialFilterExpression: localUserQuery }
-      );
-    // TODO: index stream.object.id for updates
+    await db.collection('objects')
+      .createIndex({ id: 1 }, { unique: true, name: 'objects-primary' })
+    await db.collection('deliveryQueue')
+      .createIndex({ after: 1, _id: 1 }, { name: 'delivery-dequeue' })
+    await db.collection('objects')
+      .createIndex({ id: 1, type: 1 }, { name: 'local-user-count', partialFilterExpression: localUserQuery })
     // also need partial index on stream.object.object.id for object updates when
     // type is  'announce', 'like', 'add', 'reject' (denormalized collection types)
     if (initialUser) {
@@ -211,17 +204,29 @@ class ApexStore extends IApexStore {
       });
   }
 
-  getStream(collectionId, limit, after, blockList) {
-    const pipeline = [];
-    const filter = { "_meta.collection": collectionId };
+  /**
+   * Return a specific collection (stream of activitites), e.g. a user's inbox
+   * @param  {string} collectionId - _meta.collection identifier
+   * @param  {number} limit - max number of activities to return
+   * @param  {string} [after] - mongodb _id to begin querying after (i.e. last item of last page)
+   * @param  {string[]} [blockList] - list of ids of actors whose activities should be excluded
+   * @param  {object[]} [query] - additional aggretation pipeline stages to include
+   * @returns {Promise<object[]>}
+   */
+  getStream (collectionId, limit, after, blockList, query) {
+    const pipeline = []
+    const filter = { '_meta.collection': collectionId }
     if (after) {
       filter._id = { $lt: new mongo.ObjectId(after) };
     }
     if (blockList?.length) {
       filter.actor = { $nin: blockList };
     }
-    pipeline.push({ $match: filter });
-    pipeline.push({ $sort: { _id: -1 } });
+    pipeline.push({ $match: filter })
+    if (query) {
+      pipeline.push(...query)
+    }
+    pipeline.push({ $sort: { _id: -1 } })
     if (limit) {
       pipeline.push({ $limit: limit });
     }
@@ -249,8 +254,8 @@ class ApexStore extends IApexStore {
       }
     );
 
-    const query = this.db.collection("streams").aggregate(pipeline);
-    return query.toArray().then((stream) => unescape(stream));
+    const result = this.db.collection('streams').aggregate(pipeline)
+    return result.toArray().then(stream => unescape(stream))
   }
 
   getStreamCount(collectionId) {
@@ -381,24 +386,14 @@ class ApexStore extends IApexStore {
   }
 
   // for denormalized storage model, must update all activities with copy of updated object
-  async updateObjectCopies(object) {
-    await this.db
-      .collection("streams")
-      .updateMany(
-        { "object.id": object.id },
-        { $set: { "object.$[element]": object } },
-        { arrayFilters: [{ "element.id": object.id }] }
-      );
-    // these activities have an activity as their object which may in turn
-    // include the object being updated
-    await this.db.collection("streams").updateMany(
-      {
-        type: { $in: ["Announce", "Like", "Add", "Reject"] },
-        "object.object.id": object.id,
-      },
-      { $set: { "object.$[].object.$[element]": object } },
-      { arrayFilters: [{ "element.id": object.id }] }
-    );
+  async updateObjectCopies (object) {
+    await this.db.collection('streams').updateMany(
+      { 'object.id': object.id },
+      { $set: { 'object.$[element]': object } },
+      { arrayFilters: [{ 'element.id': object.id }] }
+    )
+    // does not update object.object.id, e.g. an announce of a create with an embedded object.
+    // Too much db work and in practice these don't generally come in as doubly nested
     if (object._meta?.privateKey) {
       // just in case actor keypairs are updated while deliveries are queued
       await this.db

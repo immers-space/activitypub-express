@@ -18,10 +18,47 @@ describe("utils", function () {
       .post(apex.net.outbox.post);
   });
   beforeEach(function () {
-    return global.resetDb(apex, client, testUser);
-  });
-  describe("jsonld processing", function () {
-    it("handles context arrays with language tag", async function () {
+    return global.resetDb(apex, client, testUser)
+  })
+  describe('hasMeta util', function () {
+    it('returns false when object does not have metadata', function () {
+      const obj = { _meta: { collection: [] } }
+      expect(apex.hasMeta(obj, 'collection', testUser.inbox[0])).toBe(false)
+    })
+  })
+  describe('removeMeta', function () {
+    it('returns when object does not have the metadata', function () {
+      const obj = { _meta: { collection: [] } }
+      expect(apex.removeMeta(obj, 'collection', testUser.inbox[0])).toBe(undefined)
+    })
+    it('removes the medata', function () {
+      const obj = { _meta: { collection: [testUser.inbox[0]] } }
+      apex.removeMeta(obj, 'collection', testUser.inbox[0])
+      expect(obj._meta.collection).toEqual([])
+    })
+  })
+  describe('actorIdFromActivity', function () {
+    it('returns id from object', function () {
+      expect(apex.actorIdFromActivity({ actor: [{ id: testUser.id }] }))
+        .toBe(testUser.id)
+    })
+    it('returns href from link', function () {
+      expect(apex.actorIdFromActivity({ actor: [{ type: 'Link', href: [testUser.id] }] }))
+        .toBe(testUser.id)
+    })
+  })
+  describe('objectIdFromActivity', function () {
+    it('returns id from object', function () {
+      expect(apex.objectIdFromActivity({ object: [{ id: testUser.id }] }))
+        .toBe(testUser.id)
+    })
+    it('returns href from link', function () {
+      expect(apex.objectIdFromActivity({ object: [{ type: 'Link', href: [testUser.id] }] }))
+        .toBe(testUser.id)
+    })
+  })
+  describe('jsonld processing', function () {
+    it('handles context arrays with language tag', async function () {
       const processed = await apex.fromJSONLD({
         "@context": [
           "https://www.w3.org/ns/activitystreams",

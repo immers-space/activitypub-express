@@ -54,9 +54,23 @@ describe("activity utils", function () {
         });
       const addresses = await apex.address(act, testUser);
       expect(addresses).toEqual([
-        "https://mocked.com/u/bob/inbox",
-        "https://mocked.com/u/sally/inbox",
-      ]);
-    });
-  });
-});
+        'https://mocked.com/u/bob/inbox',
+        'https://mocked.com/u/sally/inbox'
+      ])
+    })
+    it('finds an de-dupes sharedInboxes when available', async function () {
+      const actors = await Promise.all(
+        ['bob', 'sally', 'sandro'].map(un => apex.createActor(un, un, 'actor'))
+      )
+      actors[0].endpoints[0].sharedInbox = actors[1].endpoints[0].sharedInbox = ['https://test.com/sharedInbox']
+      await Promise.all(actors.map(a => apex.store.saveObject(a)))
+      const act = await apex
+        .buildActivity('Create', testUser.id, actors.map(a => a.id))
+      const addresses = await apex.address(act, testUser)
+      expect(addresses).toEqual([
+        'https://test.com/sharedInbox',
+        'https://localhost/inbox/sandro'
+      ])
+    })
+  })
+})
