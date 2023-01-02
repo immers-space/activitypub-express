@@ -9,7 +9,8 @@
   },
   "scripts": {
     "test": "jasmine",
-    "coverage": "nyc npm test && nyc report --reporter=text-lcov | coveralls"
+    "coverage": "nyc npm test && nyc report --reporter=text-lcov | coveralls",
+    "lint": "standard"
   },
   "repository": {
     "type": "git",
