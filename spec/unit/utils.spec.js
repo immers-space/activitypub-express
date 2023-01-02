@@ -27,7 +27,7 @@ describe('utils', function () {
   })
   describe('removeMeta', function () {
     it('returns when object does not have the metadata', function () {
-      const obj = { _meta: { collection: [] } }
+      const obj = { }
       expect(apex.removeMeta(obj, 'collection', testUser.inbox[0])).toBe(undefined)
     })
     it('removes the medata', function () {
