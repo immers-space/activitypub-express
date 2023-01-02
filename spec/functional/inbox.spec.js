@@ -501,7 +501,7 @@ describe('inbox', function () {
       it('rejects undo with owner mismatch', async function () {
         undone.actor = ['https://ignore.com/bob']
         await apex.store.saveActivity(undone)
-        request(app)
+        await request(app)
           .post('/inbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(undo)
@@ -721,7 +721,6 @@ describe('inbox', function () {
             done()
           })
         })
-
         await request(app)
           .post('/inbox/test')
           .set('Content-Type', 'application/activity+json')
@@ -1042,7 +1041,7 @@ describe('inbox', function () {
       it('403 if updater is not owner', async function () {
         update.actor = 'https://ignore.com/bob'
         await apex.store.saveObject(targetObj)
-        request(app)
+        await request(app)
           .post('/inbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(update)
@@ -1149,7 +1148,7 @@ describe('inbox', function () {
       it('403 if updater is not owner', async function () {
         del.actor = 'https://ignore.com/bob'
         await apex.store.saveObject(targetObj)
-        request(app)
+        await request(app)
           .post('/inbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(del)
