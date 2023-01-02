@@ -34,7 +34,7 @@ describe('combined inbox/outbox flows', function () {
     return global.resetDb(apex, client, testUser)
   })
 
-  it('adds followers and delivers to them', async function (done) {
+  it('adds followers and delivers to them', async function () {
     const follow = await apex
       .buildActivity('Follow', 'https://mocked.com/u/mocked', testUser.id, {
         object: testUser.id

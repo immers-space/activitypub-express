@@ -30,7 +30,7 @@ describe('webfinger', function () {
             type: 'application/activity+json',
             href: 'https://localhost/u/test'
           }]
-        }, done)
+        }, _ => done())
     })
   })
 })

@@ -70,7 +70,7 @@ describe('collections', function () {
             first: 'https://localhost/followers/test?page=true'
           }
           expect(res.body).toEqual(standard)
-          done(err)
+          done()
         })
     })
     it('page returns accepted followers', function (done) {
@@ -89,7 +89,7 @@ describe('collections', function () {
 
           }
           expect(res.body).toEqual(standard)
-          done(err)
+          done()
         })
     })
   })
@@ -111,7 +111,7 @@ describe('collections', function () {
       firstActivity = await apex.store.db.collection('streams')
         .findOne({}, { sort: { _id: 1 } })
     })
-    it('returns following collection', async function (done) {
+    it('returns following collection', function (done) {
       request(app)
         .get('/following/test')
         .set('Accept', 'application/activity+json')
@@ -125,10 +125,10 @@ describe('collections', function () {
             first: 'https://localhost/following/test?page=true'
           }
           expect(res.body).toEqual(standard)
-          done(err)
+          done()
         })
     })
-    it('page returns accepted following', async function (done) {
+    it('page returns accepted following', function (done) {
       request(app)
         .get('/following/test?page=true')
         .set('Accept', 'application/activity+json')
@@ -143,7 +143,7 @@ describe('collections', function () {
             next: `https://localhost/following/test?page=${firstActivity._id}`
           }
           expect(res.body).toEqual(standard)
-          done(err)
+          done()
         })
     })
   })
@@ -163,7 +163,7 @@ describe('collections', function () {
       firstActivity = await apex.store.db.collection('streams')
         .findOne({}, { sort: { _id: 1 } })
     })
-    it('returns liked collection', async function (done) {
+    it('returns liked collection', function (done) {
       request(app)
         .get('/liked/test')
         .set('Accept', 'application/activity+json')
@@ -177,10 +177,10 @@ describe('collections', function () {
             first: 'https://localhost/liked/test?page=true'
           }
           expect(res.body).toEqual(standard)
-          done(err)
+          done()
         })
     })
-    it('page returns liked objects', async function (done) {
+    it('page returns liked objects', function (done) {
       request(app)
         .get('/liked/test?page=true')
         .set('Accept', 'application/activity+json')
@@ -195,7 +195,7 @@ describe('collections', function () {
             orderedItems: ['https://ignore.com/s/3', 'https://ignore.com/s/2', 'https://ignore.com/s/1']
           }
           expect(res.body).toEqual(standard)
-          done(err)
+          done()
         })
     })
   })
@@ -211,7 +211,7 @@ describe('collections', function () {
         })
         expect(act.shares).toEqual([await apex.getShares(act)])
       })
-      it('get page returns announces for activity', async function (done) {
+      it('get page returns announces for activity', async function () {
         const act = await apex.buildActivity('Create', testUser.id, testUser.followers, {
           object: {
             id: apex.utils.objectIdToIRI(),
@@ -225,16 +225,13 @@ describe('collections', function () {
         await apex.addMeta(announce, 'collection', apex.objectIdFromValue(act.shares))
         await apex.store.saveActivity(act)
         await apex.store.saveActivity(announce)
-        request(app)
+        const res = await request(app)
           .get(`${act.id}/shares?page=true`.replace('https://localhost', ''))
           .set('Accept', 'application/activity+json')
           .expect(200)
-          .end(async function (err, res) {
-            const standard = await global.toExternalJSONLD(apex, announce, true)
-            standard.actor = actors.find(act => act.id === announce.actor[0])
-            expect(res.body.orderedItems).toEqual([standard])
-            done(err)
-          })
+        const standard = await global.toExternalJSONLD(apex, announce, true)
+        standard.actor = actors.find(act => act.id === announce.actor[0])
+        expect(res.body.orderedItems).toEqual([standard])
       })
     })
     describe('likes', function () {
@@ -248,7 +245,7 @@ describe('collections', function () {
         })
         expect(act.likes).toEqual([await apex.getLikes(act)])
       })
-      it('returns likes for activity', async function (done) {
+      it('returns likes for activity', async function () {
         const act = await apex.buildActivity('Create', testUser.id, testUser.followers, {
           object: {
             id: apex.utils.objectIdToIRI(),
@@ -262,21 +259,18 @@ describe('collections', function () {
         await apex.addMeta(like, 'collection', apex.objectIdFromValue(act.likes))
         await apex.store.saveActivity(act)
         await apex.store.saveActivity(like)
-        request(app)
+        const res = await request(app)
           .get(`${act.id}/likes?page=true`.replace('https://localhost', ''))
           .set('Accept', 'application/activity+json')
           .expect(200)
-          .end(async function (err, res) {
-            const standard = await global.toExternalJSONLD(apex, like, true)
-            standard.actor = actors.find(act => act.id === like.actor[0])
-            expect(res.body.orderedItems).toEqual([standard])
-            done(err)
-          })
+        const standard = await global.toExternalJSONLD(apex, like, true)
+        standard.actor = actors.find(act => act.id === like.actor[0])
+        expect(res.body.orderedItems).toEqual([standard])
       })
     })
   })
   describe('misc collections', function () {
-    it('gets collection items', async function (done) {
+    it('gets collection items', async function () {
       const col = `${testUser.id}/c/cool-stuff`
       const act = await apex.buildActivity('Create', testUser.id, testUser.followers, {
         object: {
@@ -290,14 +284,11 @@ describe('collections', function () {
         .toExternalJSONLD(apex, apex.mergeJSONLD(act, { actor: [testUser] }), true)
       apex.addMeta(act, 'collection', col)
       await apex.store.saveActivity(act)
-      request(app)
+      const res = await request(app)
         .get(`${col.replace('https://localhost', '')}?page=true`)
         .set('Accept', 'application/activity+json')
         .expect(200)
-        .end(function (err, res) {
-          expect(res.body.orderedItems).toEqual([actOut])
-          done(err)
-        })
+      expect(res.body.orderedItems).toEqual([actOut])
     })
   })
   describe('internal special collections', function () {
@@ -343,24 +334,21 @@ describe('collections', function () {
       const rejected = await apex.getRejected(testUser, Infinity, true)
       expect(rejected.orderedItems).toEqual(follows.map(a => a.id).reverse())
     })
-    it('blocked c2s endpoint returns collection', async function (done) {
-      request(app)
+    it('blocked c2s endpoint returns collection', async function () {
+      const res = await request(app)
         .get('/u/test/blocked')
         .set('Accept', 'application/activity+json')
         .expect(200)
-        .end(function (err, res) {
-          const standard = {
-            '@context': ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1'],
-            id: 'https://localhost/u/test/blocked',
-            type: 'OrderedCollection',
-            totalItems: 0,
-            first: 'https://localhost/u/test/blocked?page=true'
-          }
-          expect(res.body).toEqual(standard)
-          done(err)
-        })
+      const standard = {
+        '@context': ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1'],
+        id: 'https://localhost/u/test/blocked',
+        type: 'OrderedCollection',
+        totalItems: 0,
+        first: 'https://localhost/u/test/blocked?page=true'
+      }
+      expect(res.body).toEqual(standard)
     })
-    it('rejected c2s endpoint returns collection', async function (done) {
+    it('rejected c2s endpoint returns collection', function (done) {
       request(app)
         .get('/u/test/rejected')
         .set('Accept', 'application/activity+json')
@@ -374,10 +362,10 @@ describe('collections', function () {
             first: 'https://localhost/u/test/rejected?page=true'
           }
           expect(res.body).toEqual(standard)
-          done(err)
+          done()
         })
     })
-    it('rejections c2s endpoint returns collection', async function (done) {
+    it('rejections c2s endpoint returns collection', function (done) {
       request(app)
         .get('/u/test/rejections')
         .set('Accept', 'application/activity+json')
@@ -391,7 +379,7 @@ describe('collections', function () {
             first: 'https://localhost/u/test/rejections?page=true'
           }
           expect(res.body).toEqual(standard)
-          done(err)
+          done()
         })
     })
   })
