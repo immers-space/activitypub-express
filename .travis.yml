@@ -11,3 +11,4 @@ services:
 jobs:
   - script: 'npm test'
   - script: 'npm run coverage'
+  - script: 'npm run lint'

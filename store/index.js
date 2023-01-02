@@ -101,7 +101,7 @@ class ApexStore extends IApexStore {
   getObject (id, includeMeta) {
     return this.db
       .collection('objects')
-      .find({ id: id })
+      .find({ id })
       .limit(1)
       // strict comparison as we don't want to return private keys on accident
       .project(includeMeta === true ? this.metaProj : this.projection)
@@ -135,7 +135,7 @@ class ApexStore extends IApexStore {
 
   getActivity (id, includeMeta) {
     return this.db.collection('streams')
-      .find({ id: id })
+      .find({ id })
       .limit(1)
       .project(includeMeta ? this.metaProj : this.projection)
       .next()
