@@ -35,6 +35,7 @@ describe('resources', function () {
         .set('Accept', 'application/activity+json')
         .expect(200)
         .end(function (err, res) {
+          if (err) done.fail(err)
           const standard = {
             '@context': ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1'],
             id: 'https://localhost/u/test',
@@ -60,12 +61,12 @@ describe('resources', function () {
             }
           }
           expect(res.body).toEqual(standard)
-          done(err)
+          done()
         })
     })
   })
   describe('get object', function () {
-    it('returns public object', async function (done) {
+    it('returns public object', async function () {
       const oid = apex.utils.objectIdToIRI()
       let obj = {
         id: oid,
@@ -76,25 +77,22 @@ describe('resources', function () {
       }
       obj = await apex.fromJSONLD(obj)
       await apex.store.saveObject(obj)
-      request(app)
+      const res = await request(app)
         .get(oid.replace('https://localhost', ''))
         .set('Accept', apex.consts.jsonldTypes[0])
         .expect(200)
-        .end(function (err, res) {
-          const standard = {
-            '@context': ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1'],
-            id: oid,
-            type: 'Note',
-            content: 'Hello.',
-            attributedTo: 'https://localhost/u/test',
-            to: ['https://ignore.com/u/ignored', apex.consts.publicAddress]
-          }
-          expect(res.get('content-type')?.includes('application/ld+json')).toBeTrue()
-          expect(res.body).toEqual(standard)
-          done(err)
-        })
+      const standard = {
+        '@context': ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1'],
+        id: oid,
+        type: 'Note',
+        content: 'Hello.',
+        attributedTo: 'https://localhost/u/test',
+        to: ['https://ignore.com/u/ignored', apex.consts.publicAddress]
+      }
+      expect(res.get('content-type')?.includes('application/ld+json')).toBeTrue()
+      expect(res.body).toEqual(standard)
     })
-    it('denies non-public object without authorization', async function (done) {
+    it('denies non-public object without authorization', async function () {
       const oid = apex.utils.objectIdToIRI()
       let obj = {
         id: oid,
@@ -105,16 +103,13 @@ describe('resources', function () {
       }
       obj = await apex.fromJSONLD(obj)
       await apex.store.saveObject(obj)
-      request(app)
+      const res = await request(app)
         .get(oid.replace('https://localhost', ''))
         .set('Accept', apex.consts.jsonldTypes[0])
         .expect(403)
-        .end(function (err, res) {
-          expect(res.body).toEqual({})
-          done(err)
-        })
+      expect(res.body).toEqual({})
     })
-    it('returns non-public object with authorization', async function (done) {
+    it('returns non-public object with authorization', async function () {
       const oid = apex.utils.objectIdToIRI()
       let obj = {
         id: oid,
@@ -125,27 +120,24 @@ describe('resources', function () {
       }
       obj = await apex.fromJSONLD(obj)
       await apex.store.saveObject(obj)
-      request(app)
+      const res = await request(app)
         .get(oid.replace('https://localhost', '/authorized'))
         .set('Accept', apex.consts.jsonldTypes[0])
         .expect(200)
-        .end(function (err, res) {
-          const standard = {
-            '@context': ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1'],
-            id: oid,
-            type: 'Note',
-            content: 'Hello.',
-            attributedTo: 'https://localhost/u/test',
-            to: 'https://ignore.com/u/ignored'
-          }
-          expect(res.get('content-type')?.includes('application/ld+json')).toBeTrue()
-          expect(res.body).toEqual(standard)
-          done(err)
-        })
+      const standard = {
+        '@context': ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1'],
+        id: oid,
+        type: 'Note',
+        content: 'Hello.',
+        attributedTo: 'https://localhost/u/test',
+        to: 'https://ignore.com/u/ignored'
+      }
+      expect(res.get('content-type')?.includes('application/ld+json')).toBeTrue()
+      expect(res.body).toEqual(standard)
     })
   })
   describe('get activity', function () {
-    it('returns public activity', async function (done) {
+    it('returns public activity', async function () {
       const aid = apex.utils.activityIdToIRI()
       const activityInput = {
         id: aid,
@@ -165,21 +157,18 @@ describe('resources', function () {
       const activity = await apex.fromJSONLD(activityInput)
       activity._meta = { collection: [] }
       await apex.store.saveActivity(activity)
-      request(app)
+      const res = await request(app)
         .get(aid.replace('https://localhost', ''))
         .set('Accept', apex.consts.jsonldTypes[0])
         .expect(200)
-        .end(function (err, res) {
-          activityInput['@context'] = ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1']
-          expect(res.get('content-type')?.includes('application/ld+json')).toBeTrue()
-          // converted format during jsonld processing
-          activityInput.cc = apex.consts.publicAddress
-          activityInput.object.cc = apex.consts.publicAddress
-          expect(res.body).toEqual(activityInput)
-          done(err)
-        })
+      activityInput['@context'] = ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1']
+      expect(res.get('content-type')?.includes('application/ld+json')).toBeTrue()
+      // converted format during jsonld processing
+      activityInput.cc = apex.consts.publicAddress
+      activityInput.object.cc = apex.consts.publicAddress
+      expect(res.body).toEqual(activityInput)
     })
-    it('denies non-public activity without authorization', async function (done) {
+    it('denies non-public activity without authorization', async function () {
       const aid = apex.utils.activityIdToIRI()
       const activityInput = {
         id: aid,
@@ -197,16 +186,13 @@ describe('resources', function () {
       const activity = await apex.fromJSONLD(activityInput)
       activity._meta = { collection: [] }
       await apex.store.saveActivity(activity)
-      request(app)
+      const res = await request(app)
         .get(aid.replace('https://localhost', ''))
         .set('Accept', apex.consts.jsonldTypes[0])
         .expect(403)
-        .end(function (err, res) {
-          expect(res.body).toEqual({})
-          done(err)
-        })
+      expect(res.body).toEqual({})
     })
-    it('returns non-public activity with authorization', async function (done) {
+    it('returns non-public activity with authorization', async function () {
       const aid = apex.utils.activityIdToIRI()
       const activityInput = {
         id: aid,
@@ -224,18 +210,15 @@ describe('resources', function () {
       const activity = await apex.fromJSONLD(activityInput)
       activity._meta = { collection: [] }
       await apex.store.saveActivity(activity)
-      request(app)
+      const res = await request(app)
         .get(aid.replace('https://localhost', '/authorized'))
         .set('Accept', apex.consts.jsonldTypes[0])
         .expect(200)
-        .end(function (err, res) {
-          activityInput['@context'] = ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1']
-          expect(res.get('content-type')?.includes('application/ld+json')).toBeTrue()
-          expect(res.body).toEqual(activityInput)
-          done(err)
-        })
+      activityInput['@context'] = ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1']
+      expect(res.get('content-type')?.includes('application/ld+json')).toBeTrue()
+      expect(res.body).toEqual(activityInput)
     })
-    it('returns activity with embedded collections', async function (done) {
+    it('returns activity with embedded collections', async function () {
       const activity = await apex.buildActivity('Create', testUser.id, ['https://ignore.com/u/ignored', apex.consts.publicAddress], {
         object: {
           id: apex.utils.objectIdToIRI(),
@@ -245,25 +228,22 @@ describe('resources', function () {
         }
       })
       await apex.store.saveActivity(activity)
-      request(app)
+      const res = await request(app)
         .get(activity.id.replace('https://localhost', ''))
         .set('Accept', apex.consts.jsonldTypes[0])
         .expect(200)
-        .end(function (err, res) {
-          expect(res.body.shares).toEqual({
-            id: `${activity.id}/shares`,
-            type: 'OrderedCollection',
-            totalItems: 0,
-            first: `${activity.id}/shares?page=true`
-          })
-          expect(res.body.likes).toEqual({
-            id: `${activity.id}/likes`,
-            type: 'OrderedCollection',
-            totalItems: 0,
-            first: `${activity.id}/likes?page=true`
-          })
-          done(err)
-        })
+      expect(res.body.shares).toEqual({
+        id: `${activity.id}/shares`,
+        type: 'OrderedCollection',
+        totalItems: 0,
+        first: `${activity.id}/shares?page=true`
+      })
+      expect(res.body.likes).toEqual({
+        id: `${activity.id}/likes`,
+        type: 'OrderedCollection',
+        totalItems: 0,
+        first: `${activity.id}/likes?page=true`
+      })
     })
   })
   describe('proxy remote objects', function () {
@@ -278,13 +258,14 @@ describe('resources', function () {
         .set('Accept', apex.consts.jsonldTypes[0])
         .expect(200)
         .end(function (err, res) {
+          if (err) done.fail(err)
           expect(res.body).toEqual({
             '@context': ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1'],
             id: 'https://mocked.com/abc123',
             type: 'Note',
             summary: 'I am a remote resource'
           })
-          done(err)
+          done()
         })
     })
     it('handles invalid request', function () {

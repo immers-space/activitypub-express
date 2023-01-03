@@ -124,19 +124,22 @@ describe('federation', function () {
       await apex.queueForDelivery(testUser, body, addresses)
       expect(apex.runDelivery).not.toHaveBeenCalled()
     })
-    it('continues delivering until queue is empty', async function (done) {
+    it('continues delivering until queue is empty', async function () {
       spyOn(apex, 'deliver').and.resolveTo({ statusCode: 200 })
       await apex.queueForDelivery(testUser, body, addresses)
-      setTimeout(() => {
-        expect(apex.deliver).toHaveBeenCalledTimes(2)
-        expect(apex.deliver)
-          .toHaveBeenCalledWith(testUser.id, bodyString, addresses[0], testUser._meta.privateKey)
-        expect(apex.deliver)
-          .toHaveBeenCalledWith(testUser.id, bodyString, addresses[1], testUser._meta.privateKey)
-        done()
-      }, 100)
+      const timerCallback = new Promise(resolve => {
+        setTimeout(() => {
+          expect(apex.deliver).toHaveBeenCalledTimes(2)
+          expect(apex.deliver)
+            .toHaveBeenCalledWith(testUser.id, bodyString, addresses[0], testUser._meta.privateKey)
+          expect(apex.deliver)
+            .toHaveBeenCalledWith(testUser.id, bodyString, addresses[1], testUser._meta.privateKey)
+          resolve()
+        }, 100)
+      })
+      await timerCallback
     })
-    it('retries failed delivery', async function (done) {
+    it('retries failed delivery', async function () {
       spyOn(apex.store, 'deliveryRequeue').and.callThrough()
       spyOn(apex, 'deliver').and.returnValues(
         { statusCode: 500 },
@@ -145,23 +148,26 @@ describe('federation', function () {
         { statusCode: 200 }
       )
       await apex.queueForDelivery(testUser, body, addresses)
-      setTimeout(() => {
-        const lastCall = apex.store.deliveryRequeue.calls.mostRecent().args[0]
-        delete lastCall.after
-        expect(lastCall).toEqual({
-          actorId: testUser.id,
-          body: bodyString,
-          address: addresses[0],
-          signingKey: testUser._meta.privateKey,
-          attempt: 2
-        })
-        expect(apex.deliver).toHaveBeenCalledTimes(4)
-        expect(apex.deliver.calls.argsFor(3))
-          .toEqual([testUser.id, bodyString, addresses[0], testUser._meta.privateKey])
-        done()
-      }, 100)
+      const timerCallback = new Promise(resolve => {
+        setTimeout(() => {
+          const lastCall = apex.store.deliveryRequeue.calls.mostRecent().args[0]
+          delete lastCall.after
+          expect(lastCall).toEqual({
+            actorId: testUser.id,
+            body: bodyString,
+            address: addresses[0],
+            signingKey: testUser._meta.privateKey,
+            attempt: 2
+          })
+          expect(apex.deliver).toHaveBeenCalledTimes(4)
+          expect(apex.deliver.calls.argsFor(3))
+            .toEqual([testUser.id, bodyString, addresses[0], testUser._meta.privateKey])
+          resolve()
+        }, 100)
+      })
+      await timerCallback
     })
-    it('backs off repeated attempts', async function (done) {
+    it('backs off repeated attempts', async function () {
       spyOn(apex.store, 'deliveryRequeue').and.callThrough()
       spyOn(apex, 'deliver').and.returnValues(
         { statusCode: 200 }, // deliver to first address
@@ -171,12 +177,15 @@ describe('federation', function () {
         { statusCode: 200 }
       )
       await apex.queueForDelivery(testUser, body, addresses)
-      setTimeout(() => {
-        expect(apex.deliver).toHaveBeenCalledTimes(5)
-        done()
-      }, 150)
+      const timerCallback = new Promise(resolve => {
+        setTimeout(() => {
+          expect(apex.deliver).toHaveBeenCalledTimes(5)
+          resolve()
+        }, 150)
+      })
+      await timerCallback
     })
-    it('can restart delivery while retries are pending', async function (done) {
+    it('can restart delivery while retries are pending', async function () {
       spyOn(apex.store, 'deliveryRequeue').and.callThrough()
       spyOn(apex, 'deliver').and.returnValues(
         { statusCode: 200 }, // deliver to first address
@@ -187,36 +196,46 @@ describe('federation', function () {
         { statusCode: 200 } // retry finally succeeds
       )
       await apex.queueForDelivery(testUser, body, addresses)
-      setTimeout(() => {
-        apex.queueForDelivery(testUser, body, addresses.slice(0, 1))
-      }, 20)
-      setTimeout(() => {
-        expect(apex.deliver).toHaveBeenCalledTimes(6)
-        expect(apex.deliver.calls.mostRecent().args).toEqual([
-          testUser.id,
-          bodyString,
-          addresses[1],
-          testUser._meta.privateKey
-        ])
-        done()
-      }, 115)
+      const timerCallback1 = new Promise(resolve => {
+        setTimeout(() => {
+          apex.queueForDelivery(testUser, body, addresses.slice(0, 1))
+          resolve()
+        }, 20)
+      })
+      await timerCallback1
+      const timerCallback2 = new Promise(resolve => {
+        setTimeout(() => {
+          expect(apex.deliver).toHaveBeenCalledTimes(6)
+          expect(apex.deliver.calls.mostRecent().args).toEqual([
+            testUser.id,
+            bodyString,
+            addresses[1],
+            testUser._meta.privateKey
+          ])
+          resolve()
+        }, 115)
+      })
+      await timerCallback2
     })
-    it('does not retry 4xx failed delivery', async function (done) {
+    it('does not retry 4xx failed delivery', async function () {
       spyOn(apex.store, 'deliveryRequeue').and.callThrough()
       spyOn(apex, 'deliver').and.returnValues(
         { statusCode: 400 },
         { statusCode: 200 }
       )
       await apex.queueForDelivery(testUser, body, addresses)
-      setTimeout(() => {
-        expect(apex.store.deliveryRequeue).not.toHaveBeenCalled()
-        expect(apex.deliver).toHaveBeenCalledTimes(2)
-        expect(apex.deliver)
-          .toHaveBeenCalledWith(testUser.id, bodyString, addresses[0], testUser._meta.privateKey)
-        expect(apex.deliver)
-          .toHaveBeenCalledWith(testUser.id, bodyString, addresses[1], testUser._meta.privateKey)
-        done()
-      }, 100)
+      const timerCallback = new Promise(resolve => {
+        setTimeout(() => {
+          expect(apex.store.deliveryRequeue).not.toHaveBeenCalled()
+          expect(apex.deliver).toHaveBeenCalledTimes(2)
+          expect(apex.deliver)
+            .toHaveBeenCalledWith(testUser.id, bodyString, addresses[0], testUser._meta.privateKey)
+          expect(apex.deliver)
+            .toHaveBeenCalledWith(testUser.id, bodyString, addresses[1], testUser._meta.privateKey)
+          resolve()
+        }, 100)
+      })
+      await timerCallback
     })
   })
   describe('requestObject', function () {

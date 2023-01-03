@@ -35,7 +35,7 @@ describe('nodeinfo', function () {
               href: 'https://localhost/nodeinfo/2.0'
             }
           ]
-        }, done)
+        }, err => global.failOrDone(err, done))
     })
   })
   describe('document get', function () {
@@ -55,12 +55,12 @@ describe('nodeinfo', function () {
           metadata: {
             foo: 'bar'
           }
-        }, done)
+        }, err => global.failOrDone(err, done))
     })
     it('404s on 1.x nodeinfo requests', function (done) {
       request(app)
         .get('/nodeinfo/1.0')
-        .expect(404, done)
+        .expect(404, err => global.failOrDone(err, done))
     })
   })
 })

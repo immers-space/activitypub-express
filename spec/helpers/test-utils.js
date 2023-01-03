@@ -91,3 +91,17 @@ global.toExternalJSONLD = async function (apex, value, noContext) {
   }
   return value
 }
+
+global.failOrDone = function (err, done) {
+  if (err) {
+    done.fail(err)
+  } else {
+    done()
+  }
+}
+
+global.failIfError = function (err, done) {
+  if (err) {
+    done.fail(err)
+  }
+}
