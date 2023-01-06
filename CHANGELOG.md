@@ -1,4 +1,11 @@
-## v4.1.1 (2022-22-09)
+## v4.1.2 (2023-01-06)
+
+### Changed
+
+* Updated depenencies
+  * jsold included [breaking changes (from v5.2.0 -> v8.1.0)](https://github.com/digitalbazaar/jsonld.js/blob/main/CHANGELOG.md), but not to any features currently used by apex
+
+## v4.1.1 (2022-11-09)
 
 ### Fixed
 

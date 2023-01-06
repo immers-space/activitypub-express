@@ -1,4 +1,4 @@
-# activitypub-express
+# activitypub-express (apex)
 
 [![npm](https://img.shields.io/npm/v/activitypub-express)](https://npmjs.com/activitypub-express)
 [![npm](https://img.shields.io/npm/dw/activitypub-express)](https://npmjs.com/activitypub-express)
