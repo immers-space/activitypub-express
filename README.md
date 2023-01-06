@@ -108,6 +108,27 @@ client.connect()
   })
 ```
 
+### Next Steps and Examples
+
+Okay so you've got an ActivityPub server, now what?
+
+**Server-to-server apps**: For an app that people interact with by sending
+messages from another app (e.g. Mastodon), you'll want to define custom side-effects
+using `app.on('apex-inbox', ({ actor, activity, recipient, object }) => {...})`, which
+is fired for each incoming message.
+
+For an example of a server-to-server app build with activitypub-expresss,
+check out [Guppe Groups](https://a.gup.pe) - the federated social groups
+app server built with just [250 lines of code](https://github.com/immers-space/guppe/blob/main/index.js).
+
+**Full platform**: For a full-fledged app with its own users, the next thing
+you'll probably want is user authentication and authorization. Apex integrates
+well with Passport.js, but can work with anything.
+
+For an example of a full social platform built with activitypub-express,
+check out [Immers Space](https://github.com/immers-space/immers) - the
+federated social platform for virtual worlds.
+
 ## API
 
 ### ActivitypubExpress initializer
