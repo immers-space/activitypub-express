@@ -34,7 +34,7 @@ describe('combined inbox/outbox flows', function () {
     return global.resetDb(apex, client, testUser)
   })
 
-  it('adds followers and delivers to them', async function (done) {
+  it('adds followers and delivers to them', async function () {
     const follow = await apex
       .buildActivity('Follow', 'https://mocked.com/u/mocked', testUser.id, {
         object: testUser.id
@@ -51,16 +51,18 @@ describe('combined inbox/outbox flows', function () {
       .post('/u/mocked/inbox')
       .reply(200)
     // create delivery
-    nock('https://mocked.com')
-      .post('/u/mocked/inbox')
-      .reply(200)
-      .on('request', (req, interceptor, body) => {
-        const activity = JSON.parse(body)
-        expect(activity.type).toEqual('Create')
-        expect(activity.object.type).toEqual('Note')
-        expect(activity.object.content).toEqual('Hello world')
-        done()
-      })
+    const requestValidated = new Promise(resolve => {
+      nock('https://mocked.com')
+        .post('/u/mocked/inbox')
+        .reply(200)
+        .on('request', (req, interceptor, body) => {
+          const activity = JSON.parse(body)
+          expect(activity.type).toEqual('Create')
+          expect(activity.object.type).toEqual('Note')
+          expect(activity.object.content).toEqual('Hello world')
+          resolve()
+        })
+    })
     let followResolve
     const followId = new Promise(resolve => {
       followResolve = resolve
@@ -95,5 +97,6 @@ describe('combined inbox/outbox flows', function () {
       .set('Content-Type', 'application/activity+json')
       .send(note)
       .expect(201)
+    await requestValidated
   })
 })

@@ -97,7 +97,7 @@ describe('outbox', function () {
       request(app)
         .post('/authorized/outbox/test')
         .send({})
-        .expect(404, done)
+        .expect(404, err => global.failOrDone(err, done))
     })
     // validators activity
     it('errors invalid activities', function (done) {
@@ -105,7 +105,7 @@ describe('outbox', function () {
         .post('/authorized/outbox/test')
         .set('Content-Type', 'application/activity+json')
         .send({ actor: 'bob', '@context': 'https://www.w3.org/ns/activitystreams' })
-        .expect(400, 'Invalid activity', done)
+        .expect(400, 'Invalid activity', err => global.failOrDone(err, done))
     })
     it('rejects unauthorized requests', function () {
       return request(app)
@@ -120,7 +120,7 @@ describe('outbox', function () {
         .post('/authorized/outbox/noone')
         .set('Content-Type', 'application/activity+json')
         .send(activity)
-        .expect(404, '\'noone\' not found on this instance', done)
+        .expect(404, '\'noone\' not found on this instance', err => global.failOrDone(err, done))
     })
     it('responds 201 with Location header', function () {
       return request(app)
@@ -230,10 +230,10 @@ describe('outbox', function () {
         .send(act)
         .expect(201)
         .end(function (err) {
-          if (err) throw err
+          if (err) done.fail(err)
         })
     })
-    it('does not deliver to blocked actors', async function (done) {
+    it('does not deliver to blocked actors', async function () {
       const deliverSpy = spyOn(apex, 'queueForDelivery')
       const act = merge({}, activity)
       act.to = act.object.to = ['https://localhost/u/blocked']
@@ -247,18 +247,18 @@ describe('outbox', function () {
         inbox: 'https://localhost/u/blocked/inbox'
       })
       await apex.store.saveActivity(block)
-      app.once('apex-outbox', msg => {
-        expect(deliverSpy).not.toHaveBeenCalled()
-        done()
+      const callbackReceived = new Promise(resolve => {
+        app.once('apex-outbox', msg => {
+          expect(deliverSpy).not.toHaveBeenCalled()
+          resolve()
+        })
       })
-      request(app)
+      await request(app)
         .post('/authorized/outbox/test')
         .set('Content-Type', 'application/activity+json')
         .send(act)
         .expect(201)
-        .end(function (err) {
-          if (err) throw err
-        })
+      await callbackReceived
     })
     // activity side effects
     it('fires create event', function (done) {
@@ -274,7 +274,7 @@ describe('outbox', function () {
         .set('Content-Type', 'application/activity+json')
         .send(activity)
         .expect(201)
-        .end(err => { if (err) done(err) })
+        .end(err => { if (err) done.fail(err) })
     })
     describe('undo', function () {
       let undo
@@ -290,26 +290,28 @@ describe('outbox', function () {
           object: undone.id
         }
       })
-      it('fires undo event', async function (done) {
+      it('fires undo event', async function () {
         await apex.store.saveActivity(undone)
-        app.once('apex-outbox', () => {
-          done()
+        const callbackReceived = new Promise(resolve => {
+          app.once('apex-outbox', () => {
+            resolve()
+          })
         })
-        request(app)
+        await request(app)
           .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(undo)
           .expect(201)
-          .end(err => { if (err) done(err) })
+        await callbackReceived
       })
-      it('rejects undo with owner mismatch', async function (done) {
+      it('rejects undo with owner mismatch', async function () {
         undone.actor = ['https://ignore.com/bob']
         await apex.store.saveActivity(undone)
-        request(app)
+        await request(app)
           .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(undo)
-          .expect(403, done)
+          .expect(403)
       })
       it('removes undone activity', async function () {
         await apex.store.saveActivity(undone)
@@ -321,7 +323,7 @@ describe('outbox', function () {
         const result = await apex.store.getActivity(undone.id)
         expect(result).toBeFalsy()
       })
-      it('publishes related collection updates', async function (done) {
+      it('publishes related collection updates', async function () {
         const mockedUser = 'https://mocked.com/user/mocked'
         undone.type = 'Like'
         undone.object = [activityNormalized.object[0].id]
@@ -332,26 +334,28 @@ describe('outbox', function () {
         nock('https://mocked.com')
           .get('/user/mocked')
           .reply(200, { id: mockedUser, inbox: 'https://mocked.com/inbox/mocked' })
-        nock('https://mocked.com')
-          .post('/inbox/mocked').reply(200)
-          .on('request', async (req, interceptor, body) => {
-            const sentActivity = JSON.parse(body)
-            // update activity appears in outbox
-            const update = await apex.store.getActivity(sentActivity.id, true)
-            expect(update._meta.collection).toContain(testUser.outbox[0])
-            expect(sentActivity.type).toBe('Update')
-            expect(sentActivity.object.id).toBe(testUser.liked[0])
-            expect(sentActivity.object.totalItems).toBe(0)
-            done()
-          })
-        request(app)
+        const requestValidated = new Promise(resolve => {
+          nock('https://mocked.com')
+            .post('/inbox/mocked').reply(200)
+            .on('request', async (req, interceptor, body) => {
+              const sentActivity = JSON.parse(body)
+              // update activity appears in outbox
+              const update = await apex.store.getActivity(sentActivity.id, true)
+              expect(update._meta.collection).toContain(testUser.outbox[0])
+              expect(sentActivity.type).toBe('Update')
+              expect(sentActivity.object.id).toBe(testUser.liked[0])
+              expect(sentActivity.object.totalItems).toBe(0)
+              resolve()
+            })
+        })
+        await request(app)
           .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(undo)
           .expect(201)
-          .end(err => { if (err) done(err) })
+        await requestValidated
       })
-      it('unfollows if object is actor', async function (done) {
+      it('unfollows if object is actor', async function () {
         const mockedUser = 'https://mocked.com/user/mocked'
         undone.type = 'Follow'
         undone.object = [mockedUser]
@@ -379,22 +383,24 @@ describe('outbox', function () {
         nock('https://mocked.com')
           .post('/inbox/mocked').reply(200)
 
-        app.once('apex-outbox', async () => {
-          // user id is replaced with related follow activity
-          expect(sentActivity.object.id).toBe(undone.id)
-          // follows updated
-          expect((await apex.getFollowing(testUser, Infinity, true)).orderedItems)
-            .toEqual([])
-          done()
+        const callbackReceived = new Promise(resolve => {
+          app.once('apex-outbox', async () => {
+            // user id is replaced with related follow activity
+            expect(sentActivity.object.id).toBe(undone.id)
+            // follows updated
+            expect((await apex.getFollowing(testUser, Infinity, true)).orderedItems)
+              .toEqual([])
+            resolve()
+          })
         })
-        request(app)
+        await request(app)
           .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(undo)
           .expect(201)
-          .end(err => { if (err) done(err) })
+        await callbackReceived
       })
-      it('unblocks if object is blocked actor', async function (done) {
+      it('unblocks if object is blocked actor', async function () {
         const mockedUser = 'https://mocked.com/user/mocked'
         undone.type = 'Block'
         undone.object = [mockedUser]
@@ -409,18 +415,20 @@ describe('outbox', function () {
           object: mockedUser,
           to: mockedUser
         }
-        app.once('apex-outbox', async () => {
-          // blocklist updated
-          expect((await apex.getBlocked(testUser, Infinity, true)).orderedItems)
-            .toEqual([])
-          done()
+        const callbackReceived = new Promise(resolve => {
+          app.once('apex-outbox', async () => {
+            // blocklist updated
+            expect((await apex.getBlocked(testUser, Infinity, true)).orderedItems)
+              .toEqual([])
+            resolve()
+          })
         })
-        request(app)
+        await request(app)
           .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(undo)
           .expect(201)
-          .end(err => { if (err) done(err) })
+        await callbackReceived
       })
     })
     describe('update', function () {
@@ -466,36 +474,36 @@ describe('outbox', function () {
         expect(activities[1].object[0]).toEqual(expectedObj)
       })
       it('adds updated object recipients to audience')
-      it('federates whole updated object', async function (done) {
+      it('federates whole updated object', async function () {
         update.to = ['https://mocked.com/user/mocked']
         update.object[0].to = ['https://mocked.com/user/mocked']
         nock('https://mocked.com')
           .get('/user/mocked')
           .reply(200, { id: 'https://mocked.com/user/mocked', inbox: 'https://mocked.com/inbox/mocked' })
-        nock('https://mocked.com').post('/inbox/mocked')
-          .reply(200)
-          .on('request', (req, interceptor, body) => {
-            const sentActivity = JSON.parse(body)
-            expect(sentActivity.object).toEqual({
-              id: sourceObj.id,
-              type: 'Note',
-              attributedTo: 'https://localhost/u/test',
-              to: 'https://mocked.com/user/mocked',
-              audience: 'as:Public',
-              content: 'updated'
+        const requestValidated = new Promise(resolve => {
+          nock('https://mocked.com').post('/inbox/mocked')
+            .reply(200)
+            .on('request', (req, interceptor, body) => {
+              const sentActivity = JSON.parse(body)
+              expect(sentActivity.object).toEqual({
+                id: sourceObj.id,
+                type: 'Note',
+                attributedTo: 'https://localhost/u/test',
+                to: 'https://mocked.com/user/mocked',
+                audience: 'as:Public',
+                content: 'updated'
+              })
+              resolve()
             })
-            done()
-          })
-        request(app)
+        })
+        await request(app)
           .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(update)
           .expect(201)
-          .end(function (err) {
-            if (err) throw err
-          })
+        await requestValidated
       })
-      it('does not leak private keys', async function (done) {
+      it('does not leak private keys', async function () {
         update.to = ['https://mocked.com/user/mocked']
         update.object = [{
           id: testUser.id,
@@ -504,27 +512,27 @@ describe('outbox', function () {
         nock('https://mocked.com')
           .get('/user/mocked')
           .reply(200, { id: 'https://mocked.com/user/mocked', inbox: 'https://mocked.com/inbox/mocked' })
-        nock('https://mocked.com').post('/inbox/mocked')
-          .reply(200)
-          .on('request', async (req, interceptor, body) => {
-            const sentActivity = JSON.parse(body)
-            const standard = await apex.toJSONLD(merge({}, testUser))
-            delete standard._meta
-            delete standard._local
-            delete standard._id
-            delete standard['@context']
-            standard.name = 'New display name'
-            expect(sentActivity.object).toEqual(standard)
-            done()
-          })
-        request(app)
+        const requestValidated = new Promise(resolve => {
+          nock('https://mocked.com').post('/inbox/mocked')
+            .reply(200)
+            .on('request', async (req, interceptor, body) => {
+              const sentActivity = JSON.parse(body)
+              const standard = await apex.toJSONLD(merge({}, testUser))
+              delete standard._meta
+              delete standard._local
+              delete standard._id
+              delete standard['@context']
+              standard.name = 'New display name'
+              expect(sentActivity.object).toEqual(standard)
+              resolve()
+            })
+        })
+        await request(app)
           .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(update)
           .expect(201)
-          .end(function (err) {
-            if (err) throw err
-          })
+        await requestValidated
       })
     })
     describe('accept', function () {
@@ -541,89 +549,95 @@ describe('outbox', function () {
         accept.object = follow.id
         accept.type = 'Accept'
       })
-      it('fires accept event', async function (done) {
+      it('fires accept event', async function () {
         await apex.store.saveActivity(follow)
-        app.once('apex-outbox', msg => {
-          expect(msg.actor).toEqual(testUser)
-          const exp = merge({ _meta: { collection: ['https://localhost/outbox/test'] } }, activityNormalized)
-          exp.type = 'Accept'
-          exp.object = [follow.id]
-          expect(global.stripIds(msg.activity)).toEqual(exp)
-          follow._meta.collection.push(testUser.followers[0])
-          expect(msg.object).toEqual(follow)
-          done()
+        const callbackReceived = new Promise(resolve => {
+          app.once('apex-outbox', msg => {
+            expect(msg.actor).toEqual(testUser)
+            const exp = merge({ _meta: { collection: ['https://localhost/outbox/test'] } }, activityNormalized)
+            exp.type = 'Accept'
+            exp.object = [follow.id]
+            expect(global.stripIds(msg.activity)).toEqual(exp)
+            follow._meta.collection.push(testUser.followers[0])
+            expect(msg.object).toEqual(follow)
+            resolve()
+          })
         })
-        request(app)
+        await request(app)
           .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(accept)
           .expect(201)
-          .end(err => { if (err) done(err) })
+        await callbackReceived
       })
-      it('handles accept of follow without to field', async function (done) {
+      it('handles accept of follow without to field', async function () {
         delete follow.to
         await apex.store.saveActivity(follow)
-        app.once('apex-outbox', msg => {
-          expect(msg.actor).toEqual(testUser)
-          const exp = merge({ _meta: { collection: ['https://localhost/outbox/test'] } }, activityNormalized)
-          exp.type = 'Accept'
-          exp.object = [follow.id]
-          expect(global.stripIds(msg.activity)).toEqual(exp)
-          follow._meta.collection.push(testUser.followers[0])
-          expect(msg.object).toEqual(follow)
-          done()
+        const callbackReceived = new Promise(resolve => {
+          app.once('apex-outbox', msg => {
+            expect(msg.actor).toEqual(testUser)
+            const exp = merge({ _meta: { collection: ['https://localhost/outbox/test'] } }, activityNormalized)
+            exp.type = 'Accept'
+            exp.object = [follow.id]
+            expect(global.stripIds(msg.activity)).toEqual(exp)
+            follow._meta.collection.push(testUser.followers[0])
+            expect(msg.object).toEqual(follow)
+            resolve()
+          })
         })
-        request(app)
+        await request(app)
           .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(accept)
           .expect(201)
-          .end(err => { if (err) done(err) })
+        await callbackReceived
       })
-      it('publishes collection update', async function (done) {
+      it('publishes collection update', async function () {
         const mockedUser = 'https://mocked.com/user/mocked'
         nock('https://mocked.com')
           .get('/user/mocked')
           .reply(200, { id: mockedUser, type: 'Actor', inbox: 'https://mocked.com/inbox/mocked' })
-        nock('https://mocked.com')
-          .post('/inbox/mocked').reply(200) // accept activity delivery
-          .post('/inbox/mocked').reply(200)
-          .on('request', async (req, interceptor, body) => {
-            const sentActivity = JSON.parse(body)
-            if (sentActivity.type === 'Accept') return
-            expect(sentActivity.id).toContain('https://localhost')
-            // update activity appears in outbox
-            const update = await apex.store.getActivity(sentActivity.id, true)
-            expect(update._meta.collection).toContain(testUser.outbox[0])
-            // correctly formed activity sent
-            delete sentActivity.id
-            delete sentActivity.likes
-            delete sentActivity.shares
-            expect(new Date(sentActivity.published).toString()).not.toBe('Invalid Date')
-            delete sentActivity.published
-            expect(sentActivity).toEqual({
-              '@context': apex.context,
-              type: 'Update',
-              actor: testUser.id,
-              to: testUser.followers[0],
-              object: {
-                id: testUser.followers[0],
-                type: 'OrderedCollection',
-                totalItems: 1,
-                first: 'https://localhost/followers/test?page=true'
-              }
+        const requestValidated = new Promise(resolve => {
+          nock('https://mocked.com')
+            .post('/inbox/mocked').reply(200) // accept activity delivery
+            .post('/inbox/mocked').reply(200)
+            .on('request', async (req, interceptor, body) => {
+              const sentActivity = JSON.parse(body)
+              if (sentActivity.type === 'Accept') return
+              expect(sentActivity.id).toContain('https://localhost')
+              // update activity appears in outbox
+              const update = await apex.store.getActivity(sentActivity.id, true)
+              expect(update._meta.collection).toContain(testUser.outbox[0])
+              // correctly formed activity sent
+              delete sentActivity.id
+              delete sentActivity.likes
+              delete sentActivity.shares
+              expect(new Date(sentActivity.published).toString()).not.toBe('Invalid Date')
+              delete sentActivity.published
+              expect(sentActivity).toEqual({
+                '@context': apex.context,
+                type: 'Update',
+                actor: testUser.id,
+                to: testUser.followers[0],
+                object: {
+                  id: testUser.followers[0],
+                  type: 'OrderedCollection',
+                  totalItems: 1,
+                  first: 'https://localhost/followers/test?page=true'
+                }
+              })
+              resolve()
             })
-            done()
-          })
+        })
         follow.actor = [mockedUser]
         accept.to = mockedUser
         await apex.store.saveActivity(follow)
-        request(app)
+        await request(app)
           .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(accept)
           .expect(201)
-          .end(err => { if (err) done(err) })
+        await requestValidated
       })
     })
     describe('reject', function () {
@@ -642,54 +656,58 @@ describe('outbox', function () {
         reject.type = 'Reject'
         rejected = apex.utils.nameToRejectedIRI(testUser.preferredUsername)
       })
-      it('fires reject event', async function (done) {
+      it('fires reject event', async function () {
         await apex.store.saveActivity(follow)
-        app.once('apex-outbox', msg => {
-          expect(msg.actor).toEqual(testUser)
-          const exp = merge({ _meta: { collection: testUser.outbox } }, activityNormalized)
-          exp.type = 'Reject'
-          exp.object = [follow.id]
-          expect(global.stripIds(msg.activity)).toEqual(exp)
-          // removed from followers
-          follow._meta.collection = [testUser.inbox[0], rejected]
-          expect(msg.object).toEqual(follow)
-          done()
+        const callbackReceived = new Promise(resolve => {
+          app.once('apex-outbox', msg => {
+            expect(msg.actor).toEqual(testUser)
+            const exp = merge({ _meta: { collection: testUser.outbox } }, activityNormalized)
+            exp.type = 'Reject'
+            exp.object = [follow.id]
+            expect(global.stripIds(msg.activity)).toEqual(exp)
+            // removed from followers
+            follow._meta.collection = [testUser.inbox[0], rejected]
+            expect(msg.object).toEqual(follow)
+            resolve()
+          })
         })
-        request(app)
+        await request(app)
           .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(reject)
           .expect(201)
-          .end(err => { if (err) done(err) })
+        await callbackReceived
       })
-      it('publishes collection update', async function (done) {
+      it('publishes collection update', async function () {
         const mockedUser = 'https://mocked.com/user/mocked'
-        nock('https://mocked.com')
-          .post('/inbox/mocked').reply(200)
-          .on('request', (req, interceptor, body) => {
-            const sentActivity = JSON.parse(body)
-            // ignore initial activity
-            if (sentActivity.type === 'Reject') return
-            expect(sentActivity.id).toContain('https://localhost')
-            delete sentActivity.id
-            delete sentActivity.likes
-            delete sentActivity.shares
-            expect(new Date(sentActivity.published).toString()).not.toBe('Invalid Date')
-            delete sentActivity.published
-            expect(sentActivity).toEqual({
-              '@context': apex.context,
-              type: 'Update',
-              actor: testUser.id,
-              to: testUser.followers[0],
-              object: {
-                id: testUser.followers[0],
-                type: 'OrderedCollection',
-                totalItems: 1,
-                first: 'https://localhost/followers/test?page=true'
-              }
+        const requestValidated = new Promise(resolve => {
+          nock('https://mocked.com')
+            .post('/inbox/mocked').reply(200)
+            .on('request', (req, interceptor, body) => {
+              const sentActivity = JSON.parse(body)
+              // ignore initial activity
+              if (sentActivity.type === 'Reject') return
+              expect(sentActivity.id).toContain('https://localhost')
+              delete sentActivity.id
+              delete sentActivity.likes
+              delete sentActivity.shares
+              expect(new Date(sentActivity.published).toString()).not.toBe('Invalid Date')
+              delete sentActivity.published
+              expect(sentActivity).toEqual({
+                '@context': apex.context,
+                type: 'Update',
+                actor: testUser.id,
+                to: testUser.followers[0],
+                object: {
+                  id: testUser.followers[0],
+                  type: 'OrderedCollection',
+                  totalItems: 1,
+                  first: 'https://localhost/followers/test?page=true'
+                }
+              })
+              resolve()
             })
-            done()
-          })
+        })
         await apex.store.saveObject({ id: mockedUser, type: 'Actor', inbox: ['https://mocked.com/inbox/mocked'] })
         await apex.store.saveActivity(follow)
         // actor needs one follower remaining to deliver collection udpate
@@ -697,14 +715,14 @@ describe('outbox', function () {
         otherFollow.id = apex.utils.activityIdToIRI()
         otherFollow.actor = [mockedUser]
         await apex.store.saveActivity(otherFollow)
-        request(app)
+        await request(app)
           .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(reject)
           .expect(201)
-          .end(err => { if (err) done(err) })
+        await requestValidated
       })
-      it('rejects prior follow if object is actor', async function (done) {
+      it('rejects prior follow if object is actor', async function () {
         const mockedUser = 'https://mocked.com/user/mocked'
         const mockedUserObj = { id: mockedUser, type: 'Actor', inbox: ['https://mocked.com/inbox/mocked'] }
         let sentActivity
@@ -720,20 +738,22 @@ describe('outbox', function () {
         await apex.store.saveActivity(follow)
         reject.object = mockedUser
         reject.to = mockedUser
-        app.once('apex-outbox', async () => {
-          expect(sentActivity.object.id).toBe(follow.id)
-          expect((await apex.getFollowers(testUser, Infinity, true)).orderedItems)
-            .toEqual([])
-          done()
+        const callbackReceived = new Promise(resolve => {
+          app.once('apex-outbox', async () => {
+            expect(sentActivity.object.id).toBe(follow.id)
+            expect((await apex.getFollowers(testUser, Infinity, true)).orderedItems)
+              .toEqual([])
+            resolve()
+          })
         })
         expect((await apex.getFollowers(testUser, Infinity, true)).orderedItems)
           .toEqual([mockedUserObj])
-        request(app)
+        await request(app)
           .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(reject)
           .expect(201)
-          .end(err => { if (err) done(err) })
+        await callbackReceived
       })
     })
     describe('delete', function () {
@@ -746,86 +766,92 @@ describe('outbox', function () {
         deleteAct.type = 'Delete'
         deleteAct.object = 'https://localhost/o/2349-ssdfds-34tdgf'
       })
-      it('fires delete event', async function (done) {
+      it('fires delete event', async function () {
         await apex.store.saveObject(toDelete)
-        app.once('apex-outbox', function (msg) {
-          expect(msg.actor).toEqual(testUser)
-          expect(global.stripIds(msg.activity)).toEqual({
-            _meta: { collection: ['https://localhost/outbox/test'] },
-            type: 'Delete',
-            actor: ['https://localhost/u/test'],
-            object: ['https://localhost/o/2349-ssdfds-34tdgf'],
-            to: [
-              'https://ignore.com/u/ignored'
-            ],
-            audience: ['as:Public'],
-            likes: [{ totalItems: [0], type: 'OrderedCollection' }],
-            shares: [{ totalItems: [0], type: 'OrderedCollection' }]
+        const callbackReceived = new Promise(resolve => {
+          app.once('apex-outbox', function (msg) {
+            expect(msg.actor).toEqual(testUser)
+            expect(global.stripIds(msg.activity)).toEqual({
+              _meta: { collection: ['https://localhost/outbox/test'] },
+              type: 'Delete',
+              actor: ['https://localhost/u/test'],
+              object: ['https://localhost/o/2349-ssdfds-34tdgf'],
+              to: [
+                'https://ignore.com/u/ignored'
+              ],
+              audience: ['as:Public'],
+              likes: [{ totalItems: [0], type: 'OrderedCollection' }],
+              shares: [{ totalItems: [0], type: 'OrderedCollection' }]
+            })
+            expect(msg.object).toEqual(toDelete)
+            resolve()
           })
-          expect(msg.object).toEqual(toDelete)
-          done()
         })
-        request(app)
+        await request(app)
           .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(deleteAct)
           .expect(201)
-          .end(err => { if (err) done(err) })
+        await callbackReceived
       })
-      it('rejects if actor not owner', async function (done) {
+      it('rejects if actor not owner', async function () {
         toDelete.attributedTo = ['https://localhost/u/sally']
         await apex.store.saveObject(toDelete)
-        request(app)
+        await request(app)
           .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(deleteAct)
-          .expect(403, done)
+          .expect(403)
       })
-      it('replaces object in store with tombstone', async function (done) {
+      it('replaces object in store with tombstone', async function () {
         await apex.store.saveObject(toDelete)
-        app.once('apex-outbox', async function () {
-          const tomb = await apex.store.getObject(toDelete.id)
-          expect(new Date(tomb.deleted).toString()).not.toBe('Invalid Date')
-          delete tomb.deleted
-          delete tomb.published
-          delete tomb.updated
-          expect(tomb).toEqual({
-            id: toDelete.id,
-            type: 'Tombstone'
+        const callbackReceived = new Promise(resolve => {
+          app.once('apex-outbox', async function () {
+            const tomb = await apex.store.getObject(toDelete.id)
+            expect(new Date(tomb.deleted).toString()).not.toBe('Invalid Date')
+            delete tomb.deleted
+            delete tomb.published
+            delete tomb.updated
+            expect(tomb).toEqual({
+              id: toDelete.id,
+              type: 'Tombstone'
+            })
+            resolve()
           })
-          done()
         })
-        request(app)
+        await request(app)
           .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(deleteAct)
           .expect(201)
-          .end(err => { if (err) done(err) })
+        await callbackReceived
       })
-      it('replaces object in streams with tombstone', async function (done) {
+      it('replaces object in streams with tombstone', async function () {
         await apex.store.saveObject(toDelete)
         const original = merge({}, activityNormalized)
         original.id = apex.utils.activityIdToIRI()
         original.object[0].id = toDelete.id
         await apex.store.saveActivity(original)
-        app.once('apex-outbox', async () => {
-          const tomb = (await apex.store.getActivity(original.id)).object[0]
-          expect(new Date(tomb.deleted).toString()).not.toBe('Invalid Date')
-          delete tomb.deleted
-          delete tomb.updated
-          delete tomb.published
-          expect(tomb).toEqual({
-            id: toDelete.id,
-            type: 'Tombstone'
+        const callbackReceived = new Promise(resolve => {
+          app.once('apex-outbox', async () => {
+            const tomb = (await apex.store.getActivity(original.id)).object[0]
+            expect(new Date(tomb.deleted).toString()).not.toBe('Invalid Date')
+            delete tomb.deleted
+            delete tomb.updated
+            delete tomb.published
+            expect(tomb).toEqual({
+              id: toDelete.id,
+              type: 'Tombstone'
+            })
+            resolve()
           })
-          done()
         })
-        request(app)
+        await request(app)
           .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(deleteAct)
           .expect(201)
-          .end(err => { if (err) done(err) })
+        await callbackReceived
       })
     })
     describe('announce', function () {
@@ -838,20 +864,22 @@ describe('outbox', function () {
         announce.type = 'Announce'
         announce.object = announceable.id
       })
-      it('does not denormalize object in delivered activity', async function (done) {
+      it('does not denormalize object in delivered activity', async function () {
         await apex.store.saveActivity(announceable)
-        spyOn(apex, 'publishActivity')
-        app.once('apex-outbox', function () {
-          expect(apex.publishActivity.calls.argsFor(0)[1].object)
-            .toEqual([announceable.id])
-          done()
+        const callbackReceived = new Promise(resolve => {
+          spyOn(apex, 'publishActivity')
+          app.once('apex-outbox', function () {
+            expect(apex.publishActivity.calls.argsFor(0)[1].object)
+              .toEqual([announceable.id])
+            resolve()
+          })
         })
-        request(app)
+        await request(app)
           .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(announce)
           .expect(201)
-          .end(err => { if (err) done(err) })
+        await callbackReceived
       })
     })
     describe('like', function () {
@@ -864,45 +892,49 @@ describe('outbox', function () {
         like.type = 'Like'
         like.object = likeable.id
       })
-      it('fires like event', async function (done) {
+      it('fires like event', async function () {
         await apex.store.saveActivity(likeable)
-        app.once('apex-outbox', function (msg) {
-          expect(msg.actor).toEqual(testUser)
-          delete msg.activity.id
-          delete msg.activity.likes
-          delete msg.activity.shares
-          delete msg.activity.published
-          expect(msg.activity).toEqual({
-            _meta: { collection: [testUser.outbox[0], testUser.liked[0]] },
-            type: 'Like',
-            actor: ['https://localhost/u/test'],
-            object: [likeable],
-            to: ['https://ignore.com/u/ignored'],
-            audience: ['as:Public']
+        const callbackReceived = new Promise(resolve => {
+          app.once('apex-outbox', function (msg) {
+            expect(msg.actor).toEqual(testUser)
+            delete msg.activity.id
+            delete msg.activity.likes
+            delete msg.activity.shares
+            delete msg.activity.published
+            expect(msg.activity).toEqual({
+              _meta: { collection: [testUser.outbox[0], testUser.liked[0]] },
+              type: 'Like',
+              actor: ['https://localhost/u/test'],
+              object: [likeable],
+              to: ['https://ignore.com/u/ignored'],
+              audience: ['as:Public']
+            })
+            expect(msg.object).toEqual(likeable)
+            resolve()
           })
-          expect(msg.object).toEqual(likeable)
-          done()
         })
-        request(app)
+        await request(app)
           .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(like)
           .expect(201)
-          .end(err => { if (err) done(err) })
+        await callbackReceived
       })
-      it('adds to liked collection', async function (done) {
+      it('adds to liked collection', async function () {
         await apex.store.saveActivity(likeable)
-        app.once('apex-outbox', async function (msg) {
-          const liked = await apex.getLiked(testUser, Infinity, true)
-          expect(liked.orderedItems).toEqual([likeable])
-          done()
+        const callbackReceived = new Promise(resolve => {
+          app.once('apex-outbox', async function (msg) {
+            const liked = await apex.getLiked(testUser, Infinity, true)
+            expect(liked.orderedItems).toEqual([likeable])
+            resolve()
+          })
         })
-        request(app)
+        await request(app)
           .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(like)
           .expect(201)
-          .end(err => { if (err) done(err) })
+        await callbackReceived
       })
       it('rejects if no object', function (done) {
         delete like.object
@@ -910,47 +942,49 @@ describe('outbox', function () {
           .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(like)
-          .expect(400, done)
+          .expect(400, err => global.failOrDone(err, done))
       })
-      it('publishes collection update', async function (done) {
+      it('publishes collection update', async function () {
         const mockedUser = 'https://mocked.com/user/mocked'
-        nock('https://mocked.com')
-          .post('/inbox/mocked').reply(200) // like activity delivery
-          .post('/inbox/mocked').reply(200)
-          .on('request', (req, interceptor, body) => {
-            // correctly formed activity sent
-            const sentActivity = JSON.parse(body)
-            if (sentActivity.type === 'Like') return
-            expect(sentActivity.id).toContain('https://localhost')
-            delete sentActivity.id
-            delete sentActivity.likes
-            delete sentActivity.shares
-            expect(new Date(sentActivity.published).toString()).not.toBe('Invalid Date')
-            delete sentActivity.published
-            expect(sentActivity).toEqual({
-              '@context': apex.context,
-              type: 'Update',
-              actor: testUser.id,
-              to: testUser.followers[0],
-              object: {
-                id: testUser.liked[0],
-                type: 'OrderedCollection',
-                totalItems: 1,
-                first: 'https://localhost/liked/test?page=true'
-              }
+        const requestValidated = new Promise(resolve => {
+          nock('https://mocked.com')
+            .post('/inbox/mocked').reply(200) // like activity delivery
+            .post('/inbox/mocked').reply(200)
+            .on('request', (req, interceptor, body) => {
+              // correctly formed activity sent
+              const sentActivity = JSON.parse(body)
+              if (sentActivity.type === 'Like') return
+              expect(sentActivity.id).toContain('https://localhost')
+              delete sentActivity.id
+              delete sentActivity.likes
+              delete sentActivity.shares
+              expect(new Date(sentActivity.published).toString()).not.toBe('Invalid Date')
+              delete sentActivity.published
+              expect(sentActivity).toEqual({
+                '@context': apex.context,
+                type: 'Update',
+                actor: testUser.id,
+                to: testUser.followers[0],
+                object: {
+                  id: testUser.liked[0],
+                  type: 'OrderedCollection',
+                  totalItems: 1,
+                  first: 'https://localhost/liked/test?page=true'
+                }
+              })
+              resolve()
             })
-            done()
-          })
+        })
         likeable.actor = [mockedUser]
         like.to = mockedUser
         spyOn(apex, 'address').and.callFake(async () => ['https://mocked.com/inbox/mocked'])
         await apex.store.saveActivity(likeable)
-        request(app)
+        await request(app)
           .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(like)
           .expect(201)
-          .end(err => { if (err) done(err) })
+        await requestValidated
       })
     })
     describe('add', function () {
@@ -967,69 +1001,73 @@ describe('outbox', function () {
         add.object = addable
         add.target = collection
       })
-      it('fires add event', async function (done) {
+      it('fires add event', async function () {
         await apex.store.saveActivity(addable)
-        app.once('apex-outbox', function (msg) {
-          expect(msg.actor).toEqual(testUser)
-          delete msg.activity.id
-          delete msg.activity.likes
-          delete msg.activity.shares
-          delete msg.activity.published
-          expect(msg.activity).toEqual({
-            _meta: { collection: ['https://localhost/outbox/test'] },
-            type: 'Add',
-            actor: ['https://localhost/u/test'],
-            object: [addable],
-            target: [collection],
-            to: ['https://ignore.com/u/ignored'],
-            audience: ['as:Public']
+        const callbackReceived = new Promise(resolve => {
+          app.once('apex-outbox', function (msg) {
+            expect(msg.actor).toEqual(testUser)
+            delete msg.activity.id
+            delete msg.activity.likes
+            delete msg.activity.shares
+            delete msg.activity.published
+            expect(msg.activity).toEqual({
+              _meta: { collection: ['https://localhost/outbox/test'] },
+              type: 'Add',
+              actor: ['https://localhost/u/test'],
+              object: [addable],
+              target: [collection],
+              to: ['https://ignore.com/u/ignored'],
+              audience: ['as:Public']
+            })
+            addable._meta = { collection: [collection] }
+            expect(msg.object).toEqual(addable)
+            resolve()
           })
-          addable._meta = { collection: [collection] }
-          expect(msg.object).toEqual(addable)
-          done()
         })
-        request(app)
+        await request(app)
           .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(add)
           .expect(201)
-          .end(err => { if (err) done(err) })
+        await callbackReceived
       })
-      it('rejects missing target', async function (done) {
+      it('rejects missing target', async function () {
         delete add.target
         await apex.store.saveActivity(addable)
-        request(app)
+        await request(app)
           .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(add)
-          .expect(400, done)
+          .expect(400)
       })
-      it('rejects un-owned target', async function (done) {
+      it('rejects un-owned target', async function () {
         add.target = 'https://localhost/u/bob/c/bobs-stuff'
         await apex.store.saveActivity(addable)
-        request(app)
+        await request(app)
           .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(add)
-          .expect(403, done)
+          .expect(403)
       })
-      it('adds to collection', async function (done) {
+      it('adds to collection', async function () {
         await apex.store.saveActivity(addable)
-        app.once('apex-outbox', async function (msg) {
-          const added = await apex.getAdded(testUser, 'testcol', Infinity, true)
-          delete added.orderedItems[0]._id
-          const standard = apex.mergeJSONLD(addable, { actor: [testUser] })
-          delete standard.actor[0]._meta
-          delete standard.actor[0]._local
-          expect(added.orderedItems[0]).toEqual(standard)
-          done()
+        const callbackReceived = new Promise(resolve => {
+          app.once('apex-outbox', async function (msg) {
+            const added = await apex.getAdded(testUser, 'testcol', Infinity, true)
+            delete added.orderedItems[0]._id
+            const standard = apex.mergeJSONLD(addable, { actor: [testUser] })
+            delete standard.actor[0]._meta
+            delete standard.actor[0]._local
+            expect(added.orderedItems[0]).toEqual(standard)
+            resolve()
+          })
         })
-        request(app)
+        await request(app)
           .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(add)
           .expect(201)
-          .end(err => { if (err) done(err) })
+        await callbackReceived
       })
     })
     describe('remove', function () {
@@ -1047,65 +1085,69 @@ describe('outbox', function () {
         remove.object = added.id
         remove.target = collection
       })
-      it('fires remove event', async function (done) {
+      it('fires remove event', async function () {
         await apex.store.saveActivity(added)
-        app.once('apex-outbox', function (msg) {
-          expect(msg.actor).toEqual(testUser)
-          expect(global.stripIds(msg.activity)).toEqual({
-            _meta: { collection: ['https://localhost/outbox/test'] },
-            type: 'Remove',
-            actor: ['https://localhost/u/test'],
-            object: [added.id],
-            target: [collection],
-            to: ['https://ignore.com/u/ignored'],
-            audience: ['as:Public'],
-            likes: [{ totalItems: [0], type: 'OrderedCollection' }],
-            shares: [{ totalItems: [0], type: 'OrderedCollection' }]
+        const callbackReceived = new Promise(resolve => {
+          app.once('apex-outbox', function (msg) {
+            expect(msg.actor).toEqual(testUser)
+            expect(global.stripIds(msg.activity)).toEqual({
+              _meta: { collection: ['https://localhost/outbox/test'] },
+              type: 'Remove',
+              actor: ['https://localhost/u/test'],
+              object: [added.id],
+              target: [collection],
+              to: ['https://ignore.com/u/ignored'],
+              audience: ['as:Public'],
+              likes: [{ totalItems: [0], type: 'OrderedCollection' }],
+              shares: [{ totalItems: [0], type: 'OrderedCollection' }]
+            })
+            added._meta.collection = []
+            expect(msg.object).toEqual(added)
+            resolve()
           })
-          added._meta.collection = []
-          expect(msg.object).toEqual(added)
-          done()
         })
-        request(app)
+        await request(app)
           .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(remove)
           .expect(201)
-          .end(err => { if (err) done(err) })
+        await callbackReceived
       })
-      it('rejects missing target', async function (done) {
+      it('rejects missing target', async function () {
         delete remove.target
         await apex.store.saveActivity(added)
-        request(app)
+        await request(app)
           .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(remove)
-          .expect(400, done)
+          .expect(400)
       })
-      it('rejects un-owned target', async function (done) {
+      it('rejects un-owned target', async function () {
         remove.target = 'https://localhost/u/bob/c/bobs-stuff'
         await apex.store.saveActivity(added)
-        request(app)
+        await request(app)
           .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(remove)
-          .expect(403, done)
+          .expect(403)
       })
-      it('removes from collection', async function (done) {
+      it('removes from collection', async function () {
         await apex.store.saveActivity(added)
         const addedCol = await apex.getAdded(testUser, 'test')
         expect(addedCol.totalItems).toEqual([1])
-        app.once('apex-outbox', async function (msg) {
-          const addedCol = await apex.getAdded(testUser, 'test', Infinity, true)
-          expect(addedCol.orderedItems).toEqual([])
-          done()
+        const callbackReceived = new Promise(resolve => {
+          app.once('apex-outbox', async function (msg) {
+            const addedCol = await apex.getAdded(testUser, 'test', Infinity, true)
+            expect(addedCol.orderedItems).toEqual([])
+            resolve()
+          })
         })
-        request(app)
+        await request(app)
           .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(remove)
           .expect(201)
-          .end(err => { if (err) done(err) })
+        await callbackReceived
       })
     })
     describe('block', function () {
@@ -1117,46 +1159,50 @@ describe('outbox', function () {
         delete block.audience
         block.object = { id: 'https://ignore.com/bob', type: 'Actor' }
       })
-      it('fires block event', async function (done) {
-        app.once('apex-outbox', function (msg) {
-          expect(msg.actor).toEqual(testUser)
-          delete msg.activity.id
-          delete msg.activity.likes
-          delete msg.activity.shares
-          delete msg.activity.published
-          expect(msg.activity).toEqual({
-            _meta: {
-              collection: [
-                testUser.outbox[0],
-                apex.utils.nameToBlockedIRI(testUser.preferredUsername)
-              ]
-            },
-            type: 'Block',
-            actor: [testUser.id],
-            object: [block.object]
+      it('fires block event', async function () {
+        const callbackReceived = new Promise(resolve => {
+          app.once('apex-outbox', function (msg) {
+            expect(msg.actor).toEqual(testUser)
+            delete msg.activity.id
+            delete msg.activity.likes
+            delete msg.activity.shares
+            delete msg.activity.published
+            expect(msg.activity).toEqual({
+              _meta: {
+                collection: [
+                  testUser.outbox[0],
+                  apex.utils.nameToBlockedIRI(testUser.preferredUsername)
+                ]
+              },
+              type: 'Block',
+              actor: [testUser.id],
+              object: [block.object]
+            })
+            expect(msg.object).toEqual(block.object)
+            resolve()
           })
-          expect(msg.object).toEqual(block.object)
-          done()
         })
-        request(app)
+        await request(app)
           .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(block)
           .expect(201)
-          .end(err => { if (err) done(err) })
+        await callbackReceived
       })
-      it('adds to blocklist', async function (done) {
-        app.once('apex-outbox', async function (msg) {
-          const blockList = await apex.getBlocked(testUser, Infinity, true)
-          expect(blockList.orderedItems).toEqual([block.object.id])
-          done()
+      it('adds to blocklist', async function () {
+        const callbackReceived = new Promise(resolve => {
+          app.once('apex-outbox', async function (msg) {
+            const blockList = await apex.getBlocked(testUser, Infinity, true)
+            expect(blockList.orderedItems).toEqual([block.object.id])
+            resolve()
+          })
         })
-        request(app)
+        await request(app)
           .post('/authorized/outbox/test')
           .set('Content-Type', 'application/activity+json')
           .send(block)
           .expect(201)
-          .end(err => { if (err) done(err) })
+        await callbackReceived
       })
     })
     it('fires other activity event', function (done) {
@@ -1191,7 +1237,7 @@ describe('outbox', function () {
         .set('Content-Type', 'application/activity+json')
         .send(arriveAct)
         .expect(201)
-        .end(err => { if (err) done(err) })
+        .end(err => { if (err) done.fail(err) })
     })
   })
   describe('get', function () {
@@ -1225,8 +1271,9 @@ describe('outbox', function () {
         .set('Accept', 'application/activity+json')
         .expect(200)
         .end((err, res) => {
+          if (err) done.fail(err)
           expect(res.body).toEqual(outboxCollection)
-          done(err)
+          done()
         })
     })
     it('returns outbox page as ordered collection page', (done) => {
@@ -1257,8 +1304,9 @@ describe('outbox', function () {
         .set('Accept', 'application/activity+json')
         .expect(200)
         .end((err, res) => {
+          if (err) done.fail(err)
           expect(res.body).toEqual(outboxPage)
-          done(err)
+          done()
         })
     })
     it('includes non-public items when authorized', (done) => {
@@ -1267,6 +1315,7 @@ describe('outbox', function () {
         .set('Accept', 'application/activity+json')
         .expect(200)
         .end((err, res) => {
+          if (err) done.fail(err)
           expect(res.body.orderedItems.length).toBe(4)
           expect(res.body.orderedItems[0]).toEqual({
             type: 'Create',
@@ -1281,7 +1330,7 @@ describe('outbox', function () {
               content: 'Say, did you finish reading that book I lent you?'
             }
           })
-          done(err)
+          done()
         })
     })
     it('starts page after previous item', (done) => {
@@ -1312,8 +1361,9 @@ describe('outbox', function () {
         .set('Accept', 'application/activity+json')
         .expect(200)
         .end((err, res) => {
+          if (err) done.fail(err)
           expect(res.body).toEqual(outboxPage)
-          done(err)
+          done()
         })
     })
   })
