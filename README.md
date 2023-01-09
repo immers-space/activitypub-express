@@ -148,6 +148,7 @@ Option | Description
 **Required** |
 name | String. Name of your app to list in nodeinfo
 version | String. Version of your app to list in nodeinfo
+baseUrl | String. Server URL. Also used as URI prefix. Should be the public-facing URL when using a reverse proxy.
 domain | String. Hostname for your app
 actorParam | String. Express route parameter used for actor name
 objectParam | String. Express route parameter used for object id

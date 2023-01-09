@@ -28,11 +28,11 @@ function respondNodeInfoLocation (req, res, next) {
     links: [
       {
         rel: 'http://nodeinfo.diaspora.software/ns/schema/2.1',
-        href: `https://${apex.domain}/nodeinfo/2.1`
+        href: `${apex.baseUrl}/nodeinfo/2.1`
       },
       {
         rel: 'http://nodeinfo.diaspora.software/ns/schema/2.0',
-        href: `https://${apex.domain}/nodeinfo/2.0`
+        href: `${apex.baseUrl}/nodeinfo/2.0`
       }
     ]
   })

@@ -24,7 +24,18 @@ module.exports = function (settings) {
     }
   }
   apex.settings = settings
-  apex.domain = settings.domain
+  if (settings.baseUrl !== undefined) {
+    apex.baseUrl = settings.baseUrl
+    const url = new URL(apex.baseUrl)
+    apex.domain = url.hostname
+    if (url.port !== '') {
+      apex.domain += ':' + url.port
+    }
+  } else {
+    // Assumes settings.domain is set (backward-compatible)
+    apex.baseUrl = `https://${settings.domain}`
+    apex.domain = settings.domain
+  }
   apex.context = settings.context
     ? pub.consts.ASContext.concat(settings.context)
     : pub.consts.ASContext
@@ -42,16 +53,16 @@ module.exports = function (settings) {
   apex.offlineMode = settings.offlineMode
   apex.requestTimeout = settings.requestTimeout ?? 5000
   apex.utils = {
-    usernameToIRI: apex.idToIRIFactory(apex.domain, settings.routes.actor, apex.actorParam),
-    objectIdToIRI: apex.idToIRIFactory(apex.domain, settings.routes.object, apex.objectParam),
-    activityIdToIRI: apex.idToIRIFactory(apex.domain, settings.routes.activity, apex.activityParam),
-    userCollectionIdToIRI: apex.userAndIdToIRIFactory(apex.domain, settings.routes.collections, apex.actorParam, apex.collectionParam),
-    nameToActorStreams: apex.nameToActorStreamsFactory(apex.domain, settings.routes, apex.actorParam),
-    nameToBlockedIRI: apex.idToIRIFactory(apex.domain, settings.routes.blocked, apex.actorParam),
-    nameToRejectedIRI: apex.idToIRIFactory(apex.domain, settings.routes.rejected, apex.actorParam),
-    nameToRejectionsIRI: apex.idToIRIFactory(apex.domain, settings.routes.rejections, apex.actorParam),
-    idToActivityCollections: apex.idToActivityCollectionsFactory(apex.domain, settings.routes, apex.activityParam),
-    iriToCollectionInfo: apex.iriToCollectionInfoFactory(apex.domain, settings.routes, apex.actorParam, apex.activityParam, apex.collectionParam)
+    usernameToIRI: apex.idToIRIFactory(apex.baseUrl, settings.routes.actor, apex.actorParam),
+    objectIdToIRI: apex.idToIRIFactory(apex.baseUrl, settings.routes.object, apex.objectParam),
+    activityIdToIRI: apex.idToIRIFactory(apex.baseUrl, settings.routes.activity, apex.activityParam),
+    userCollectionIdToIRI: apex.userAndIdToIRIFactory(apex.baseUrl, settings.routes.collections, apex.actorParam, apex.collectionParam),
+    nameToActorStreams: apex.nameToActorStreamsFactory(apex.baseUrl, settings.routes, apex.actorParam),
+    nameToBlockedIRI: apex.idToIRIFactory(apex.baseUrl, settings.routes.blocked, apex.actorParam),
+    nameToRejectedIRI: apex.idToIRIFactory(apex.baseUrl, settings.routes.rejected, apex.actorParam),
+    nameToRejectionsIRI: apex.idToIRIFactory(apex.baseUrl, settings.routes.rejections, apex.actorParam),
+    idToActivityCollections: apex.idToActivityCollectionsFactory(apex.baseUrl, settings.routes, apex.activityParam),
+    iriToCollectionInfo: apex.iriToCollectionInfoFactory(apex.baseUrl, settings.routes, apex.actorParam, apex.activityParam, apex.collectionParam)
   }
 
   function onFinishedHandler (err, res) {
