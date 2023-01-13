@@ -27,10 +27,7 @@ module.exports = function (settings) {
   if (settings.baseUrl !== undefined) {
     apex.baseUrl = settings.baseUrl
     const url = new URL(apex.baseUrl)
-    apex.domain = url.hostname
-    if (url.port !== '') {
-      apex.domain += ':' + url.port
-    }
+    apex.domain = url.host
   } else {
     // Assumes settings.domain is set (backward-compatible)
     apex.baseUrl = `https://${settings.domain}`
