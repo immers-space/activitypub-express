@@ -1366,5 +1366,18 @@ describe('outbox', function () {
           done()
         })
     })
+    it('handles errors', async function () {
+      spyOn(apex, 'getOutbox').and.rejectWith('error')
+      await request(app)
+        .get('/outbox/test?page=true')
+        .set('Accept', 'application/activity+json')
+        .expect(500)
+    })
+    it('returns 400 for invalid page value', async function () {
+      await request(app)
+        .get('/outbox/test?page=5')
+        .set('Accept', 'application/activity+json')
+        .expect(400)
+    })
   })
 })

@@ -193,6 +193,9 @@ class ApexStore extends IApexStore {
   getStream (collectionId, limit, after, blockList, query) {
     const pipeline = []
     const filter = { '_meta.collection': collectionId }
+    if (after && !mongo.ObjectId.isValid(after)) {
+      throw new Error('ApexStore: invalid page value')
+    }
     if (after) {
       filter._id = { $lt: new mongo.ObjectId(after) }
     }

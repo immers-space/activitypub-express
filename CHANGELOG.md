@@ -4,6 +4,10 @@
 
 * new `baseUrl` config option that allows you to specify server origin instead of `domain` which specifies the host but assumes https protocol
 
+### Fixed
+
+* Unhandled error from invalid inputs in collection page requests
+
 ## v4.1.2 (2023-01-06)
 
 ### Changed
