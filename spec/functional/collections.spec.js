@@ -1,4 +1,4 @@
-/* global describe, beforeAll, beforeEach, it, expect */
+/* global describe, beforeAll, beforeEach, it, expect, spyOn */
 const request = require('supertest')
 
 describe('collections', function () {
@@ -94,6 +94,19 @@ describe('collections', function () {
           done()
         })
     })
+    it('handles errors', async function () {
+      spyOn(apex, 'getFollowers').and.rejectWith('error')
+      await request(app)
+        .get('/followers/test?page=true')
+        .set('Accept', 'application/activity+json')
+        .expect(500)
+    })
+    it('returns 400 for invalid page value', async function () {
+      await request(app)
+        .get('/followers/test?page=5')
+        .set('Accept', 'application/activity+json')
+        .expect(400)
+    })
   })
   describe('following', function () {
     let firstActivity
@@ -150,6 +163,19 @@ describe('collections', function () {
           done()
         })
     })
+    it('handles errors', async function () {
+      spyOn(apex, 'getFollowing').and.rejectWith('error')
+      await request(app)
+        .get('/following/test?page=true')
+        .set('Accept', 'application/activity+json')
+        .expect(500)
+    })
+    it('returns 400 for invalid page value', async function () {
+      await request(app)
+        .get('/following/test?page=5')
+        .set('Accept', 'application/activity+json')
+        .expect(400)
+    })
   })
   describe('liked collection', function () {
     let firstActivity
@@ -204,32 +230,41 @@ describe('collections', function () {
           done()
         })
     })
+    it('handles errors', async function () {
+      spyOn(apex, 'getLiked').and.rejectWith('error')
+      await request(app)
+        .get('/liked/test?page=true')
+        .set('Accept', 'application/activity+json')
+        .expect(500)
+    })
+    it('returns 400 for invalid page value', async function () {
+      await request(app)
+        .get('/liked/test?page=5')
+        .set('Accept', 'application/activity+json')
+        .expect(400)
+    })
   })
   describe('activity special collections', function () {
     describe('shares', function () {
-      it('adds shares collection to created activities', async function () {
-        const act = await apex.buildActivity('Create', testUser.id, testUser.followers, {
+      let act
+      beforeEach(async function () {
+        act = await apex.buildActivity('Create', testUser.id, testUser.followers, {
           object: {
             id: apex.utils.objectIdToIRI(),
             type: 'Note',
             content: 'hello'
           }
         })
+        await apex.store.saveActivity(act)
+      })
+      it('adds shares collection to created activities', async function () {
         expect(act.shares).toEqual([await apex.getShares(act)])
       })
       it('get page returns announces for activity', async function () {
-        const act = await apex.buildActivity('Create', testUser.id, testUser.followers, {
-          object: {
-            id: apex.utils.objectIdToIRI(),
-            type: 'Note',
-            content: 'hello'
-          }
-        })
         const announce = await apex.buildActivity('Announce', 'https://ignore.com/bob', testUser.id, {
           object: act.id
         })
         await apex.addMeta(announce, 'collection', apex.objectIdFromValue(act.shares))
-        await apex.store.saveActivity(act)
         await apex.store.saveActivity(announce)
         const res = await request(app)
           .get(`${act.id}/shares?page=true`.replace('https://localhost', ''))
@@ -239,31 +274,40 @@ describe('collections', function () {
         standard.actor = actors.find(act => act.id === announce.actor[0])
         expect(res.body.orderedItems).toEqual([standard])
       })
+      it('handles errors', async function () {
+        spyOn(apex, 'getShares').and.rejectWith('error')
+        await request(app)
+          .get(`${act.id}/shares?page=true`.replace('https://localhost', ''))
+          .set('Accept', 'application/activity+json')
+          .expect(500)
+      })
+      it('returns 400 for invalid page value', async function () {
+        await request(app)
+          .get(`${act.id}/shares?page=5`.replace('https://localhost', ''))
+          .set('Accept', 'application/activity+json')
+          .expect(400)
+      })
     })
     describe('likes', function () {
-      it('adds likes collection to created activities', async function () {
-        const act = await apex.buildActivity('Create', testUser.id, testUser.followers, {
+      let act
+      beforeEach(async function () {
+        act = await apex.buildActivity('Create', testUser.id, testUser.followers, {
           object: {
             id: apex.utils.objectIdToIRI(),
             type: 'Note',
             content: 'hello'
           }
         })
+        await apex.store.saveActivity(act)
+      })
+      it('adds likes collection to created activities', async function () {
         expect(act.likes).toEqual([await apex.getLikes(act)])
       })
       it('returns likes for activity', async function () {
-        const act = await apex.buildActivity('Create', testUser.id, testUser.followers, {
-          object: {
-            id: apex.utils.objectIdToIRI(),
-            type: 'Note',
-            content: 'hello'
-          }
-        })
         const like = await apex.buildActivity('Like', 'https://ignore.com/bob', testUser.id, {
           object: act.id
         })
         await apex.addMeta(like, 'collection', apex.objectIdFromValue(act.likes))
-        await apex.store.saveActivity(act)
         await apex.store.saveActivity(like)
         const res = await request(app)
           .get(`${act.id}/likes?page=true`.replace('https://localhost', ''))
@@ -272,6 +316,19 @@ describe('collections', function () {
         const standard = await global.toExternalJSONLD(apex, like, true)
         standard.actor = actors.find(act => act.id === like.actor[0])
         expect(res.body.orderedItems).toEqual([standard])
+      })
+      it('handles errors', async function () {
+        spyOn(apex, 'getLikes').and.rejectWith('error')
+        await request(app)
+          .get(`${act.id}/likes?page=true`.replace('https://localhost', ''))
+          .set('Accept', 'application/activity+json')
+          .expect(500)
+      })
+      it('returns 400 for invalid page value', async function () {
+        await request(app)
+          .get(`${act.id}/likes?page=5`.replace('https://localhost', ''))
+          .set('Accept', 'application/activity+json')
+          .expect(400)
       })
     })
   })
@@ -295,6 +352,19 @@ describe('collections', function () {
         .set('Accept', 'application/activity+json')
         .expect(200)
       expect(res.body.orderedItems).toEqual([actOut])
+    })
+    it('handles errors', async function () {
+      spyOn(apex, 'getAdded').and.rejectWith('error')
+      await request(app)
+        .get('/u/test/c/cool-stuff?page=true')
+        .set('Accept', 'application/activity+json')
+        .expect(500)
+    })
+    it('returns 400 for invalid page value', async function () {
+      await request(app)
+        .get('/u/test/c/cool-stuff?page=5')
+        .set('Accept', 'application/activity+json')
+        .expect(400)
     })
   })
   describe('internal special collections', function () {
@@ -389,6 +459,45 @@ describe('collections', function () {
           expect(res.body).toEqual(standard)
           done()
         })
+    })
+    it('blocked handles errors', async function () {
+      spyOn(apex, 'getBlocked').and.rejectWith('error')
+      await request(app)
+        .get('/u/test/blocked?page=true')
+        .set('Accept', 'application/activity+json')
+        .expect(500)
+    })
+    it('blocked returns 400 for invalid page value', async function () {
+      await request(app)
+        .get('/u/test/blocked?page=5')
+        .set('Accept', 'application/activity+json')
+        .expect(400)
+    })
+    it('rejections handles errors', async function () {
+      spyOn(apex, 'getRejections').and.rejectWith('error')
+      await request(app)
+        .get('/u/test/rejections?page=true')
+        .set('Accept', 'application/activity+json')
+        .expect(500)
+    })
+    it('rejections returns 400 for invalid page value', async function () {
+      await request(app)
+        .get('/u/test/rejections?page=5')
+        .set('Accept', 'application/activity+json')
+        .expect(400)
+    })
+    it('rejected handles errors', async function () {
+      spyOn(apex, 'getRejected').and.rejectWith('error')
+      await request(app)
+        .get('/u/test/rejected?page=true')
+        .set('Accept', 'application/activity+json')
+        .expect(500)
+    })
+    it('rejected returns 400 for invalid page value', async function () {
+      await request(app)
+        .get('/u/test/rejected?page=5')
+        .set('Accept', 'application/activity+json')
+        .expect(400)
     })
   })
 })

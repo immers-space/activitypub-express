@@ -1478,5 +1478,18 @@ describe('inbox', function () {
         .expect(200)
       expect(res.body).toEqual(inboxCollection)
     })
+    it('handles errors', async function () {
+      spyOn(apex, 'getInbox').and.rejectWith('error')
+      await request(app)
+        .get('/inbox/test?page=true')
+        .set('Accept', 'application/activity+json')
+        .expect(500)
+    })
+    it('returns 400 for invalid page value', async function () {
+      await request(app)
+        .get('/inbox/test?page=5')
+        .set('Accept', 'application/activity+json')
+        .expect(400)
+    })
   })
 })

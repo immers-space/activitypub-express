@@ -19,6 +19,15 @@ function blocked (req, res, next) {
   apex.getBlocked(locals.target, req.query.page, locals.authorized).then(col => {
     locals.result = col
     next()
+  }).catch(err => {
+    if (err.message === 'ApexStore: invalid page value') {
+      locals.status = 400
+      locals.statusMessage = 'invalid page value'
+      apex.logger.info('Invalid collection page request: ', req.originalUrl)
+      next()
+    } else {
+      next(err)
+    }
   })
 }
 
@@ -29,6 +38,15 @@ function inbox (req, res, next) {
   apex.getInbox(locals.target, req.query.page, locals.authorized).then(col => {
     locals.result = col
     next()
+  }).catch(err => {
+    if (err.message === 'ApexStore: invalid page value') {
+      locals.status = 400
+      locals.statusMessage = 'invalid page value'
+      apex.logger.info('Invalid collection page request: ', req.originalUrl)
+      next()
+    } else {
+      next(err)
+    }
   })
 }
 
@@ -39,6 +57,15 @@ function outbox (req, res, next) {
   apex.getOutbox(locals.target, req.query.page, locals.authorized).then(col => {
     locals.result = col
     next()
+  }).catch(err => {
+    if (err.message === 'ApexStore: invalid page value') {
+      locals.status = 400
+      locals.statusMessage = 'invalid page value'
+      apex.logger.info('Invalid collection page request: ', req.originalUrl)
+      next()
+    } else {
+      next(err)
+    }
   })
 }
 
@@ -49,6 +76,15 @@ function followers (req, res, next) {
   apex.getFollowers(locals.target, req.query.page, locals.authorized).then(col => {
     locals.result = col
     next()
+  }).catch(err => {
+    if (err.message === 'ApexStore: invalid page value') {
+      locals.status = 400
+      locals.statusMessage = 'invalid page value'
+      apex.logger.info('Invalid collection page request: ', req.originalUrl)
+      next()
+    } else {
+      next(err)
+    }
   })
 }
 
@@ -59,6 +95,15 @@ function following (req, res, next) {
   apex.getFollowing(locals.target, req.query.page, locals.authorized).then(col => {
     locals.result = col
     next()
+  }).catch(err => {
+    if (err.message === 'ApexStore: invalid page value') {
+      locals.status = 400
+      locals.statusMessage = 'invalid page value'
+      apex.logger.info('Invalid collection page request: ', req.originalUrl)
+      next()
+    } else {
+      next(err)
+    }
   })
 }
 
@@ -69,6 +114,15 @@ function liked (req, res, next) {
   apex.getLiked(locals.target, req.query.page, locals.authorized).then(col => {
     locals.result = col
     next()
+  }).catch(err => {
+    if (err.message === 'ApexStore: invalid page value') {
+      locals.status = 400
+      locals.statusMessage = 'invalid page value'
+      apex.logger.info('Invalid collection page request: ', req.originalUrl)
+      next()
+    } else {
+      next(err)
+    }
   })
 }
 
@@ -79,6 +133,15 @@ function shares (req, res, next) {
   apex.getShares(locals.target, req.query.page, locals.authorized).then(col => {
     locals.result = col
     next()
+  }).catch(err => {
+    if (err.message === 'ApexStore: invalid page value') {
+      locals.status = 400
+      locals.statusMessage = 'invalid page value'
+      apex.logger.info('Invalid collection page request: ', req.originalUrl)
+      next()
+    } else {
+      next(err)
+    }
   })
 }
 
@@ -89,6 +152,15 @@ function likes (req, res, next) {
   apex.getLikes(locals.target, req.query.page, locals.authorized).then(col => {
     locals.result = col
     next()
+  }).catch(err => {
+    if (err.message === 'ApexStore: invalid page value') {
+      locals.status = 400
+      locals.statusMessage = 'invalid page value'
+      apex.logger.info('Invalid collection page request: ', req.originalUrl)
+      next()
+    } else {
+      next(err)
+    }
   })
 }
 
@@ -100,6 +172,15 @@ function added (req, res, next) {
   apex.getAdded(locals.target, colId, req.query.page, locals.authorized).then(col => {
     locals.result = col
     next()
+  }).catch(err => {
+    if (err.message === 'ApexStore: invalid page value') {
+      locals.status = 400
+      locals.statusMessage = 'invalid page value'
+      apex.logger.info('Invalid collection page request: ', req.originalUrl)
+      next()
+    } else {
+      next(err)
+    }
   })
 }
 
@@ -110,6 +191,15 @@ function rejected (req, res, next) {
   apex.getRejected(locals.target, req.query.page, locals.authorized).then(col => {
     locals.result = col
     next()
+  }).catch(err => {
+    if (err.message === 'ApexStore: invalid page value') {
+      locals.status = 400
+      locals.statusMessage = 'invalid page value'
+      apex.logger.info('Invalid collection page request: ', req.originalUrl)
+      next()
+    } else {
+      next(err)
+    }
   })
 }
 
@@ -120,5 +210,14 @@ function rejections (req, res, next) {
   apex.getRejections(locals.target, req.query.page, locals.authorized).then(col => {
     locals.result = col
     next()
+  }).catch(err => {
+    if (err.message === 'ApexStore: invalid page value') {
+      locals.status = 400
+      locals.statusMessage = 'invalid page value'
+      apex.logger.info('Invalid collection page request: ', req.originalUrl)
+      next()
+    } else {
+      next(err)
+    }
   })
 }
