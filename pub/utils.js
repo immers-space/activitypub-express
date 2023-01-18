@@ -91,7 +91,7 @@ function actorIdFromActivity (activity) {
   return actor.id
 }
 
-function iriToCollectionInfoFactory (domain, routes, pActor, pActivity, pCollection) {
+function iriToCollectionInfoFactory (baseUrl, routes, pActor, pActivity, pCollection) {
   pActor = `:${pActor}`
   pActivity = `:${pActivity}`
   pCollection = `:${pCollection}`
@@ -100,7 +100,7 @@ function iriToCollectionInfoFactory (domain, routes, pActor, pActivity, pCollect
   let pattern = this.settings.routes.collections
   const isActorFirst = pattern.indexOf(pActor) < pattern.indexOf(pCollection)
   pattern = pattern.replace(pActor, '([^/]+)').replace(pCollection, '([^/]+)')
-  const re = new RegExp(`^https://${this.domain}${pattern}$`)
+  const re = new RegExp(`^${baseUrl}${pattern}$`)
   tests.push(iri => {
     const match = re.exec(iri)?.slice(1)
     return match && { name: 'collections', actor: match[+!isActorFirst], id: match[+isActorFirst] }
@@ -108,7 +108,7 @@ function iriToCollectionInfoFactory (domain, routes, pActor, pActivity, pCollect
   // standard actor streams
   actorStreamNames.forEach(name => {
     const pattern = this.settings.routes[name].replace(pActor, '([^/]+)')
-    const re = new RegExp(`^https://${this.domain}${pattern}$`)
+    const re = new RegExp(`^${baseUrl}${pattern}$`)
     tests.push(iri => {
       const actor = re.exec(iri)?.[1]
       return actor && { name, actor }
@@ -117,7 +117,7 @@ function iriToCollectionInfoFactory (domain, routes, pActor, pActivity, pCollect
   // activity object streams
   activityStreamNames.forEach(name => {
     const pattern = this.settings.routes[name].replace(pActivity, '([^/]+)')
-    const re = new RegExp(`^https://${this.domain}${pattern}$`)
+    const re = new RegExp(`^${baseUrl}${pattern}$`)
     tests.push(iri => {
       const activity = re.exec(iri)?.[1]
       return activity && { name, activity }
@@ -201,24 +201,24 @@ function stringifyPublicJSONLD (obj) {
   return JSON.stringify(obj, skipPrivate)
 }
 
-function idToIRIFactory (domain, route, param) {
+function idToIRIFactory (baseUrl, route, param) {
   const colonParam = `:${param}`
   return id => {
     if (!id) {
       id = this.store.generateId()
     }
-    return `https://${domain}${route.replace(colonParam, id)}`.toLowerCase()
+    return `${baseUrl}${route.replace(colonParam, id)}`.toLowerCase()
   }
 }
 
-function userAndIdToIRIFactory (domain, route, userParam, param) {
+function userAndIdToIRIFactory (baseUrl, route, userParam, param) {
   param = `:${param}`
   userParam = `:${userParam}`
   return (user, id) => {
     if (!id) {
       id = this.store.generateId()
     }
-    return `https://${domain}${route.replace(param, id).replace(userParam, user)}`.toLowerCase()
+    return `${baseUrl}${route.replace(param, id).replace(userParam, user)}`.toLowerCase()
   }
 }
 
@@ -229,7 +229,7 @@ function isLocalCollection (object) {
 }
 
 function isLocalIRI (id) {
-  return id.startsWith(`https://${this.domain}`)
+  return id.startsWith(this.baseUrl)
 }
 
 function isPublic (object) {
@@ -267,11 +267,11 @@ function mergeJSONLD (target, source) {
   return merge(target, source, overwriteArrays)
 }
 
-function nameToActorStreamsFactory (domain, routes, actorParam) {
+function nameToActorStreamsFactory (baseUrl, routes, actorParam) {
   const colonParam = `:${actorParam}`
   const streamTemplates = {}
   actorStreamNames.forEach(s => {
-    streamTemplates[s] = `https://${domain}${routes[s]}`
+    streamTemplates[s] = `${baseUrl}${routes[s]}`
   })
   return name => {
     const streams = {}
@@ -282,11 +282,11 @@ function nameToActorStreamsFactory (domain, routes, actorParam) {
   }
 }
 
-function idToActivityCollectionsFactory (domain, routes, activityParam) {
+function idToActivityCollectionsFactory (baseUrl, routes, activityParam) {
   const colonParam = `:${activityParam}`
   const streamTemplates = {}
   activityStreamNames.forEach(s => {
-    streamTemplates[s] = `https://${domain}${routes[s]}`
+    streamTemplates[s] = `${baseUrl}${routes[s]}`
   })
   return id => {
     const streams = {}
