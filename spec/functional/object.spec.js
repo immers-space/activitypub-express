@@ -135,6 +135,61 @@ describe('resources', function () {
       expect(res.get('content-type')?.includes('application/ld+json')).toBeTrue()
       expect(res.body).toEqual(standard)
     })
+    it('handles fully qualified activitypub mime', async function () {
+      const oid = apex.utils.objectIdToIRI()
+      let obj = {
+        id: oid,
+        type: 'Note',
+        content: 'Hello.',
+        attributedTo: 'https://localhost/u/test',
+        to: ['https://ignore.com/u/ignored', apex.consts.publicAddress]
+      }
+      obj = await apex.fromJSONLD(obj)
+      await apex.store.saveObject(obj)
+      const res = await request(app)
+        .get(oid.replace('https://localhost', ''))
+        .set('Accept', 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
+        .expect(200)
+      const standard = {
+        '@context': ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1'],
+        id: oid,
+        type: 'Note',
+        content: 'Hello.',
+        attributedTo: 'https://localhost/u/test',
+        to: ['https://ignore.com/u/ignored', apex.consts.publicAddress]
+      }
+      // don't match the whole string because express injects other params like charset
+      expect(res.get('content-type').includes('application/ld+json')).toBeTrue()
+      expect(res.get('content-type').includes('profile="https://www.w3.org/ns/activitystreams"')).toBeTrue()
+      expect(res.body).toEqual(standard)
+    })
+    it('handles fully shorthand activitypub mime', async function () {
+      const oid = apex.utils.objectIdToIRI()
+      let obj = {
+        id: oid,
+        type: 'Note',
+        content: 'Hello.',
+        attributedTo: 'https://localhost/u/test',
+        to: ['https://ignore.com/u/ignored', apex.consts.publicAddress]
+      }
+      obj = await apex.fromJSONLD(obj)
+      await apex.store.saveObject(obj)
+      const res = await request(app)
+        .get(oid.replace('https://localhost', ''))
+        .set('Accept', 'application/activity+json')
+        .expect(200)
+      const standard = {
+        '@context': ['https://www.w3.org/ns/activitystreams', 'https://w3id.org/security/v1'],
+        id: oid,
+        type: 'Note',
+        content: 'Hello.',
+        attributedTo: 'https://localhost/u/test',
+        to: ['https://ignore.com/u/ignored', apex.consts.publicAddress]
+      }
+      // don't match the whole string because express injects other params like charset
+      expect(res.get('content-type').includes('application/activity+json')).toBeTrue()
+      expect(res.body).toEqual(standard)
+    })
   })
   describe('get activity', function () {
     it('returns public activity', async function () {
