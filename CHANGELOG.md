@@ -1,3 +1,9 @@
+## Unreleased
+
+### Fixed
+
+* Fix jsonld validator no longer accepting `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`
+
 ## v4.2.0 (2023-01-18)
 
 ### Added
