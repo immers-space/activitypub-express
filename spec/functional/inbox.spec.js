@@ -112,6 +112,22 @@ describe('inbox', function () {
         .expect(404)
         .end(err => global.failOrDone(err, done))
     })
+    it('accepts full activitpub body types', function (done) {
+      request(app)
+        .post('/inbox/test')
+        .set('Content-Type', 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
+        .send(activity)
+        .expect(200)
+        .end(err => global.failOrDone(err, done))
+    })
+    it('accepts shorthand activitpub body types', function (done) {
+      request(app)
+        .post('/inbox/test')
+        .set('Content-Type', 'application/activity+json')
+        .send(activity)
+        .expect(200)
+        .end(err => global.failOrDone(err, done))
+    })
     // validators activity
     it('errors invalid activities', function (done) {
       request(app)
