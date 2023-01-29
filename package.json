@@ -42,7 +42,6 @@
     "request-promise-native": "^1.0.9"
   },
   "devDependencies": {
-    "coveralls": "^3.1.1",
     "jasmine": "^4.5.0",
     "jasmine-spec-reporter": "^7.0.0",
     "nock": "^13.2.4",
