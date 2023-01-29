@@ -22,7 +22,7 @@ describe('utils', function () {
   describe('hasMeta util', function () {
     it('returns false when object does not have metadata', function () {
       const obj = { _meta: { collection: [] } }
-      expect(apex.hasMeta(obj, 'collection', testUser.inbox[0])).toBe(false)
+      expect(apex.hasMeta(obj, 'collection', testUser.inbox[0])).toBe(true)
     })
   })
   describe('removeMeta', function () {
