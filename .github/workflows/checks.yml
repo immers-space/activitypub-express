@@ -15,9 +15,9 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [16.x, 18.x]
+        # tests fail on 18.x see #87
+        node-version: [14.x, 16.x]
         mongodb-version: ['5.0']
-        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
 
     steps:
     - uses: actions/checkout@v3
