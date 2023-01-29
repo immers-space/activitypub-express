@@ -1,4 +1,4 @@
-## Unreleased
+## v4.2.2 (2023-01-28)
 
 ### Fixed
 
@@ -8,7 +8,7 @@
 
 ### Fixed
 
-* Fix jsonld validator no longer accepting `application/ld+json; profile="https://www.w3.org/ns/activitystreams"` for GET
+* Fix jsonld validator not accepting `application/ld+json; profile="https://www.w3.org/ns/activitystreams"` for GET
 
 ### Security
 
