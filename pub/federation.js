@@ -9,7 +9,8 @@ module.exports = {
   requestObject,
   resolveReferences,
   runDelivery,
-  startDelivery
+  startDelivery,
+  makeUserAgentString
 }
 const maxTimeout = Math.pow(2, 31) - 1
 let isDelivering = false
@@ -21,7 +22,10 @@ function requestObject (id) {
   }
   const req = {
     url: id,
-    headers: { Accept: 'application/activity+json' },
+    headers: {
+      Accept: 'application/activity+json',
+      'User-Agent': this.makeUserAgentString()
+    },
     json: true,
     timeout: this.requestTimeout
   }
@@ -69,7 +73,8 @@ function deliver (actorId, activity, address, signingKey) {
     url: address,
     headers: {
       'Content-Type': this.consts.jsonldOutgoingType,
-      Digest: `SHA-256=${digest}`
+      Digest: `SHA-256=${digest}`,
+      'User-Agent': this.makeUserAgentString()
     },
     httpSignature: {
       key: signingKey,
@@ -136,4 +141,8 @@ async function runDelivery () {
     // TODO: consider tracking unreachable servers, removing followers
   }
   setTimeout(() => this.runDelivery(), 0)
+}
+
+function makeUserAgentString () {
+  return `${this.settings.name}/${this.settings.version} (+http://${this.settings.domain})`
 }
