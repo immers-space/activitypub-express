@@ -118,6 +118,16 @@ describe('federation', function () {
       await apex.queueForDelivery(testUser, body, addresses)
       expect(apex.runDelivery).toHaveBeenCalled()
     })
+    it('posts with a user agent header', function (done) {
+      nock('https://mocked.com').post('/bob/inbox')
+        .reply(200, {})
+        .on('request', req => {
+          expect(req.headers['user-agent'])
+            .toBe(`${apex.settings.name}/${apex.settings.version} (+http://localhost)`)
+          done()
+        })
+      apex.queueForDelivery(testUser, body, ['https://mocked.com/bob/inbox'])
+    })
     it('does not start delivery in offline mode', async function () {
       spyOn(apex, 'runDelivery')
       apex.offlineMode = true
@@ -256,6 +266,16 @@ describe('federation', function () {
           req.originalUrl = req.path
           const sigHead = httpSignature.parse(req)
           expect(httpSignature.verifySignature(sigHead, su.publicKey[0].publicKeyPem[0])).toBeTruthy()
+          done()
+        })
+      apex.requestObject('https://mocked.com/o/mocked')
+    })
+    it('includes a user agent in requests', function (done) {
+      nock('https://mocked.com').get('/o/mocked')
+        .reply(200, {})
+        .on('request', req => {
+          expect(req.headers['user-agent'])
+            .toBe(`${apex.settings.name}/${apex.settings.version} (+http://localhost)`)
           done()
         })
       apex.requestObject('https://mocked.com/o/mocked')
