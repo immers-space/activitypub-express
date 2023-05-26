@@ -1,3 +1,8 @@
+## Unreleased
+
+### Added
+* Federation http requests now include a User-Agent string formed from your apex settings: `${settings.name}/${settings.version} (+http://${settings.domain})`
+
 ## v4.2.2 (2023-01-28)
 
 ### Fixed
