@@ -15,7 +15,9 @@ async function resolveObject (id, includeMeta, refresh) {
     // already an object
     object = id
   } else {
-    cached = await this.store.getObject(id, true)
+    const iri = new URL(id)
+    // remove any hash from url
+    cached = await this.store.getObject(`${iri.protocol}//${iri.host}${iri.pathname}${iri.search}`, true)
     if (cached && !refresh) {
       return cached
     }
