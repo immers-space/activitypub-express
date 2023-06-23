@@ -59,10 +59,13 @@ async function verifySignature (req, res, next) {
     // check local cache only at first to avoid unnecessary fetches
     let cached = true
     let signer = await apex.resolveObject(sigHead.keyId, false, false, true)
+    console.log("Checking for unverifiable delete", signer, req.body.type, req.body.type.toLowerCase() === 'delete', !signer && req.body.type.toLowerCase() === 'delete')
     if (!signer && req.body.type.toLowerCase() === 'delete') {
+      console.log("unerifiable delete found")
       // user delete message that can't be verified because we don't have the user cached
       return res.status(200).send()
     } else if (!signer) {
+      console.log("fetching new actor")
       cached = false
       signer = await apex.resolveObject(sigHead.keyId)
     }
@@ -71,6 +74,7 @@ async function verifySignature (req, res, next) {
     }
     let valid = validator(signer.publicKey[0].publicKeyPem[0])
     if (!valid && cached) {
+      console.log("refreshing key")
       // try refreshing cached key in case of key rotation
       signer = await apex.resolveObject(sigHead.keyId, false, true)
       valid = validator(signer.publicKey[0].publicKeyPem[0])
