@@ -60,7 +60,7 @@ async function verifySignature (req, res, next) {
     let cached = true
     let signer = await apex.resolveObject(sigHead.keyId, false, false, true)
     console.log("Checking for unverifiable delete", signer, req.body.type, req.body.type.toLowerCase() === 'delete', !signer && req.body.type.toLowerCase() === 'delete')
-    if (!signer && req.body.type.toLowerCase() === 'delete') {
+    if (req.body.type.toLowerCase() === 'delete' && (!signer || signer.type.toLowerCase() === 'tombstone')) {
       console.log("unerifiable delete found")
       // user delete message that can't be verified because we don't have the user cached
       return res.status(200).send()
