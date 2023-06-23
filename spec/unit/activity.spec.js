@@ -60,4 +60,9 @@ describe('activity utils', function () {
       ])
     })
   })
+  describe('resolveActivity', function () {
+    it('returns undefined if the given a non-activity object', async function () {
+      expect(await apex.resolveActivity({ id: 'https://test.com/o/123', name: 'test' })).toBeUndefined()
+    })
+  })
 })

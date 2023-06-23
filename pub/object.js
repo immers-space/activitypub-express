@@ -5,7 +5,7 @@ module.exports = {
 }
 
 // find object in local DB or fetch from origin server
-async function resolveObject (id, includeMeta, refresh) {
+async function resolveObject (id, includeMeta, refresh, localOnly) {
   let object
   let cached
   if (Array.isArray(id)) {
@@ -15,9 +15,14 @@ async function resolveObject (id, includeMeta, refresh) {
     // already an object
     object = id
   } else {
-    cached = await this.store.getObject(id, true)
+    const iri = new URL(id)
+    // remove any hash from url
+    cached = await this.store.getObject(`${iri.protocol}//${iri.host}${iri.pathname}${iri.search}`, true)
     if (cached && !refresh) {
       return cached
+    }
+    if (localOnly) {
+      return
     }
     // resolve remote object from id
     object = await this.requestObject(id)

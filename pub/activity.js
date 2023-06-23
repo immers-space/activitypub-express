@@ -221,6 +221,9 @@ async function resolveActivity (id, includeMeta) {
   if (this.validateActivity(id)) {
     // already activity
     activity = id
+  } else if (!this.isString(id)) {
+    // do not try to fetch if this is an embedded object or otherwise invalid
+    return
   } else {
     activity = await this.store.getActivity(id, includeMeta)
     if (activity) {
