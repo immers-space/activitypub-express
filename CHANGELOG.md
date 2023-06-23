@@ -1,3 +1,9 @@
+## Unreleased
+
+### Fixed
+* Fix unverifiable delete detection when object is a tombstone
+* Also handle unverifiable updates
+
 ## v4.4.0 (2023-06-23)
 
 ### Added
