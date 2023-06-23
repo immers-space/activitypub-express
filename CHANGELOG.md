@@ -1,3 +1,12 @@
+## v4.4.0 (2023-06-23)
+
+### Added
+* Added ability to verify signatures from remote actors that have changed their signature keys (blind key rotation)
+### Fixed
+* Fix bug not finding already cached actors keys and refetching from remote server unnecessarily
+* Handle inbox unverifiable deletes without trying to fetch remote actor object (Mastodon compat)
+* Avoid error when receiving an embedded object for the object property when an activity object is expected (Hubzilla compat)
+
 ## v4.3.0 (2023-05-26)
 
 ### Added
