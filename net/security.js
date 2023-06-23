@@ -54,8 +54,23 @@ async function verifySignature (req, res, next) {
       return next()
     }
     const sigHead = httpSignature.parse(req)
-    const signer = await apex.resolveObject(sigHead.keyId)
-    const valid = httpSignature.verifySignature(sigHead, signer.publicKey[0].publicKeyPem[0])
+    const validator = (publicKey) => httpSignature.verifySignature(sigHead, publicKey)
+    // check local cache only at first to avoid unnecessary fetches
+    let cached = true
+    let signer = await apex.resolveObject(sigHead.keyId, false, false, true)
+    if (!signer && req.body.type.toLowerCase() === 'delete') {
+      // user delete message that can't be verified because we don't have the user cached
+      return res.status(200).send()
+    } else if (!signer) {
+      cached = false
+      signer = await apex.resolveObject(sigHead.keyId)
+    }
+    let valid = validator(signer.publicKey[0].publicKeyPem[0])
+    if (!valid && cached) {
+      // try refreshing cached key in case of key rotation
+      signer = await apex.resolveObject(sigHead.keyId, false, true)
+      valid = validator(signer.publicKey[0].publicKeyPem[0])
+    }
     if (!valid) {
       apex.logger.warn('Request rejected: invalid http signature')
       return res.status(403).send('Invalid http signature')
@@ -63,10 +78,6 @@ async function verifySignature (req, res, next) {
     res.locals.apex.sender = signer
     next()
   } catch (err) {
-    if (req.body.type.toLowerCase() === 'delete' && /^(410|404)/.test(err.message)) {
-      // user delete message that can't be verified because we don't have the user cached
-      return res.status(200).send()
-    }
     apex.logger.warn('error during signature verification', err.message)
     return res.status(500).send()
   }

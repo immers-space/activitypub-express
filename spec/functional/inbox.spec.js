@@ -1272,23 +1272,25 @@ describe('inbox', function () {
           .expect(401)
       })
       it('rejects invalid signature', function () {
+        const act = merge({}, activity)
+        act.actor = 'https://mocked.com/u/mocked'
+        nock('https://mocked.com')
+          .get('/u/mocked')
+          .reply(200, { id: 'https://mocked.com/u/mocked', publicKey: testUser.publicKey })
         return request(app)
           .post('/inbox/test')
           .set('Content-Type', 'application/activity+json')
           .set('Date', new Date().toUTCString())
-          .set('Signature', 'keyId="https://localhost/u/test",algorithm="rsa-sha256",headers="(request-target) host date",signature="asfdlajsflkjasklgja="')
-          .send(activity)
+          .set('Signature', 'keyId="https://mocked.com/u/mocked",algorithm="rsa-sha256",headers="(request-target) host date",signature="asfdlajsflkjasklgja="')
+          .send(act)
           .expect(403)
       })
-      it('handles unverifiable delete', function () {
+      it('handles unverifiable delete without fetching', function () {
         const act = merge({}, activity)
         act.id = 'https://mocked.com/s/abc123'
         act.actor = 'https://mocked.com/u/mocked'
         act.object = act.actor
         act.type = 'Delete'
-        nock('https://mocked.com')
-          .get('/u/mocked')
-          .reply(404)
         return request(app)
           .post('/inbox/test')
           .set('Content-Type', 'application/activity+json')
