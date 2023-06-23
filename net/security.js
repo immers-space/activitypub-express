@@ -54,6 +54,7 @@ async function verifySignature (req, res, next) {
       return next()
     }
     const sigHead = httpSignature.parse(req)
+    console.log("Signature %j %j", sigHead, req.body)
     const validator = (publicKey) => httpSignature.verifySignature(sigHead, publicKey)
     // check local cache only at first to avoid unnecessary fetches
     let cached = true
@@ -64,6 +65,9 @@ async function verifySignature (req, res, next) {
     } else if (!signer) {
       cached = false
       signer = await apex.resolveObject(sigHead.keyId)
+    }
+    if (!signer) {
+      throw new Error("Could not fetch signer", sigHead.keyId)
     }
     let valid = validator(signer.publicKey[0].publicKeyPem[0])
     if (!valid && cached) {
@@ -78,7 +82,7 @@ async function verifySignature (req, res, next) {
     res.locals.apex.sender = signer
     next()
   } catch (err) {
-    apex.logger.warn('error during signature verification', err.message)
+    apex.logger.warn('error during signature verification', err)
     return res.status(500).send()
   }
 }
