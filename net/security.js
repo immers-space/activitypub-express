@@ -53,20 +53,27 @@ async function verifySignature (req, res, next) {
       res.locals.apex.sender = actor
       return next()
     }
+    const type = req.body.type.toLowerCase()
     const sigHead = httpSignature.parse(req)
     const validator = (publicKey) => httpSignature.verifySignature(sigHead, publicKey)
     // check local cache only at first to avoid unnecessary fetches
     let cached = true
     let signer = await apex.resolveObject(sigHead.keyId, false, false, true)
-    if (!signer && req.body.type.toLowerCase() === 'delete') {
+    if ((type === 'delete' || type === 'update') && (!signer || signer.type.toLowerCase() === 'tombstone')) {
+      console.log('Ignoring unverifiable %s from %s', type, req.body.actor)
       // user delete message that can't be verified because we don't have the user cached
       return res.status(200).send()
     } else if (!signer) {
+      console.log('Fetching actor to verify signature %s', sigHead.keyId)
       cached = false
       signer = await apex.resolveObject(sigHead.keyId)
     }
+    if (!signer.publicKey?.[0].publicKeyPem?.[0]) {
+      throw new Error('Could not find key for %s %j', sigHead.keyId, signer)
+    }
     let valid = validator(signer.publicKey[0].publicKeyPem[0])
     if (!valid && cached) {
+      console.log('Refreshing key for %s', sigHead.keyId)
       // try refreshing cached key in case of key rotation
       signer = await apex.resolveObject(sigHead.keyId, false, true)
       valid = validator(signer.publicKey[0].publicKeyPem[0])
@@ -78,7 +85,7 @@ async function verifySignature (req, res, next) {
     res.locals.apex.sender = signer
     next()
   } catch (err) {
-    apex.logger.warn('error during signature verification', err.message)
+    apex.logger.warn('error during signature verification', err)
     return res.status(500).send()
   }
 }
