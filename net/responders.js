@@ -7,7 +7,7 @@ module.exports = {
 }
 
 // sends other output as jsonld
-async function result (req, res) {
+async function result (req, res, next) {
   const apex = req.app.locals.apex
   const locals = res.locals.apex
   const result = locals.result
@@ -16,7 +16,7 @@ async function result (req, res) {
       .send(locals.statusMessage || null)
   }
   if (!locals.responseType || !result) {
-    return res.sendStatus(404)
+    return next()
   }
   const body = apex.stringifyPublicJSONLD(await apex.toJSONLD(result))
   res.type(res.locals.apex.responseType)
@@ -33,7 +33,7 @@ function status (req, res) {
 }
 
 // sends the target object as jsonld
-async function target (req, res) {
+async function target (req, res, next) {
   const apex = req.app.locals.apex
   const locals = res.locals.apex
   const target = locals.target
@@ -42,7 +42,7 @@ async function target (req, res) {
       .send(locals.statusMessage || null)
   }
   if (!locals.responseType || !target) {
-    return res.sendStatus(404)
+    return next()
   }
   const body = apex.stringifyPublicJSONLD(await apex.toJSONLD(target))
   res.type(locals.responseType)
