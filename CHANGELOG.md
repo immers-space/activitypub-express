@@ -1,5 +1,5 @@
 ## Unreleased
-* Add [nock fetch work around](https://github.com/nock/nock/issues/2397) to support node 18.
+* Add [nock fetch work around](https://github.com/nock/nock/issues/2397) to fix tests in node 18.
 * Adjust workflow to run tests using node 18 and 16. Don't run tests against 14.
 
 ## v4.4.1 (2023-06-23)
