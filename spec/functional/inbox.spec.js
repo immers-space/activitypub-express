@@ -175,6 +175,11 @@ describe('inbox', function () {
         .get('/u/mocked')
         .reply(200, { id: 'https://mocked.com/u/mocked', inbox: 'https://mocked.com/inbox/mocked' })
       nock('https://mocked.com')
+      request(app)
+        .post('/inbox/test')
+        .set('Content-Type', 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
+        .send(vote)
+        .expect(200)
         .get('/s/abc123/shares')
         .reply(200, {
           id: 'https://mocked.com/s/abc123/shares',
@@ -1509,5 +1514,86 @@ describe('inbox', function () {
         .set('Accept', 'application/activity+json')
         .expect(400)
     })
+  })
+
+  fdescribe('question', function () {
+      let question
+      beforeEach(function () {
+        question = {
+          '@context': 'https://www.w3.org/ns/activitystreams',
+          type: 'Create',
+          id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
+          to: ['https://localhost/u/test'],
+          audience: ['as:Public'],
+          actor: 'https://localhost/u/test',
+          object: {
+            type: 'Question',
+            id: 'https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19',
+            attributedTo: 'https://localhost/u/test',
+            to: ['https://localhost/u/test'],
+            audience: ['as:Public'],
+            content: 'Say, did you finish reading that book I lent you?',
+            oneOf: [
+              {
+                type: 'Note',
+                name: 'Yes',
+                replies: {
+                  type: 'Collection',
+                  totalItems: 0
+                }
+              },
+              {
+                type: 'Note',
+                name: 'No',
+                replies: {
+                  type: 'Collection',
+                  totalItems: 0
+                }
+              }
+            ]
+          },
+          shares: {
+            id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3/shares',
+            type: 'OrderedCollection',
+            totalItems: 0,
+            first: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3/shares?page=true'
+
+          },
+          likes: {
+            id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3/likes',
+            type: 'OrderedCollection',
+            totalItems: 0,
+            first: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3/likes?page=true'
+          }
+        }
+      })
+      it('allows voting', async function () {
+        await apex.store.saveActivity(question)
+        let vote = {
+          "@context": "https://www.w3.org/ns/activitystreams",
+          "id": "https://localhost/u/voter#votes/123/activity",
+          "to": "https://localhost/u/test",
+          "actor": "https://localhost/u/voter",
+          "type": "Create",
+          "object": {
+            "id": "https://localhost/u/voter#votes/123",
+            "type": "Note",
+            "name": "Yes",
+            "attributedTo": "https://localhost/u/voter",
+            "to": "https://localhost/u/test",
+            "inReplyTo": "https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19"
+          }
+        }
+        let req = request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
+          .send(vote)
+          .expect(200)
+
+        question_stored = await apex.store.getActivity(question.id)
+        yes_vote_tally = question_stored.object.oneOf.find((option) => option.name === 'Yes' ).replies.totalItems
+
+        expect(yes_vote_tally).toBe(1);
+      })
   })
 })
