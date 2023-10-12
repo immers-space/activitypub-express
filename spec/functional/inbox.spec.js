@@ -1511,7 +1511,7 @@ describe('inbox', function () {
     })
   })
 
-  describe('question', function () {
+  fdescribe('question', function () {
       let activity
       let question
       beforeEach(async function () {
@@ -1529,7 +1529,7 @@ describe('inbox', function () {
               name: ['Yes'],
               replies: {
                 type: 'Collection',
-                id: 'https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19/Yes',
+                id: 'https://localhost/u/test/c/Yes',
                 totalItems: [0]
               }
             },
@@ -1538,7 +1538,7 @@ describe('inbox', function () {
               name: ['No'],
               replies: {
                 type: 'Collection',
-                id: 'https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19/No',
+                id: 'https://localhost/u/test/c/No',
                 totalItems: [0]
               }
             }
@@ -1568,7 +1568,7 @@ describe('inbox', function () {
         await apex.store.saveActivity(activity)
         await apex.store.saveObject(question)
       })
-      fit('tracks replies in a collection', async function () {
+      it('tracks replies in a collection', async function () {
         let reply = {
           "@context": "https://www.w3.org/ns/activitystreams",
           "id": "https://localhost/u/test#votes/123/activity",
@@ -1591,7 +1591,37 @@ describe('inbox', function () {
           .expect(200)
 
         storedReply = await apex.store.getActivity(reply.id, true)
-        expect(storedReply._meta.collection).toContain('https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19/Yes')
+        expect(storedReply._meta.collection).toContain('https://localhost/u/test/c/Yes')
+      })
+      fit('the question replies collection is updated', async function () {
+        let reply = {
+          "@context": "https://www.w3.org/ns/activitystreams",
+          "id": "https://localhost/u/test#votes/123/activity",
+          "to": "https://localhost/u/test",
+          "actor": "https://localhost/u/test",
+          "type": "Create",
+          "object": {
+            "id": "https://localhost/u/test#votes/123",
+            "type": "Note",
+            "name": "Yes",
+            "attributedTo": "https://localhost/u/test",
+            "to": "https://localhost/u/test",
+            "inReplyTo": "https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19"
+          }
+        }
+        await request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
+          .send(reply)
+          .expect(200)
+
+        let storedQuestion = await apex.store.getObject(question.id, true)
+        console.log(JSON.stringify(storedQuestion))
+
+        let chosenCollection = storedQuestion.oneOf.find(({ name }) => name[0].toLowerCase() === 'yes')
+        console.log(chosenCollection.replies.totalItems[0]);
+
+        expect(chosenCollection.replies.totalItems[0]).toBe(1)
       })
       it('keeps a voterCount tally', async function () {
         let vote = {
