@@ -189,7 +189,19 @@ module.exports = {
           }
         }
         break
+      case 'create':
+        let linkedQuestion = resLocal.linked.find(({ type }) => type.toLowerCase() === 'question')
+        if (linkedQuestion) {
+            const targetActivity = object
+            let targetActivityChoice = targetActivity.name[0].toLowerCase()
+            let chosenCollection = linkedQuestion.oneOf.find(({ name }) => name[0].toLowerCase() === targetActivityChoice)
+            const chosenCollectionId = apex.objectIdFromValue(chosenCollection.replies)
+            toDo.push((async () => {
+              activity = await apex.store.updateActivityMeta(activity, 'collection', chosenCollectionId)
+            })())
+        }
     }
+
     Promise.all(toDo).then(() => {
       // configure event hook to be triggered after response sent
       resLocal.eventName = 'apex-inbox'

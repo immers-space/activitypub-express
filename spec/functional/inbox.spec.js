@@ -1516,59 +1516,89 @@ describe('inbox', function () {
     })
   })
 
-  fdescribe('question', function () {
+  describe('question', function () {
+      let activity
       let question
-      beforeEach(function () {
+      beforeEach(async function () {
         question = {
-          '@context': 'https://www.w3.org/ns/activitystreams',
+          type: 'Question',
+          id: 'https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19',
+          attributedTo: ['https://localhost/u/test'],
+          to: ['https://localhost/u/test'],
+          audience: ['as:Public'],
+          content: ['Say, did you finish reading that book I lent you?'],
+          votersCount: [0],
+          oneOf: [
+            {
+              type: 'Note',
+              name: ['Yes'],
+              replies: {
+                type: 'Collection',
+                id: 'https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19/Yes',
+                totalItems: [0]
+              }
+            },
+            {
+              type: 'Note',
+              name: ['No'],
+              replies: {
+                type: 'Collection',
+                id: 'https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19/No',
+                totalItems: [0]
+              }
+            }
+          ]
+        }
+        activity = {
+          '@context': ['https://www.w3.org/ns/activitystreams'],
           type: 'Create',
           id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
           to: ['https://localhost/u/test'],
           audience: ['as:Public'],
-          actor: 'https://localhost/u/test',
-          object: {
-            type: 'Question',
-            id: 'https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19',
-            attributedTo: 'https://localhost/u/test',
-            to: ['https://localhost/u/test'],
-            audience: ['as:Public'],
-            content: 'Say, did you finish reading that book I lent you?',
-            oneOf: [
-              {
-                type: 'Note',
-                name: 'Yes',
-                replies: {
-                  type: 'Collection',
-                  totalItems: 0
-                }
-              },
-              {
-                type: 'Note',
-                name: 'No',
-                replies: {
-                  type: 'Collection',
-                  totalItems: 0
-                }
-              }
-            ]
-          },
-          shares: {
+          actor: ['https://localhost/u/test'],
+          object: [question],
+          shares: [{
             id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3/shares',
             type: 'OrderedCollection',
-            totalItems: 0,
-            first: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3/shares?page=true'
-
-          },
-          likes: {
+            totalItems: [0],
+            first: ['https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3/shares?page=true']
+          }],
+          likes: [{
             id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3/likes',
             type: 'OrderedCollection',
-            totalItems: 0,
-            first: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3/likes?page=true'
+            totalItems: [0],
+            first: ['https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3/likes?page=true']
+          }]
+        }
+        await apex.store.saveActivity(activity)
+        await apex.store.saveObject(question)
+      })
+      fit('tracks responses in a collection', async function () {
+        let vote = {
+          "@context": "https://www.w3.org/ns/activitystreams",
+          "id": "https://localhost/u/test#votes/123/activity",
+          "to": "https://localhost/u/test",
+          "actor": "https://localhost/u/test",
+          "type": "Create",
+          "object": {
+            "id": "https://localhost/u/test#votes/123",
+            "type": "Note",
+            "name": "Yes",
+            "attributedTo": "https://localhost/u/test",
+            "to": "https://localhost/u/test",
+            "inReplyTo": "https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19"
           }
         }
+        resp = await request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
+          .send(vote)
+          .expect(200)
+
+        storedVote = await apex.store.getActivity(vote.id, true)
+        expect(storedVote._meta.collection).toContain('https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19/Yes')
       })
-      it('allows voting', async function () {
-        await apex.store.saveActivity(question)
+      it('keeps a voterCount tally', async function () {
         let vote = {
           "@context": "https://www.w3.org/ns/activitystreams",
           "id": "https://localhost/u/voter#votes/123/activity",
@@ -1584,16 +1614,13 @@ describe('inbox', function () {
             "inReplyTo": "https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19"
           }
         }
-        let req = request(app)
+        await request(app)
           .post('/inbox/test')
           .set('Content-Type', 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
           .send(vote)
           .expect(200)
-
         question_stored = await apex.store.getActivity(question.id)
-        yes_vote_tally = question_stored.object.oneOf.find((option) => option.name === 'Yes' ).replies.totalItems
-
-        expect(yes_vote_tally).toBe(1);
+        expect(question_stored.object.votersCount).toBe(1)
       })
   })
 })
