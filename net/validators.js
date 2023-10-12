@@ -349,6 +349,11 @@ function outboxActivityObject (req, res, next) {
         resLocal.object = follow
       }
     }
+    // if (obj.type.toLowerCase() === 'question') {
+    //    needs to have any of or one of with something in it
+    //    maybe dont do this
+    //    maybe check if content is provided?
+    // }
     next()
   }).catch(err => {
     apex.logger.warn('Error resolving outbox activity object', err.message)

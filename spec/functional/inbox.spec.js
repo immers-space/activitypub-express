@@ -1573,8 +1573,8 @@ describe('inbox', function () {
         await apex.store.saveActivity(activity)
         await apex.store.saveObject(question)
       })
-      fit('tracks responses in a collection', async function () {
-        let vote = {
+      fit('tracks replies in a collection', async function () {
+        let reply = {
           "@context": "https://www.w3.org/ns/activitystreams",
           "id": "https://localhost/u/test#votes/123/activity",
           "to": "https://localhost/u/test",
@@ -1589,14 +1589,14 @@ describe('inbox', function () {
             "inReplyTo": "https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19"
           }
         }
-        resp = await request(app)
+        await request(app)
           .post('/inbox/test')
           .set('Content-Type', 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
-          .send(vote)
+          .send(reply)
           .expect(200)
 
-        storedVote = await apex.store.getActivity(vote.id, true)
-        expect(storedVote._meta.collection).toContain('https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19/Yes')
+        storedReply = await apex.store.getActivity(reply.id, true)
+        expect(storedReply._meta.collection).toContain('https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19/Yes')
       })
       it('keeps a voterCount tally', async function () {
         let vote = {
