@@ -175,11 +175,6 @@ describe('inbox', function () {
         .get('/u/mocked')
         .reply(200, { id: 'https://mocked.com/u/mocked', inbox: 'https://mocked.com/inbox/mocked' })
       nock('https://mocked.com')
-      request(app)
-        .post('/inbox/test')
-        .set('Content-Type', 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
-        .send(vote)
-        .expect(200)
         .get('/s/abc123/shares')
         .reply(200, {
           id: 'https://mocked.com/s/abc123/shares',
