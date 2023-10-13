@@ -18,6 +18,7 @@ global.initApex = async function initApex () {
     blocked: '/u/:actor/blocked',
     rejections: '/u/:actor/rejections',
     rejected: '/u/:actor/rejected',
+    replies: '',
     nodeinfo: '/nodeinfo'
   }
   const app = express()

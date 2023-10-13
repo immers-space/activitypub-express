@@ -1616,11 +1616,7 @@ describe('inbox', function () {
           .expect(200)
 
         let storedQuestion = await apex.store.getObject(question.id, true)
-        console.log(JSON.stringify(storedQuestion))
-
         let chosenCollection = storedQuestion.oneOf.find(({ name }) => name[0].toLowerCase() === 'yes')
-        console.log(chosenCollection.replies.totalItems[0]);
-
         expect(chosenCollection.replies.totalItems[0]).toBe(1)
       })
       it('keeps a voterCount tally', async function () {

@@ -198,6 +198,14 @@ module.exports = {
             const chosenCollectionId = apex.objectIdFromValue(chosenCollection.replies)
             toDo.push((async () => {
               activity = await apex.store.updateActivityMeta(activity, 'collection', chosenCollectionId)
+
+              // publish updated object with updated replies count
+              let updatedTarget = await apex.updateCollection(chosenCollectionId)
+              if (updatedTarget) {
+                resLocal.postWork.push(async () => {
+                  return apex.publishUpdate(recipient, updatedTarget, actorId)
+                })
+              }
             })())
         }
     }
