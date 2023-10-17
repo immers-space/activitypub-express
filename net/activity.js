@@ -200,6 +200,7 @@ module.exports = {
               activity = await apex.store.updateActivityMeta(activity, 'collection', chosenCollectionId)
               let updatedCollection = await apex.getCollection(chosenCollectionId)
               linkedQuestion.oneOf.find(({ replies }) => replies.id === chosenCollectionId).replies = updatedCollection
+              linkedQuestion.votersCount = [linkedQuestion.votersCount[0] + 1]
               let updatedObject = await apex.store.updateObject(linkedQuestion, actorId, true)
 
               // if (updatedTarget) {
