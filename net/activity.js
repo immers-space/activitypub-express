@@ -194,18 +194,28 @@ module.exports = {
         if (linkedQuestion) {
             const targetActivity = object
             let targetActivityChoice = targetActivity.name[0].toLowerCase()
-            let chosenCollection = linkedQuestion.oneOf.find(({ name }) => name[0].toLowerCase() === targetActivityChoice)
+            let questionType
+            if (Object.hasOwn(linkedQuestion, 'oneOf')) {
+              questionType = 'oneOf'
+            } else if (Object.hasOwn(linkedQuestion, 'anyOf')) {
+              questionType = 'anyOf'
+            }
+            let chosenCollection = linkedQuestion[questionType].find(({ name }) => name[0].toLowerCase() === targetActivityChoice)
             const chosenCollectionId = apex.objectIdFromValue(chosenCollection.replies)
             toDo.push((async () => {
+              let actorHasVoted = activity._meta.collection.some((obj) => {
+                return obj.includes(linkedQuestion.id)
+              })
               activity = await apex.store.updateActivityMeta(activity, 'collection', chosenCollectionId)
               let updatedCollection = await apex.getCollection(chosenCollectionId)
-              linkedQuestion.oneOf.find(({ replies }) => replies.id === chosenCollectionId).replies = updatedCollection
-              linkedQuestion.votersCount = [linkedQuestion.votersCount[0] + 1]
-              let updatedObject = await apex.store.updateObject(linkedQuestion, actorId, true)
-
+              if (updatedCollection && !actorHasVoted){
+                linkedQuestion.votersCount = [linkedQuestion.votersCount[0] + 1]
+              }
+              linkedQuestion[questionType].find(({ replies }) => replies.id === chosenCollectionId).replies = updatedCollection
+              let updatedQuestion = await apex.store.updateObject(linkedQuestion, actorId, true)
               // if (updatedTarget) {
               //   resLocal.postWork.push(async () => {
-              //     return apex.publishUpdate(recipient, updatedTarget, actorId)
+              //     return apex.publishUpdate(recipient, updatedQuestion, actorId)
               //   })
               // }
             })())

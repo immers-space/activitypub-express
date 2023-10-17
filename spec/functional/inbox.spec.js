@@ -1514,6 +1514,7 @@ describe('inbox', function () {
   fdescribe('question', function () {
       let activity
       let question
+      let reply
       beforeEach(async function () {
         question = {
           type: 'Question',
@@ -1523,14 +1524,14 @@ describe('inbox', function () {
           audience: ['as:Public'],
           content: ['Say, did you finish reading that book I lent you?'],
           votersCount: [0],
-          oneOf: [ // client with give us type and name, server will insert replies, validate in outbox activity, validators.outbox
+          oneOf: [
             {
               type: 'Note',
               name: ['Yes'],
               replies: {
                 type: 'Collection',
                 // id: 'https://localhost/u/test/c/Yes',
-                id: 'https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19/votes/Yes', // make sure url encoded?
+                id: 'https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19/votes/Yes',
                 totalItems: [0]
               }
             },
@@ -1539,7 +1540,7 @@ describe('inbox', function () {
               name: ['No'],
               replies: {
                 type: 'Collection',
-                id: 'https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19/votes/No', // make randomly generated id instead of using option 
+                id: 'https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19/votes/No',
                 totalItems: [0]
               }
             }
@@ -1566,11 +1567,7 @@ describe('inbox', function () {
             first: ['https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3/likes?page=true']
           }]
         }
-        await apex.store.saveActivity(activity)
-        await apex.store.saveObject(question)
-      })
-      fit('tracks replies in a collection', async function () {
-        let reply = {
+        reply = {
           "@context": "https://www.w3.org/ns/activitystreams",
           "id": "https://localhost/s/2131231",
           "to": "https://localhost/u/test",
@@ -1585,6 +1582,10 @@ describe('inbox', function () {
             "inReplyTo": "https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19"
           }
         }
+        await apex.store.saveActivity(activity)
+        await apex.store.saveObject(question)
+      })
+      it('tracks replies in a collection', async function () {
         await request(app)
           .post('/inbox/test')
           .set('Content-Type', 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
@@ -1594,22 +1595,7 @@ describe('inbox', function () {
         storedReply = await apex.store.getActivity(reply.id, true)
         expect(storedReply._meta.collection).toContain('https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19/votes/Yes')
       })
-      fit('the question replies collection is updated', async function () {
-        let reply = {
-          "@context": "https://www.w3.org/ns/activitystreams",
-          "id": "https://localhost/u/test#votes/123/activity",
-          "to": "https://localhost/u/test",
-          "actor": "https://localhost/u/test",
-          "type": "Create",
-          "object": {
-            "id": "https://localhost/u/test#votes/123",
-            "type": "Note",
-            "name": "Yes",
-            "attributedTo": "https://localhost/u/test",
-            "to": "https://localhost/u/test",
-            "inReplyTo": "https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19"
-          }
-        }
+      it('the question replies collection is updated', async function () {
         await request(app)
           .post('/inbox/test')
           .set('Content-Type', 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
@@ -1620,29 +1606,45 @@ describe('inbox', function () {
         let chosenCollection = storedQuestion.oneOf.find(({ name }) => name[0].toLowerCase() === 'yes')
         expect(chosenCollection.replies.totalItems[0]).toBe(1)
       })
-      fit('keeps a voterCount tally', async function () {
-        let vote = {
-          "@context": "https://www.w3.org/ns/activitystreams",
-          "id": "https://localhost/u/voter#votes/123/activity",
-          "to": "https://localhost/u/test",
-          "actor": "https://localhost/u/test",
-          "type": "Create",
-          "object": {
-            "id": "https://localhost/u/voter#votes/123",
-            "type": "Note",
-            "name": "Yes",
-            "attributedTo": "https://localhost/u/test",
-            "to": "https://localhost/u/test",
-            "inReplyTo": "https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19"
-          }
-        }
+      it('keeps a voterCount tally', async function () {
         await request(app)
           .post('/inbox/test')
           .set('Content-Type', 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
-          .send(vote)
+          .send(reply)
           .expect(200)
         let questionStored = await apex.store.getObject(question.id)
         expect(questionStored.votersCount[0]).toEqual(1)
+      })
+      it('anyOf property allows a user to vote for multiple choices', async function () {
+        question.anyOf = question.oneOf
+        delete question.oneOf
+        await apex.store.updateObject(question, 'test', true)
+
+        await request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
+          .send(reply)
+          .expect(200)
+        reply.object.name = 'No'
+        await request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
+          .send(reply)
+          .expect(200)
+
+        let storedQuestion = await apex.store.getObject(question.id, true)
+        let yesCollection = storedQuestion.anyOf.find(({ name }) => name[0].toLowerCase() === 'yes')
+        expect(yesCollection.replies.totalItems[0]).toBe(1)
+        let noCollection = storedQuestion.anyOf.find(({ name }) => name[0].toLowerCase() === 'no')
+        expect(noCollection.replies.totalItems[0]).toBe(1)
+        let questionStored = await apex.store.getObject(question.id)
+        expect(questionStored.votersCount[0]).toEqual(1)
+      })
+      it('publishes the results')
+      describe('validations', function() {
+        it('wont allow a vote to a closed poll')
+        it('prevents the same user from voting for the same choice twice')
+        it('oneOf prevents the same user from voting for multiple choices')
       })
   })
 })
