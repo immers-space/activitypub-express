@@ -4,7 +4,7 @@ const path = require('path')
 const jsonld = require('jsonld')
 const merge = require('deepmerge')
 const actorStreamNames = ['inbox', 'outbox', 'following', 'followers', 'liked', 'blocked', 'rejected', 'rejections']
-const activityStreamNames = ['shares', 'likes', 'replies']
+const activityStreamNames = ['shares', 'likes']
 const audienceFields = ['to', 'bto', 'cc', 'bcc', 'audience']
 
 module.exports = {

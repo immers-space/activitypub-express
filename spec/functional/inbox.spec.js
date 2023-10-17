@@ -1523,13 +1523,14 @@ describe('inbox', function () {
           audience: ['as:Public'],
           content: ['Say, did you finish reading that book I lent you?'],
           votersCount: [0],
-          oneOf: [
+          oneOf: [ // client with give us type and name, server will insert replies, validate in outbox activity, validators.outbox
             {
               type: 'Note',
               name: ['Yes'],
               replies: {
                 type: 'Collection',
-                id: 'https://localhost/u/test/c/Yes',
+                // id: 'https://localhost/u/test/c/Yes',
+                id: 'https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19/votes/Yes', // make sure url encoded?
                 totalItems: [0]
               }
             },
@@ -1538,7 +1539,7 @@ describe('inbox', function () {
               name: ['No'],
               replies: {
                 type: 'Collection',
-                id: 'https://localhost/u/test/c/No',
+                id: 'https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19/votes/No', // make randomly generated id instead of using option 
                 totalItems: [0]
               }
             }
@@ -1568,15 +1569,15 @@ describe('inbox', function () {
         await apex.store.saveActivity(activity)
         await apex.store.saveObject(question)
       })
-      it('tracks replies in a collection', async function () {
+      fit('tracks replies in a collection', async function () {
         let reply = {
           "@context": "https://www.w3.org/ns/activitystreams",
-          "id": "https://localhost/u/test#votes/123/activity",
+          "id": "https://localhost/s/2131231",
           "to": "https://localhost/u/test",
           "actor": "https://localhost/u/test",
           "type": "Create",
           "object": {
-            "id": "https://localhost/u/test#votes/123",
+            "id": "https://localhost/o/2131231",
             "type": "Note",
             "name": "Yes",
             "attributedTo": "https://localhost/u/test",
@@ -1591,7 +1592,7 @@ describe('inbox', function () {
           .expect(200)
 
         storedReply = await apex.store.getActivity(reply.id, true)
-        expect(storedReply._meta.collection).toContain('https://localhost/u/test/c/Yes')
+        expect(storedReply._meta.collection).toContain('https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19/votes/Yes')
       })
       fit('the question replies collection is updated', async function () {
         let reply = {
@@ -1619,18 +1620,18 @@ describe('inbox', function () {
         let chosenCollection = storedQuestion.oneOf.find(({ name }) => name[0].toLowerCase() === 'yes')
         expect(chosenCollection.replies.totalItems[0]).toBe(1)
       })
-      it('keeps a voterCount tally', async function () {
+      fit('keeps a voterCount tally', async function () {
         let vote = {
           "@context": "https://www.w3.org/ns/activitystreams",
           "id": "https://localhost/u/voter#votes/123/activity",
           "to": "https://localhost/u/test",
-          "actor": "https://localhost/u/voter",
+          "actor": "https://localhost/u/test",
           "type": "Create",
           "object": {
             "id": "https://localhost/u/voter#votes/123",
             "type": "Note",
             "name": "Yes",
-            "attributedTo": "https://localhost/u/voter",
+            "attributedTo": "https://localhost/u/test",
             "to": "https://localhost/u/test",
             "inReplyTo": "https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19"
           }
@@ -1640,7 +1641,8 @@ describe('inbox', function () {
           .set('Content-Type', 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
           .send(vote)
           .expect(200)
-        question_stored = await apex.store.getActivity(question.id)
+        let question_stored = await apex.store.getObject(question.id)
+        console.log(JSON.stringify(question_stored))
         expect(question_stored.object.votersCount).toBe(1)
       })
   })
