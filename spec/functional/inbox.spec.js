@@ -1661,7 +1661,18 @@ describe('inbox', function () {
         await requestValidated
       })
       describe('validations', function() {
-        it('wont allow a vote to a closed poll')
+        it('wont allow a vote to a closed poll', async function () {
+          let closedDate = new Date()
+          closedDate.setDate(closedDate.getDate() - 1)
+          question.endTime = closedDate
+          await apex.store.updateObject(question, 'test', true)
+
+          await request(app)
+            .post('/inbox/test')
+            .set('Content-Type', 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
+            .send(reply)
+            .expect(403)
+        })
         it('prevents the same user from voting for the same choice twice')
         it('oneOf prevents the same user from voting for multiple choices')
       })
