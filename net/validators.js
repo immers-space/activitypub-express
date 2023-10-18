@@ -136,6 +136,15 @@ function inboxActivity (req, res, next) {
       return next()
     }
   }
+  let linkedQuestion = resLocal.linked.find(({ type }) => type.toLowerCase() === 'question')
+  if (linkedQuestion) {
+    let now = new Date()
+    let pollEndTime = new Date(linkedQuestion.endTime)
+    if (now > pollEndTime) {
+      resLocal.status = 403
+      next()
+    }
+  }
   tasks.push(apex.embedCollections(activity))
   Promise.all(tasks).then(() => {
     apex.addMeta(req.body, 'collection', recipient.inbox[0])
@@ -349,11 +358,6 @@ function outboxActivityObject (req, res, next) {
         resLocal.object = follow
       }
     }
-    // if (obj.type.toLowerCase() === 'question') {
-    //    needs to have any of or one of with something in it
-    //    maybe dont do this
-    //    maybe check if content is provided?
-    // }
     next()
   }).catch(err => {
     apex.logger.warn('Error resolving outbox activity object', err.message)
