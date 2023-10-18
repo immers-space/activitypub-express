@@ -1640,7 +1640,26 @@ describe('inbox', function () {
         let questionStored = await apex.store.getObject(question.id)
         expect(questionStored.votersCount[0]).toEqual(1)
       })
-      it('publishes the results')
+      it('publishes the results', async function () {
+        let addrSpy = spyOn(apex, 'address').and.callFake(async () => ['https://ignore.com/inbox/ignored'])
+        const requestValidated = new Promise(resolve => {
+          nock('https://mocked.com').post('/inbox/mocked')
+            .reply(200)
+            .on('request', async (req, interceptor, body) => {
+              const sentActivity = JSON.parse(body)
+              expect(sentActivity.object.votersCount).toEqual(1)
+              expect(sentActivity.object.oneOf.find(({ name }) => name.toLowerCase() === 'yes').replies.totalItems).toEqual(1)
+              resolve()
+            })
+        })
+        addrSpy.and.callFake(async () => ['https://mocked.com/inbox/mocked'])
+        await request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/activity+json')
+          .send(reply)
+          .expect(200)
+        await requestValidated
+      })
       describe('validations', function() {
         it('wont allow a vote to a closed poll')
         it('prevents the same user from voting for the same choice twice')

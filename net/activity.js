@@ -213,11 +213,11 @@ module.exports = {
               }
               linkedQuestion[questionType].find(({ replies }) => replies.id === chosenCollectionId).replies = updatedCollection
               let updatedQuestion = await apex.store.updateObject(linkedQuestion, actorId, true)
-              // if (updatedTarget) {
-              //   resLocal.postWork.push(async () => {
-              //     return apex.publishUpdate(recipient, updatedQuestion, actorId)
-              //   })
-              // }
+              if (updatedQuestion) {
+                resLocal.postWork.push(async () => {
+                  return apex.publishUpdate(recipient, updatedQuestion, actorId)
+                })
+              }
             })())
         }
     }
