@@ -338,9 +338,6 @@ module.exports = {
   resolveThread (req, res, next) {
     const apex = req.app.locals.apex
     const resLocal = res.locals.apex
-    if (!resLocal.activity) {
-      return next()
-    }
     apex.resolveReferences(req.body).then(refs => {
       resLocal.linked = refs
       next()

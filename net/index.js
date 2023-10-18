@@ -68,11 +68,11 @@ module.exports = {
       validators.jsonld,
       validators.targetActorWithMeta,
       security.verifySignature,
+      activity.resolveThread,
       validators.actor,
       validators.activityObject,
       validators.inboxActivity,
       activity.save,
-      activity.resolveThread,
       activity.inboxSideEffects,
       activity.forwardFromInbox,
       responders.status
