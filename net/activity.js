@@ -190,29 +190,30 @@ module.exports = {
         }
         break
       case 'create':
-        let linkedQuestion = resLocal.linked.find(({ type }) => type.toLowerCase() === 'question')
-        if (linkedQuestion) {
+        let question = resLocal.linked.find(({ type }) => type.toLowerCase() === 'question')
+        if (question) {
             const targetActivity = object
             let targetActivityChoice = targetActivity.name[0].toLowerCase()
             let questionType
-            if (Object.hasOwn(linkedQuestion, 'oneOf')) {
+            if (Object.hasOwn(question, 'oneOf')) {
               questionType = 'oneOf'
-            } else if (Object.hasOwn(linkedQuestion, 'anyOf')) {
+            } else if (Object.hasOwn(question, 'anyOf')) {
               questionType = 'anyOf'
             }
-            let chosenCollection = linkedQuestion[questionType].find(({ name }) => name[0].toLowerCase() === targetActivityChoice)
+            let chosenCollection = question[questionType].find(({ name }) => name[0].toLowerCase() === targetActivityChoice)
             const chosenCollectionId = apex.objectIdFromValue(chosenCollection.replies)
             toDo.push((async () => {
               let actorHasVoted = activity._meta.collection.some((obj) => {
-                return obj.includes(linkedQuestion.id)
+                return obj.includes(question.id)
               })
               activity = await apex.store.updateActivityMeta(activity, 'collection', chosenCollectionId)
               let updatedCollection = await apex.getCollection(chosenCollectionId)
               if (updatedCollection && !actorHasVoted){
-                linkedQuestion.votersCount = [linkedQuestion.votersCount[0] + 1]
+                question.votersCount = [question.votersCount[0] + 1]
               }
-              linkedQuestion[questionType].find(({ replies }) => replies.id === chosenCollectionId).replies = updatedCollection
-              let updatedQuestion = await apex.store.updateObject(linkedQuestion, actorId, true)
+              question[questionType].find(({ replies }) => replies.id === chosenCollectionId).replies = updatedCollection
+              
+              let updatedQuestion = await apex.store.updateObject(question, actorId, true)
               if (updatedQuestion) {
                 resLocal.postWork.push(async () => {
                   return apex.publishUpdate(recipient, updatedQuestion, actorId)
