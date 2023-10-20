@@ -212,6 +212,15 @@ module.exports = {
                 question.votersCount = [question.votersCount[0] + 1]
               }
               question[questionType].find(({ replies }) => replies.id === chosenCollectionId).replies = updatedCollection
+
+              let votes = []
+              if (question._meta) {
+                votes = question._meta.votes
+                votes.push(activity.object[0].id)
+              } else {
+                votes.push(activity.object[0].id)
+                apex.addMeta(question, 'votes', votes)
+              }
               
               let updatedQuestion = await apex.store.updateObject(question, actorId, true)
               if (updatedQuestion) {

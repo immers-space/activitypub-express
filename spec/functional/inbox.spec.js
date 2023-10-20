@@ -1511,7 +1511,7 @@ describe('inbox', function () {
     })
   })
 
-  fdescribe('question', function () {
+  describe('question', function () {
       let activity
       let question
       let reply
@@ -1530,7 +1530,6 @@ describe('inbox', function () {
               name: ['Yes'],
               replies: {
                 type: 'Collection',
-                // id: 'https://localhost/u/test/c/Yes',
                 id: 'https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19/votes/Yes',
                 totalItems: [0]
               }
@@ -1602,8 +1601,8 @@ describe('inbox', function () {
           .send(reply)
           .expect(200)
 
-        let storedQuestion = await apex.store.getObject(question.id, true)
-        let chosenCollection = storedQuestion.oneOf.find(({ name }) => name[0].toLowerCase() === 'yes')
+        let questionStored = await apex.store.getObject(question.id, true)
+        let chosenCollection = questionStored.oneOf.find(({ name }) => name[0].toLowerCase() === 'yes')
         expect(chosenCollection.replies.totalItems[0]).toBe(1)
       })
       it('keeps a voterCount tally', async function () {
@@ -1614,12 +1613,34 @@ describe('inbox', function () {
           .expect(200)
         let questionStored = await apex.store.getObject(question.id)
         expect(questionStored.votersCount[0]).toEqual(1)
+        await apex.createActor('voter', 'voter', 'voting user')
+        let anotherReply = {
+          "@context": "https://www.w3.org/ns/activitystreams",
+          "id": "https://localhost/s/2131232",
+          "to": "https://localhost/u/voter",
+          "actor": "https://localhost/u/test",
+          "type": "Create",
+          "object": {
+            "id": "https://localhost/o/2131232",
+            "type": "Note",
+            "name": "Yes",
+            "attributedTo": "https://localhost/u/voter",
+            "to": "https://localhost/u/test",
+            "inReplyTo": "https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19"
+          }
+        }
+        await request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
+          .send(anotherReply)
+          .expect(200)
+        questionStored = await apex.store.getObject(question.id)
+        expect(questionStored.votersCount[0]).toEqual(2)
       })
       it('anyOf property allows a user to vote for multiple choices', async function () {
         question.anyOf = question.oneOf
         delete question.oneOf
         await apex.store.updateObject(question, 'test', true)
-
         await request(app)
           .post('/inbox/test')
           .set('Content-Type', 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
@@ -1631,13 +1652,12 @@ describe('inbox', function () {
           .set('Content-Type', 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
           .send(reply)
           .expect(200)
-
-        let storedQuestion = await apex.store.getObject(question.id, true)
-        let yesCollection = storedQuestion.anyOf.find(({ name }) => name[0].toLowerCase() === 'yes')
+        let questionStored = await apex.store.getObject(question.id, true)
+        let yesCollection = questionStored.anyOf.find(({ name }) => name[0].toLowerCase() === 'yes')
         expect(yesCollection.replies.totalItems[0]).toBe(1)
-        let noCollection = storedQuestion.anyOf.find(({ name }) => name[0].toLowerCase() === 'no')
+        let noCollection = questionStored.anyOf.find(({ name }) => name[0].toLowerCase() === 'no')
         expect(noCollection.replies.totalItems[0]).toBe(1)
-        let questionStored = await apex.store.getObject(question.id)
+        questionStored = await apex.store.getObject(question.id)
         expect(questionStored.votersCount[0]).toEqual(1)
       })
       it('publishes the results', async function () {
@@ -1660,25 +1680,37 @@ describe('inbox', function () {
           .expect(200)
         await requestValidated
       })
+      it('prevents the same user from voting for the same choice twice', async function () {
+        question.anyOf = question.oneOf
+        delete question.oneOf
+        await apex.store.updateObject(question, 'test', true)
+        await request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
+          .send(reply)
+          .expect(200)
+        let questionStored = await apex.store.getObject(question.id, true)
+        let yesCollection = questionStored.anyOf.find(({ name }) => name[0].toLowerCase() === 'yes')
+        expect(yesCollection.replies.totalItems[0]).toBe(1)
+        expect(questionStored._meta.votes[0]).toContain(reply.object.id)
+        reply.id = 'https://localhost/s/2131232'
+        reply.object.id = 'https://localhost/o/2131232'
+        await request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
+          .send(reply)
+          .expect(200)
+        questionStored = await apex.store.getObject(question.id, true)
+        yesCollection = questionStored.anyOf.find(({ name }) => name[0].toLowerCase() === 'yes')
+        expect(yesCollection.replies.totalItems[0]).toBe(1)
+        expect(questionStored._meta.votes[0]).not.toContain(reply.object.id)
+      })
       describe('validations', function() {
         it('wont allow a vote to a closed poll', async function () {
           let closedDate = new Date()
           closedDate.setDate(closedDate.getDate() - 1)
           question.endTime = closedDate
           await apex.store.updateObject(question, 'test', true)
-
-          await request(app)
-            .post('/inbox/test')
-            .set('Content-Type', 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
-            .send(reply)
-            .expect(403)
-        })
-        it('prevents the same user from voting for the same choice twice', async function () {
-          await request(app)
-            .post('/inbox/test')
-            .set('Content-Type', 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
-            .send(reply)
-            .expect(200)
           await request(app)
             .post('/inbox/test')
             .set('Content-Type', 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
