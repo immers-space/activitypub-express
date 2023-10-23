@@ -203,6 +203,7 @@ module.exports = {
             let chosenCollection = question[questionType].find(({ name }) => name[0].toLowerCase() === targetActivityChoice)
             const chosenCollectionId = apex.objectIdFromValue(chosenCollection.replies)
             toDo.push((async () => {
+              question = await apex.store.getObject(question.id, true)
               let actorHasVoted = activity._meta.collection.some((obj) => {
                 return obj.includes(question.id)
               })
@@ -213,15 +214,18 @@ module.exports = {
               }
               question[questionType].find(({ replies }) => replies.id === chosenCollectionId).replies = updatedCollection
 
-              let votes = []
               if (question._meta) {
-                votes = question._meta.votes
-                votes.push(activity.object[0].id)
+                question._meta.votes[0].push(activity.object[0].id)
               } else {
+                let votes = []
                 votes.push(activity.object[0].id)
                 apex.addMeta(question, 'votes', votes)
               }
               
+              if (actorHasVoted) {
+                // if anyOf, check the votes to make sure they havent already voted an option, if they have, short circuit
+                // if oneOf, short circuit.
+              }
               let updatedQuestion = await apex.store.updateObject(question, actorId, true)
               if (updatedQuestion) {
                 resLocal.postWork.push(async () => {

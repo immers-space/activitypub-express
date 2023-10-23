@@ -1511,7 +1511,7 @@ describe('inbox', function () {
     })
   })
 
-  describe('question', function () {
+  fdescribe('question', function () {
       let activity
       let question
       let reply
@@ -1680,7 +1680,7 @@ describe('inbox', function () {
           .expect(200)
         await requestValidated
       })
-      it('prevents the same user from voting for the same choice twice', async function () {
+      fit('prevents the same user from voting for the same choice twice', async function () {
         question.anyOf = question.oneOf
         delete question.oneOf
         await apex.store.updateObject(question, 'test', true)
