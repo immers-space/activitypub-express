@@ -1605,7 +1605,7 @@ describe('inbox', function () {
         let chosenCollection = questionStored.oneOf.find(({ name }) => name[0].toLowerCase() === 'yes')
         expect(chosenCollection.replies.totalItems[0]).toBe(1)
       })
-      fit('keeps a voterCount tally', async function () {
+      it('keeps a voterCount tally', async function () {
         await request(app)
           .post('/inbox/test')
           .set('Content-Type', 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
@@ -1661,7 +1661,7 @@ describe('inbox', function () {
         let noCollection = questionStored.anyOf.find(({ name }) => name[0].toLowerCase() === 'no')
         expect(noCollection.replies.totalItems[0]).toBe(1)
         questionStored = await apex.store.getObject(question.id, true)
-        expect(questionStored.votersCount[0]).toEqual(1)
+        expect(questionStored.votersCount).toEqual(1)
       })
       it('publishes the results', async function () {
         let addrSpy = spyOn(apex, 'address').and.callFake(async () => ['https://ignore.com/inbox/ignored'])

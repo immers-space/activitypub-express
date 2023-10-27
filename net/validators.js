@@ -138,7 +138,6 @@ function inboxActivity (req, res, next) {
   }
   let question = resLocal.linked.find(({ type }) => type.toLowerCase() === 'question')
   if (question) {
-    let questionType
     let now = new Date()
     let pollEndTime = new Date(question.endTime)
     if (now > pollEndTime) {
@@ -146,13 +145,13 @@ function inboxActivity (req, res, next) {
       next()
     }
     if (Object.hasOwn(question, 'oneOf')) {
-      questionType = 'oneOf'
+      if (question._meta?.voters[0].includes(activity.actor[0])) {
+        resLocal.status = 403
+        next()
+      }
     } else if (Object.hasOwn(question, 'anyOf')) {
-      questionType = 'anyOf'
+      // check whats up, need to be able to map a user with their choices
     }
-    // if () {
-
-    // }
 
   }
   tasks.push(apex.embedCollections(activity))

@@ -216,6 +216,7 @@ module.exports = {
               } else {
                 let votes = [activity.object[0].id]
                 let voters = [activity.actor[0]]
+                let voteAndVoter = [{voter: activity.actor[0], vote: activity.object[0].id}] // replaces votes with this, then access in validation
                 question.votersCount = 1
                 apex.addMeta(question, 'votes', votes)
                 apex.addMeta(question, 'voters', voters)
