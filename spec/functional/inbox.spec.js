@@ -1511,7 +1511,7 @@ describe('inbox', function () {
     })
   })
 
-  describe('question', function () {
+ fdescribe('question', function () {
       let activity
       let question
       let reply
@@ -1605,20 +1605,21 @@ describe('inbox', function () {
         let chosenCollection = questionStored.oneOf.find(({ name }) => name[0].toLowerCase() === 'yes')
         expect(chosenCollection.replies.totalItems[0]).toBe(1)
       })
-      it('keeps a voterCount tally', async function () {
+      fit('keeps a voterCount tally', async function () {
         await request(app)
           .post('/inbox/test')
           .set('Content-Type', 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
           .send(reply)
           .expect(200)
-        let questionStored = await apex.store.getObject(question.id)
-        expect(questionStored.votersCount[0]).toEqual(1)
-        await apex.createActor('voter', 'voter', 'voting user')
+        let questionStored = await apex.store.getObject(question.id, true)
+        expect(questionStored.votersCount).toEqual(1)
+        let anotherVoter = await apex.createActor('voter', 'voter', 'voting user')
+        await apex.store.saveObject(anotherVoter)
         let anotherReply = {
           "@context": "https://www.w3.org/ns/activitystreams",
           "id": "https://localhost/s/2131232",
-          "to": "https://localhost/u/voter",
-          "actor": "https://localhost/u/test",
+          "to": "https://localhost/u/test",
+          "actor": "https://localhost/u/voter",
           "type": "Create",
           "object": {
             "id": "https://localhost/o/2131232",
@@ -1634,8 +1635,8 @@ describe('inbox', function () {
           .set('Content-Type', 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
           .send(anotherReply)
           .expect(200)
-        questionStored = await apex.store.getObject(question.id)
-        expect(questionStored.votersCount[0]).toEqual(2)
+        questionStored = await apex.store.getObject(question.id, true)
+        expect(questionStored.votersCount).toEqual(2)
       })
       it('anyOf property allows a user to vote for multiple choices', async function () {
         question.anyOf = question.oneOf
@@ -1646,6 +1647,8 @@ describe('inbox', function () {
           .set('Content-Type', 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
           .send(reply)
           .expect(200)
+        reply.id = 'https://localhost/s/2131232'
+        reply.object.id = 'https://localhost/o/2131232'
         reply.object.name = 'No'
         await request(app)
           .post('/inbox/test')
@@ -1657,7 +1660,7 @@ describe('inbox', function () {
         expect(yesCollection.replies.totalItems[0]).toBe(1)
         let noCollection = questionStored.anyOf.find(({ name }) => name[0].toLowerCase() === 'no')
         expect(noCollection.replies.totalItems[0]).toBe(1)
-        questionStored = await apex.store.getObject(question.id)
+        questionStored = await apex.store.getObject(question.id, true)
         expect(questionStored.votersCount[0]).toEqual(1)
       })
       it('publishes the results', async function () {

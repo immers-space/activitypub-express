@@ -193,7 +193,6 @@ module.exports = {
         let question = resLocal.linked.find(({ type }) => type.toLowerCase() === 'question')
         if (question) {
             let questionType
-            let duplicateVote
             const targetActivity = object
             let targetActivityChoice = targetActivity.name[0].toLowerCase()
             if (Object.hasOwn(question, 'oneOf')) {
@@ -204,34 +203,24 @@ module.exports = {
             let chosenCollection = question[questionType].find(({ name }) => name[0].toLowerCase() === targetActivityChoice)
             const chosenCollectionId = apex.objectIdFromValue(chosenCollection.replies)
             toDo.push((async () => {
-              let actorHasVoted = activity._meta.collection.some((obj) => {
-                return obj.includes(question.id)
-              })
               activity = await apex.store.updateActivityMeta(activity, 'collection', chosenCollectionId) // should this happen if vote isnt valid?
               let updatedCollection = await apex.getCollection(chosenCollectionId)
-              if (updatedCollection && !actorHasVoted){
-                question.votersCount = [question.votersCount[0] + 1]
-              }
               question[questionType].find(({ replies }) => replies.id === chosenCollectionId).replies = updatedCollection
-
-              if (question._meta?.votes[0]) {
-                let countedVotes = await Promise.all(question._meta?.votes[0].map(async (id) => {
-                  return await apex.store.getObject(id, true)
-                }))
-                duplicateVote = countedVotes.some(({attributedTo, name}) => {
-                   return attributedTo[0] === activity.object[0].attributedTo[0] && name[0] === activity.object[0].name[0]
-                })
-              }
 
               if (question._meta) {
                 question._meta.votes[0].push(activity.object[0].id)
+                if (!question._meta.voters[0].includes(activity.actor[0])) {
+                  question._meta.voters[0].push(activity.actor[0])
+                  question.votersCount = question._meta.voters[0].length
+                }
               } else {
-                let votes = []
-                votes.push(activity.object[0].id)
+                let votes = [activity.object[0].id]
+                let voters = [activity.actor[0]]
+                question.votersCount = 1
                 apex.addMeta(question, 'votes', votes)
+                apex.addMeta(question, 'voters', voters)
               }
 
-              // if (!duplicateVote) { //- this conditional results in other tests failing, while passing anyOf validation
               let updatedQuestion = await apex.store.updateObject(question, actorId, true)
               if (updatedQuestion) {
                 resLocal.postWork.push(async () => {

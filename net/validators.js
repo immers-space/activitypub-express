@@ -136,14 +136,24 @@ function inboxActivity (req, res, next) {
       return next()
     }
   }
-  let linkedQuestion = resLocal.linked.find(({ type }) => type.toLowerCase() === 'question')
-  if (linkedQuestion) {
+  let question = resLocal.linked.find(({ type }) => type.toLowerCase() === 'question')
+  if (question) {
+    let questionType
     let now = new Date()
-    let pollEndTime = new Date(linkedQuestion.endTime)
+    let pollEndTime = new Date(question.endTime)
     if (now > pollEndTime) {
       resLocal.status = 403
       next()
     }
+    if (Object.hasOwn(question, 'oneOf')) {
+      questionType = 'oneOf'
+    } else if (Object.hasOwn(question, 'anyOf')) {
+      questionType = 'anyOf'
+    }
+    // if () {
+
+    // }
+
   }
   tasks.push(apex.embedCollections(activity))
   Promise.all(tasks).then(() => {
