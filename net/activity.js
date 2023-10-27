@@ -204,7 +204,6 @@ module.exports = {
             let chosenCollection = question[questionType].find(({ name }) => name[0].toLowerCase() === targetActivityChoice)
             const chosenCollectionId = apex.objectIdFromValue(chosenCollection.replies)
             toDo.push((async () => {
-              question = await apex.store.getObject(question.id, true)
               let actorHasVoted = activity._meta.collection.some((obj) => {
                 return obj.includes(question.id)
               })
@@ -231,13 +230,15 @@ module.exports = {
                 votes.push(activity.object[0].id)
                 apex.addMeta(question, 'votes', votes)
               }
-              // if (!duplicateVote) { - this conditional results in other tests failing, while passing anyOf validation
+
+              // if (!duplicateVote) { //- this conditional results in other tests failing, while passing anyOf validation
               let updatedQuestion = await apex.store.updateObject(question, actorId, true)
               if (updatedQuestion) {
                 resLocal.postWork.push(async () => {
                   return apex.publishUpdate(recipient, updatedQuestion, actorId)
                 })
               }
+              // }
             })())
         }
     }

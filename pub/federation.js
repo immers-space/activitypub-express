@@ -44,7 +44,7 @@ const refProps = ['inReplyTo', 'object', 'target', 'tag']
 async function resolveReferences (object, depth = 0) {
   const objectPromises = refProps.map(prop => object[prop])
     .flat() // may have multiple tags to resolve
-    .map(o => this.resolveUnknown(o))
+    .map(o => this.resolveUnknown(o, true))
     .filter(p => p)
   const objects = (await Promise.allSettled(objectPromises))
     .filter(r => r.status === 'fulfilled' && r.value)

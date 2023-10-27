@@ -36,7 +36,7 @@ async function resolveObject (id, includeMeta, refresh, localOnly) {
   return object
 }
 
-async function resolveUnknown (objectOrIRI) {
+async function resolveUnknown (objectOrIRI, includeMeta) {
   let object
   if (!objectOrIRI) return null
   // For Link/Mention, we want to resolved the linked object
@@ -45,9 +45,9 @@ async function resolveUnknown (objectOrIRI) {
   }
   // check if already cached
   if (this.isString(objectOrIRI)) {
-    object = await this.store.getActivity(objectOrIRI)
+    object = await this.store.getActivity(objectOrIRI, includeMeta)
     if (object) return object
-    object = await this.store.getObject(objectOrIRI)
+    object = await this.store.getObject(objectOrIRI, includeMeta)
     if (object) return object
     /* As local collections are not represented in the DB, instead being generated
      * on demand, they up getting requested via http below. Perhaps not the most efficient,
