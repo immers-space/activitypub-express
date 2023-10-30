@@ -1,5 +1,6 @@
 'use strict'
 
+
 // For collection display, store with objects resolved
 // updates also get their objects denormalized during validation
 const denormalizeObject = [
@@ -208,27 +209,17 @@ module.exports = {
               question[questionType].find(({ replies }) => replies.id === chosenCollectionId).replies = updatedCollection
 
               if (question._meta) {
-                question._meta.votes[0].push(activity.object[0].id)
                 question._meta.voteAndVoter[0].push({
                   voter: activity.actor[0],
-                  vote: activity.object[0].id,
                   voteName: activity.object[0].name[0]
                 })
-                if (!question._meta.voters[0].includes(activity.actor[0])) {
-                  question._meta.voters[0].push(activity.actor[0])
-                  question.votersCount = question._meta.voters[0].length
-                }
+                question.votersCount = [...new Set(question._meta.voteAndVoter[0].map(obj => obj.voter))].length
               } else {
-                let votes = [activity.object[0].id]
-                let voters = [activity.actor[0]]
                 let voteAndVoter = [{
                   voter: activity.actor[0],
-                  vote: activity.object[0].id,
                   voteName: activity.object[0].name[0]
-                }] // replaces votes with this, then access in validation
+                }]
                 question.votersCount = 1
-                apex.addMeta(question, 'votes', votes)
-                apex.addMeta(question, 'voters', voters)
                 apex.addMeta(question, 'voteAndVoter', voteAndVoter)
               }
 

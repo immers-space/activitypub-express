@@ -145,19 +145,17 @@ function inboxActivity (req, res, next) {
       next()
     }
     if (Object.hasOwn(question, 'oneOf')) {
-      if (question._meta?.voters[0].includes(activity.actor[0])) {
+      if (question._meta?.voteAndVoter[0].map(obj => obj.voter).includes(activity.actor[0])) {
         resLocal.status = 403
         next()
       }
     } else if (Object.hasOwn(question, 'anyOf')) {
-      if (question._meta) {
-        let hasDuplicateVote = question._meta.voteAndVoter[0].some(({voter, voteName}) => {
-          return voter === activity.actor[0] && activity.object[0].name == voteName;
-        })
-        if (hasDuplicateVote) {
-          resLocal.status = 403
-          next()
-        }
+      let hasDuplicateVote = question._meta?.voteAndVoter[0].some(({voter, voteName}) => {
+        return voter === activity.actor[0] && activity.object[0].name == voteName;
+      })
+      if (hasDuplicateVote) {
+        resLocal.status = 403
+        next()
       }
     }
 
