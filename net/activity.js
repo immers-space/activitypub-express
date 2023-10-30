@@ -1,6 +1,5 @@
 'use strict'
 
-
 // For collection display, store with objects resolved
 // updates also get their objects denormalized during validation
 const denormalizeObject = [
@@ -204,10 +203,9 @@ module.exports = {
             let chosenCollection = question[questionType].find(({ name }) => name[0].toLowerCase() === targetActivityChoice)
             const chosenCollectionId = apex.objectIdFromValue(chosenCollection.replies)
             toDo.push((async () => {
-              activity = await apex.store.updateActivityMeta(activity, 'collection', chosenCollectionId) // should this happen if vote isnt valid?
+              activity = await apex.store.updateActivityMeta(activity, 'collection', chosenCollectionId)
               let updatedCollection = await apex.getCollection(chosenCollectionId)
               question[questionType].find(({ replies }) => replies.id === chosenCollectionId).replies = updatedCollection
-
               if (question._meta) {
                 question._meta.voteAndVoter[0].push({
                   voter: activity.actor[0],
@@ -222,18 +220,15 @@ module.exports = {
                 question.votersCount = 1
                 apex.addMeta(question, 'voteAndVoter', voteAndVoter)
               }
-
               let updatedQuestion = await apex.store.updateObject(question, actorId, true)
               if (updatedQuestion) {
                 resLocal.postWork.push(async () => {
                   return apex.publishUpdate(recipient, updatedQuestion, actorId)
                 })
               }
-              // }
             })())
         }
     }
-
     Promise.all(toDo).then(() => {
       // configure event hook to be triggered after response sent
       resLocal.eventName = 'apex-inbox'
