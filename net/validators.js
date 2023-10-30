@@ -136,10 +136,10 @@ function inboxActivity (req, res, next) {
       return next()
     }
   }
-  let question = resLocal.linked.find(({ type }) => type.toLowerCase() === 'question')
+  const question = resLocal.linked.find(({ type }) => type.toLowerCase() === 'question')
   if (question) {
-    let now = new Date()
-    let pollEndTime = new Date(question.endTime)
+    const now = new Date()
+    const pollEndTime = new Date(question.endTime)
     if (now > pollEndTime) {
       resLocal.status = 403
       next()
@@ -150,15 +150,14 @@ function inboxActivity (req, res, next) {
         next()
       }
     } else if (Object.hasOwn(question, 'anyOf')) {
-      let hasDuplicateVote = question._meta?.voteAndVoter[0].some(({voter, voteName}) => {
-        return voter === activity.actor[0] && activity.object[0].name == voteName;
+      const hasDuplicateVote = question._meta?.voteAndVoter[0].some(({ voter, voteName }) => {
+        return voter === activity.actor[0] && activity.object[0].name == voteName
       })
       if (hasDuplicateVote) {
         resLocal.status = 403
         next()
       }
     }
-
   }
   tasks.push(apex.embedCollections(activity))
   Promise.all(tasks).then(() => {

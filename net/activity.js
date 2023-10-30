@@ -190,43 +190,43 @@ module.exports = {
         }
         break
       case 'create':
-        let question = resLocal.linked.find(({ type }) => type.toLowerCase() === 'question')
+        const question = resLocal.linked.find(({ type }) => type.toLowerCase() === 'question')
         if (question) {
-            let questionType
-            const targetActivity = object
-            let targetActivityChoice = targetActivity.name[0].toLowerCase()
-            if (Object.hasOwn(question, 'oneOf')) {
-              questionType = 'oneOf'
-            } else if (Object.hasOwn(question, 'anyOf')) {
-              questionType = 'anyOf'
+          let questionType
+          const targetActivity = object
+          const targetActivityChoice = targetActivity.name[0].toLowerCase()
+          if (Object.hasOwn(question, 'oneOf')) {
+            questionType = 'oneOf'
+          } else if (Object.hasOwn(question, 'anyOf')) {
+            questionType = 'anyOf'
+          }
+          const chosenCollection = question[questionType].find(({ name }) => name[0].toLowerCase() === targetActivityChoice)
+          const chosenCollectionId = apex.objectIdFromValue(chosenCollection.replies)
+          toDo.push((async () => {
+            activity = await apex.store.updateActivityMeta(activity, 'collection', chosenCollectionId)
+            const updatedCollection = await apex.getCollection(chosenCollectionId)
+            question[questionType].find(({ replies }) => replies.id === chosenCollectionId).replies = updatedCollection
+            if (question._meta) {
+              question._meta.voteAndVoter[0].push({
+                voter: activity.actor[0],
+                voteName: activity.object[0].name[0]
+              })
+              question.votersCount = [...new Set(question._meta.voteAndVoter[0].map(obj => obj.voter))].length
+            } else {
+              const voteAndVoter = [{
+                voter: activity.actor[0],
+                voteName: activity.object[0].name[0]
+              }]
+              question.votersCount = 1
+              apex.addMeta(question, 'voteAndVoter', voteAndVoter)
             }
-            let chosenCollection = question[questionType].find(({ name }) => name[0].toLowerCase() === targetActivityChoice)
-            const chosenCollectionId = apex.objectIdFromValue(chosenCollection.replies)
-            toDo.push((async () => {
-              activity = await apex.store.updateActivityMeta(activity, 'collection', chosenCollectionId)
-              let updatedCollection = await apex.getCollection(chosenCollectionId)
-              question[questionType].find(({ replies }) => replies.id === chosenCollectionId).replies = updatedCollection
-              if (question._meta) {
-                question._meta.voteAndVoter[0].push({
-                  voter: activity.actor[0],
-                  voteName: activity.object[0].name[0]
-                })
-                question.votersCount = [...new Set(question._meta.voteAndVoter[0].map(obj => obj.voter))].length
-              } else {
-                let voteAndVoter = [{
-                  voter: activity.actor[0],
-                  voteName: activity.object[0].name[0]
-                }]
-                question.votersCount = 1
-                apex.addMeta(question, 'voteAndVoter', voteAndVoter)
-              }
-              let updatedQuestion = await apex.store.updateObject(question, actorId, true)
-              if (updatedQuestion) {
-                resLocal.postWork.push(async () => {
-                  return apex.publishUpdate(recipient, updatedQuestion, actorId)
-                })
-              }
-            })())
+            const updatedQuestion = await apex.store.updateObject(question, actorId, true)
+            if (updatedQuestion) {
+              resLocal.postWork.push(async () => {
+                return apex.publishUpdate(recipient, updatedQuestion, actorId)
+              })
+            }
+          })())
         }
     }
     Promise.all(toDo).then(() => {
