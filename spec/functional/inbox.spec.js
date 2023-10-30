@@ -1511,7 +1511,7 @@ describe('inbox', function () {
     })
   })
 
-  fdescribe('question', function () {
+  describe('question', function () {
     let activity
     let question
     let reply
@@ -1591,7 +1591,7 @@ describe('inbox', function () {
         .send(reply)
         .expect(200)
 
-      storedReply = await apex.store.getActivity(reply.id, true)
+      const storedReply = await apex.store.getActivity(reply.id, true)
       expect(storedReply._meta.collection).toContain('https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19/votes/Yes')
     })
     it('the question replies collection is updated', async function () {

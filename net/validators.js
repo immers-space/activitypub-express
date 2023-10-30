@@ -151,7 +151,7 @@ function inboxActivity (req, res, next) {
       }
     } else if (Object.hasOwn(question, 'anyOf')) {
       const hasDuplicateVote = question._meta?.voteAndVoter[0].some(({ voter, voteName }) => {
-        return voter === activity.actor[0] && activity.object[0].name == voteName
+        return voter === activity.actor[0] && activity.object[0].name === voteName
       })
       if (hasDuplicateVote) {
         resLocal.status = 403

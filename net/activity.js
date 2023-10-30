@@ -81,6 +81,7 @@ module.exports = {
     let activity = req.body
     let object = resLocal.object
     resLocal.status = 200
+    let question
     /* isNewActivity:
       false - this inbox has seen this activity before
       'new collection' - known activity, new inbox
@@ -190,7 +191,7 @@ module.exports = {
         }
         break
       case 'create':
-        const question = resLocal.linked.find(({ type }) => type.toLowerCase() === 'question')
+        question = resLocal.linked.find(({ type }) => type.toLowerCase() === 'question')
         if (question) {
           let questionType
           const targetActivity = object
