@@ -1683,31 +1683,6 @@ describe('inbox', function () {
           .expect(200)
         await requestValidated
       })
-      it('prevents the same user from voting for the same choice twice', async function () {
-        question.anyOf = question.oneOf
-        delete question.oneOf
-        await apex.store.updateObject(question, 'test', true)
-        await request(app)
-          .post('/inbox/test')
-          .set('Content-Type', 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
-          .send(reply)
-          .expect(200)
-        let questionStored = await apex.store.getObject(question.id, true)
-        let yesCollection = questionStored.anyOf.find(({ name }) => name[0].toLowerCase() === 'yes')
-        expect(yesCollection.replies.totalItems[0]).toBe(1)
-        expect(questionStored._meta.votes[0]).toContain(reply.object.id)
-        reply.id = 'https://localhost/s/2131232'
-        reply.object.id = 'https://localhost/o/2131232'
-        await request(app)
-          .post('/inbox/test')
-          .set('Content-Type', 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
-          .send(reply)
-          .expect(200)
-        questionStored = await apex.store.getObject(question.id, true)
-        yesCollection = questionStored.anyOf.find(({ name }) => name[0].toLowerCase() === 'yes')
-        expect(yesCollection.replies.totalItems[0]).toBe(1)
-        expect(questionStored._meta.votes[0]).not.toContain(reply.object.id)
-      })
       describe('validations', function() {
         it('wont allow a vote to a closed poll', async function () {
           let closedDate = new Date()
@@ -1720,7 +1695,38 @@ describe('inbox', function () {
             .send(reply)
             .expect(403)
         })
-        it('oneOf prevents the same user from voting for multiple choices')
+        it('prevents the same user from voting for the same choice twice', async function () {
+          question.anyOf = question.oneOf
+          delete question.oneOf
+          await apex.store.updateObject(question, 'test', true)
+          await request(app)
+            .post('/inbox/test')
+            .set('Content-Type', 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
+            .send(reply)
+            .expect(200)
+          reply.id = 'https://localhost/s/2131232'
+          reply.object.id = 'https://localhost/o/2131232'
+          await request(app)
+            .post('/inbox/test')
+            .set('Content-Type', 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
+            .send(reply)
+            .expect(403)
+        })
+        it('oneOf prevents the same user from voting for multiple choices', async function () {
+          await request(app)
+            .post('/inbox/test')
+            .set('Content-Type', 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
+            .send(reply)
+            .expect(200)
+          reply.id = 'https://localhost/s/2131232'
+          reply.object.id = 'https://localhost/o/2131232'
+          reply.object.name = 'No'
+          await request(app)
+            .post('/inbox/test')
+            .set('Content-Type', 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
+            .send(reply)
+            .expect(403)
+        })
       })
   })
 })

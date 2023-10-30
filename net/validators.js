@@ -150,7 +150,15 @@ function inboxActivity (req, res, next) {
         next()
       }
     } else if (Object.hasOwn(question, 'anyOf')) {
-      // check whats up, need to be able to map a user with their choices
+      if (question._meta) {
+        let hasDuplicateVote = question._meta.voteAndVoter[0].some(({voter, voteName}) => {
+          return voter === activity.actor[0] && activity.object[0].name == voteName;
+        })
+        if (hasDuplicateVote) {
+          resLocal.status = 403
+          next()
+        }
+      }
     }
 
   }
