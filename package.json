@@ -30,6 +30,7 @@
   },
   "homepage": "https://github.com/wmurphyrd/activitypub-express#readme",
   "dependencies": {
+    "@babel/traverse": "^7.23.5",
     "deepmerge": "^4.2.2",
     "express": "^4.18.0",
     "http-signature": "git+https://git@github.com/wmurphyrd/node-http-signature.git#9c02eeb",
