@@ -1,4 +1,4 @@
-/* global describe, beforeAll, beforeEach, it */
+/* global jasmine, describe, beforeAll, beforeEach, afterEach, it, spyOn, expect */
 const request = require('supertest')
 
 describe('nodeinfo', function () {
@@ -39,6 +39,12 @@ describe('nodeinfo', function () {
     })
   })
   describe('document get', function () {
+    beforeEach(function () {
+      jasmine.clock().install()
+    })
+    afterEach(function () {
+      jasmine.clock().uninstall()
+    })
     it('returns nodeinfo document', function (done) {
       request(app)
         .get('/nodeinfo/2.1')
@@ -56,6 +62,21 @@ describe('nodeinfo', function () {
             foo: 'bar'
           }
         }, err => global.failOrDone(err, done))
+    })
+    it('caches response for 1 day', async function () {
+      jasmine.clock().mockDate(new Date())
+      const count = (await apex.generateNodeInfo('2.0')).usage.users.total
+      const user = await apex.createActor('newuser', 'New user')
+      await apex.store.saveObject(user)
+      const querySpy = spyOn(apex.store, 'getUserCount').and.callThrough()
+      expect((await apex.generateNodeInfo('2.0')).usage.users.total).toBe(count)
+      expect(querySpy).toHaveBeenCalledTimes(0)
+      jasmine.clock().mockDate(new Date(Date.now() + 23 * 60 * 60 * 1000))
+      expect((await apex.generateNodeInfo('2.0')).usage.users.total).toBe(count)
+      expect(querySpy).toHaveBeenCalledTimes(0)
+      jasmine.clock().mockDate(new Date(Date.now() + 1 * 60 * 60 * 1000 + 1))
+      expect((await apex.generateNodeInfo('2.0')).usage.users.total).toBe(count + 1)
+      expect(querySpy).toHaveBeenCalledTimes(1)
     })
     it('404s on 1.x nodeinfo requests', function (done) {
       request(app)
