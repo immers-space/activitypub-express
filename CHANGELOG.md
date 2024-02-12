@@ -1,4 +1,4 @@
-## Unreleased
+## v4.4.2 (2024-02-12)
 
 ### Changed
 * Nodeinfo will only count users from database up to once per day, using a cached count for subsequent requests within 24 hours.
