@@ -1,4 +1,10 @@
 ## Unreleased
+
+### Changed
+* Nodeinfo will only count users from database up to once per day, using a cached count for subsequent requests within 24 hours.
+This can help limit query targeting warnings from mongo
+
+### Ops
 * Add [nock fetch work around](https://github.com/nock/nock/issues/2397) to fix tests in node 18.
 * Adjust workflow to run tests using node 18 and 16. Don't run tests against 14.
 
