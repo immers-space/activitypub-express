@@ -81,6 +81,7 @@ module.exports = {
     let activity = req.body
     let object = resLocal.object
     resLocal.status = 200
+    let question
     /* isNewActivity:
       false - this inbox has seen this activity before
       'new collection' - known activity, new inbox
@@ -189,6 +190,45 @@ module.exports = {
           }
         }
         break
+      case 'create':
+        question = resLocal.linked.find(({ type }) => type.toLowerCase() === 'question')
+        if (question) {
+          let questionType
+          const targetActivity = object
+          const targetActivityChoice = targetActivity.name[0].toLowerCase()
+          if (Object.hasOwn(question, 'oneOf')) {
+            questionType = 'oneOf'
+          } else if (Object.hasOwn(question, 'anyOf')) {
+            questionType = 'anyOf'
+          }
+          const chosenCollection = question[questionType].find(({ name }) => name[0].toLowerCase() === targetActivityChoice)
+          const chosenCollectionId = apex.objectIdFromValue(chosenCollection.replies)
+          toDo.push((async () => {
+            activity = await apex.store.updateActivityMeta(activity, 'collection', chosenCollectionId)
+            const updatedCollection = await apex.getCollection(chosenCollectionId)
+            question[questionType].find(({ replies }) => replies.id === chosenCollectionId).replies = updatedCollection
+            if (question._meta) {
+              question._meta.voteAndVoter[0].push({
+                voter: activity.actor[0],
+                voteName: activity.object[0].name[0]
+              })
+              question.votersCount = [...new Set(question._meta.voteAndVoter[0].map(obj => obj.voter))].length
+            } else {
+              const voteAndVoter = [{
+                voter: activity.actor[0],
+                voteName: activity.object[0].name[0]
+              }]
+              question.votersCount = 1
+              apex.addMeta(question, 'voteAndVoter', voteAndVoter)
+            }
+            const updatedQuestion = await apex.store.updateObject(question, actorId, true)
+            if (updatedQuestion) {
+              resLocal.postWork.push(async () => {
+                return apex.publishUpdate(recipient, updatedQuestion, actorId)
+              })
+            }
+          })())
+        }
     }
     Promise.all(toDo).then(() => {
       // configure event hook to be triggered after response sent
@@ -306,9 +346,6 @@ module.exports = {
   resolveThread (req, res, next) {
     const apex = req.app.locals.apex
     const resLocal = res.locals.apex
-    if (!resLocal.activity) {
-      return next()
-    }
     apex.resolveReferences(req.body).then(refs => {
       resLocal.linked = refs
       next()

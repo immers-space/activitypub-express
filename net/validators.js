@@ -136,6 +136,29 @@ function inboxActivity (req, res, next) {
       return next()
     }
   }
+  const question = resLocal.linked.find(({ type }) => type.toLowerCase() === 'question')
+  if (question) {
+    const now = new Date()
+    const pollEndTime = new Date(question.endTime)
+    if (now > pollEndTime) {
+      resLocal.status = 403
+      next()
+    }
+    if (Object.hasOwn(question, 'oneOf')) {
+      if (question._meta?.voteAndVoter[0].map(obj => obj.voter).includes(activity.actor[0])) {
+        resLocal.status = 403
+        next()
+      }
+    } else if (Object.hasOwn(question, 'anyOf')) {
+      const hasDuplicateVote = question._meta?.voteAndVoter[0].some(({ voter, voteName }) => {
+        return voter === activity.actor[0] && activity.object[0].name[0] === voteName
+      })
+      if (hasDuplicateVote) {
+        resLocal.status = 403
+        next()
+      }
+    }
+  }
   tasks.push(apex.embedCollections(activity))
   Promise.all(tasks).then(() => {
     apex.addMeta(req.body, 'collection', recipient.inbox[0])

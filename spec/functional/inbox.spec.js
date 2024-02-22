@@ -1510,4 +1510,223 @@ describe('inbox', function () {
         .expect(400)
     })
   })
+
+  describe('question', function () {
+    let activity
+    let question
+    let reply
+    beforeEach(async function () {
+      question = {
+        type: 'Question',
+        id: 'https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19',
+        attributedTo: ['https://localhost/u/test'],
+        to: ['https://localhost/u/test'],
+        audience: ['as:Public'],
+        content: ['Say, did you finish reading that book I lent you?'],
+        votersCount: [0],
+        oneOf: [
+          {
+            type: 'Note',
+            name: ['Yes'],
+            replies: {
+              type: 'Collection',
+              id: 'https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19/votes/Yes',
+              totalItems: [0]
+            }
+          },
+          {
+            type: 'Note',
+            name: ['No'],
+            replies: {
+              type: 'Collection',
+              id: 'https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19/votes/No',
+              totalItems: [0]
+            }
+          }
+        ]
+      }
+      activity = {
+        '@context': ['https://www.w3.org/ns/activitystreams'],
+        type: 'Create',
+        id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3',
+        to: ['https://localhost/u/test'],
+        audience: ['as:Public'],
+        actor: ['https://localhost/u/test'],
+        object: [question],
+        shares: [{
+          id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3/shares',
+          type: 'OrderedCollection',
+          totalItems: [0],
+          first: ['https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3/shares?page=true']
+        }],
+        likes: [{
+          id: 'https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3/likes',
+          type: 'OrderedCollection',
+          totalItems: [0],
+          first: ['https://localhost/s/a29a6843-9feb-4c74-a7f7-081b9c9201d3/likes?page=true']
+        }]
+      }
+      reply = {
+        '@context': 'https://www.w3.org/ns/activitystreams',
+        id: 'https://localhost/s/2131231',
+        to: 'https://localhost/u/test',
+        actor: 'https://localhost/u/test',
+        type: 'Create',
+        object: {
+          id: 'https://localhost/o/2131231',
+          type: 'Note',
+          name: 'Yes',
+          attributedTo: 'https://localhost/u/test',
+          to: 'https://localhost/u/test',
+          inReplyTo: 'https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19'
+        }
+      }
+      await apex.store.saveActivity(activity)
+      await apex.store.saveObject(question)
+    })
+    it('tracks replies in a collection', async function () {
+      await request(app)
+        .post('/inbox/test')
+        .set('Content-Type', 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
+        .send(reply)
+        .expect(200)
+
+      const storedReply = await apex.store.getActivity(reply.id, true)
+      expect(storedReply._meta.collection).toContain('https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19/votes/Yes')
+    })
+    it('the question replies collection is updated', async function () {
+      await request(app)
+        .post('/inbox/test')
+        .set('Content-Type', 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
+        .send(reply)
+        .expect(200)
+
+      const questionStored = await apex.store.getObject(question.id, true)
+      const chosenCollection = questionStored.oneOf.find(({ name }) => name[0].toLowerCase() === 'yes')
+      expect(chosenCollection.replies.totalItems[0]).toBe(1)
+    })
+    it('keeps a voterCount tally', async function () {
+      await request(app)
+        .post('/inbox/test')
+        .set('Content-Type', 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
+        .send(reply)
+        .expect(200)
+      let questionStored = await apex.store.getObject(question.id, true)
+      expect(questionStored.votersCount).toEqual(1)
+      const anotherVoter = await apex.createActor('voter', 'voter', 'voting user')
+      await apex.store.saveObject(anotherVoter)
+      const anotherReply = {
+        '@context': 'https://www.w3.org/ns/activitystreams',
+        id: 'https://localhost/s/2131232',
+        to: 'https://localhost/u/test',
+        actor: 'https://localhost/u/voter',
+        type: 'Create',
+        object: {
+          id: 'https://localhost/o/2131232',
+          type: 'Note',
+          name: 'Yes',
+          attributedTo: 'https://localhost/u/voter',
+          to: 'https://localhost/u/test',
+          inReplyTo: 'https://localhost/o/49e2d03d-b53a-4c4c-a95c-94a6abf45a19'
+        }
+      }
+      await request(app)
+        .post('/inbox/test')
+        .set('Content-Type', 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
+        .send(anotherReply)
+        .expect(200)
+      questionStored = await apex.store.getObject(question.id, true)
+      expect(questionStored.votersCount).toEqual(2)
+    })
+    it('anyOf property allows a user to vote for multiple choices', async function () {
+      question.anyOf = question.oneOf
+      delete question.oneOf
+      await apex.store.updateObject(question, 'test', true)
+      await request(app)
+        .post('/inbox/test')
+        .set('Content-Type', 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
+        .send(reply)
+        .expect(200)
+      reply.id = 'https://localhost/s/2131232'
+      reply.object.id = 'https://localhost/o/2131232'
+      reply.object.name = 'No'
+      await request(app)
+        .post('/inbox/test')
+        .set('Content-Type', 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
+        .send(reply)
+        .expect(200)
+      let questionStored = await apex.store.getObject(question.id, true)
+      const yesCollection = questionStored.anyOf.find(({ name }) => name[0].toLowerCase() === 'yes')
+      expect(yesCollection.replies.totalItems[0]).toBe(1)
+      const noCollection = questionStored.anyOf.find(({ name }) => name[0].toLowerCase() === 'no')
+      expect(noCollection.replies.totalItems[0]).toBe(1)
+      questionStored = await apex.store.getObject(question.id, true)
+      expect(questionStored.votersCount).toEqual(1)
+    })
+    it('publishes the results', async function () {
+      const addrSpy = spyOn(apex, 'address').and.callFake(async () => ['https://ignore.com/inbox/ignored'])
+      const requestValidated = new Promise(resolve => {
+        nock('https://mocked.com').post('/inbox/mocked')
+          .reply(200)
+          .on('request', async (req, interceptor, body) => {
+            const sentActivity = JSON.parse(body)
+            expect(sentActivity.object.votersCount).toEqual(1)
+            expect(sentActivity.object.oneOf.find(({ name }) => name.toLowerCase() === 'yes').replies.totalItems).toEqual(1)
+            resolve()
+          })
+      })
+      addrSpy.and.callFake(async () => ['https://mocked.com/inbox/mocked'])
+      await request(app)
+        .post('/inbox/test')
+        .set('Content-Type', 'application/activity+json')
+        .send(reply)
+        .expect(200)
+      await requestValidated
+    })
+    describe('validations', function () {
+      it('wont allow a vote to a closed poll', async function () {
+        const closedDate = new Date()
+        closedDate.setDate(closedDate.getDate() - 1)
+        question.endTime = closedDate
+        await apex.store.updateObject(question, 'test', true)
+        await request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
+          .send(reply)
+          .expect(403)
+      })
+      it('prevents the same user from voting for the same choice twice', async function () {
+        question.anyOf = question.oneOf
+        delete question.oneOf
+        await apex.store.updateObject(question, 'test', true)
+        await request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
+          .send(reply)
+          .expect(200)
+        reply.id = 'https://localhost/s/2131232'
+        reply.object.id = 'https://localhost/o/2131232'
+        await request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
+          .send(reply)
+          .expect(403)
+      })
+      it('oneOf prevents the same user from voting for multiple choices', async function () {
+        await request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
+          .send(reply)
+          .expect(200)
+        reply.id = 'https://localhost/s/2131232'
+        reply.object.id = 'https://localhost/o/2131232'
+        reply.object.name = 'No'
+        await request(app)
+          .post('/inbox/test')
+          .set('Content-Type', 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
+          .send(reply)
+          .expect(403)
+      })
+    })
+  })
 })
